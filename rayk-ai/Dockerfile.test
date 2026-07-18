@@ -1,0 +1,13 @@
+ARG RUNTIME_IMAGE=rayk-a1-ai:dev
+FROM ${RUNTIME_IMAGE}
+
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+
+USER root
+COPY requirements-dev.txt ./requirements-dev.txt
+RUN pip install --no-cache-dir --index-url "$PIP_INDEX_URL" -r requirements-dev.txt
+COPY pyproject.toml ./pyproject.toml
+COPY tests ./tests
+USER rayk
+
+CMD ["pytest", "-q"]

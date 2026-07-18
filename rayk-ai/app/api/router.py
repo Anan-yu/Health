@@ -1,0 +1,56 @@
+import time
+
+from fastapi import APIRouter
+
+from app.core.constants import DISCLAIMER
+from app.core.request_context import get_request_id
+from app.normalization.service import IndicatorNormalizationService
+from app.ocr.service import MockOcrService
+from app.report.service import DemoReportService
+from app.schemas.assessment import AssessmentData, AssessmentRequest
+from app.schemas.common import ApiResponse
+from app.schemas.indicator import NormalizationData, NormalizationRequest
+from app.schemas.ocr import OcrRecognizeData, OcrRecognizeRequest
+from app.schemas.report import ReportGenerateData, ReportGenerateRequest
+from app.scoring.engine import DemoRuleEngine
+
+router = APIRouter(prefix="/api/v1")
+ocr_service = MockOcrService()
+normalization_service = IndicatorNormalizationService()
+rule_engine = DemoRuleEngine()
+report_service = DemoReportService()
+
+
+def ok(data: object) -> ApiResponse[object]:
+    return ApiResponse(requestId=get_request_id(), timestamp=int(time.time() * 1000), data=data)
+
+
+@router.post("/ocr/recognize", response_model=ApiResponse[OcrRecognizeData])
+def recognize(request: OcrRecognizeRequest) -> ApiResponse[object]:
+    return ok(ocr_service.recognize(request))
+
+
+@router.post("/indicators/normalize", response_model=ApiResponse[NormalizationData])
+def normalize(request: NormalizationRequest) -> ApiResponse[object]:
+    data = NormalizationData(
+        indicators=[normalization_service.normalize(item) for item in request.indicators]
+    )
+    return ok(data)
+
+
+@router.post("/assessments/evaluate", response_model=ApiResponse[AssessmentData])
+def evaluate(request: AssessmentRequest) -> ApiResponse[object]:
+    data = AssessmentData(
+        taskId=request.task_id,
+        modelVersion="DEMO_1.0.0",
+        status="SUCCESS",
+        disclaimer=DISCLAIMER,
+        results=rule_engine.evaluate(request),
+    )
+    return ok(data)
+
+
+@router.post("/reports/generate", response_model=ApiResponse[ReportGenerateData])
+def generate_report(request: ReportGenerateRequest) -> ApiResponse[object]:
+    return ok(report_service.generate(request))
+

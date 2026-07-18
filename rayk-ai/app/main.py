@@ -1,0 +1,63 @@
+import logging
+import time
+
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+from app.api.router import router
+from app.core.middleware import RequestIdMiddleware
+from app.core.request_context import get_request_id
+from app.schemas.common import ApiResponse, HealthData
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+
+app = FastAPI(
+    title="RayK A1 AI Service",
+    version="0.1.0",
+    description="模拟OCR、指标标准化与演示健康评估服务，不构成医学诊断。",
+)
+app.add_middleware(RequestIdMiddleware)
+app.include_router(router)
+
+
+@app.get("/health", response_model=ApiResponse[HealthData])
+def health() -> ApiResponse[HealthData]:
+    return ApiResponse(
+        requestId=get_request_id(),
+        timestamp=int(time.time() * 1000),
+        data=HealthData(status="UP", service="rayk-ai", version="0.1.0"),
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": 40001,
+            "message": "请求参数校验失败",
+            "requestId": get_request_id(),
+            "timestamp": int(time.time() * 1000),
+            "data": {"errors": exc.errors(include_url=False, include_input=False)},
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_error(_: Request, __: Exception) -> JSONResponse:
+    logging.getLogger("rayk.ai.error").exception("unhandled AI service error")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": 50000,
+            "message": "AI服务内部错误",
+            "requestId": get_request_id(),
+            "timestamp": int(time.time() * 1000),
+            "data": None,
+        },
+    )
+
