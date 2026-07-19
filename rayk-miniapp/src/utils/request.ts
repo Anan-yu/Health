@@ -9,16 +9,24 @@ export class ApiError extends Error {
   }
 }
 
-export function request<T>(options: UniApp.RequestOptions): Promise<T> {
+export const getApiBaseUrl = () => import.meta.env.VITE_API_BASE_URL || ''
+
+export function getRequestHeaders() {
   const token = uni.getStorageSync('rayk_access_token') as string
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    'X-Request-Id': `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  }
+}
+
+export function request<T>(options: UniApp.RequestOptions): Promise<T> {
   return new Promise((resolve, reject) => {
     uni.request({
       ...options,
-      url: `${import.meta.env.VITE_API_BASE_URL || ''}${options.url}`,
+      url: `${getApiBaseUrl()}${options.url}`,
       header: {
         ...options.header,
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        'X-Request-Id': `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        ...getRequestHeaders(),
       },
       success: (response) => {
         const body = response.data as ApiResponse<T>

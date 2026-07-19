@@ -111,8 +111,14 @@ public class MockUserCatalog {
         return accounts.get(username);
     }
 
+    public MockAccount findByUserId(long userId) {
+        return accounts.values().stream()
+                .filter(account -> account.userId() == userId)
+                .findFirst()
+                .orElse(null);
+    }
+
     public List<MockAccount> all() {
         return List.copyOf(accounts.values());
     }
 }
-

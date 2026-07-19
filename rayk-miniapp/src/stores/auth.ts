@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import type { AuthData, Role } from '@/types/api'
-import { mockLogin, logout } from '@/api/auth'
+import { mockLogin, logout, weChatLogin } from '@/api/auth'
 import { switchWorkbench } from '@/api/workbench'
 
 export const useAuthStore = defineStore('auth', {
@@ -14,6 +14,13 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async login(username: string, password: string) {
       const data = await mockLogin(username, password)
+      this.saveSession(data)
+    },
+    async loginWithWeChat(code: string) {
+      const data = await weChatLogin(code)
+      this.saveSession(data)
+    },
+    saveSession(data: AuthData) {
       this.user = data
       this.currentWorkbench = data.defaultWorkbench
       uni.setStorageSync('rayk_access_token', data.accessToken)

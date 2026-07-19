@@ -40,6 +40,7 @@ public class SecurityConfig {
                         auth ->
                                 auth.requestMatchers(
                                                 "/api/v1/auth/mock-login",
+                                                "/api/v1/auth/wechat-login",
                                                 "/actuator/health/**",
                                                 "/v3/api-docs/**",
                                                 "/swagger-ui/**",
@@ -86,4 +87,3 @@ public class SecurityConfig {
         return source;
     }
 }
-

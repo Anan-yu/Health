@@ -29,10 +29,10 @@ public class MybatisPlusConfig {
                             public boolean ignoreTable(String tableName) {
                                 return tableName.equals("sys_tenant")
                                         || tableName.equals("sys_role")
-                                        || tableName.equals("sys_permission");
+                                        || tableName.equals("sys_permission")
+                                        || tableName.equals("wx_user_binding");
                             }
                         }));
         return interceptor;
     }
 }
-

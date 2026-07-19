@@ -35,6 +35,10 @@ public class AuthService {
         if (account == null || !passwordEncoder.matches(request.password(), account.passwordHash())) {
             throw new BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS);
         }
+        return issue(account);
+    }
+
+    public AuthData issue(MockAccount account) {
         JwtService.IssuedToken issued =
                 jwtService.issue(
                         account.username(),
@@ -101,4 +105,3 @@ public class AuthService {
         return SESSION_PREFIX + jti;
     }
 }
-

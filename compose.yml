@@ -89,6 +89,9 @@ services:
     build:
       context: .
       dockerfile: rayk-server/Dockerfile
+      args:
+        MAVEN_IMAGE: ${MAVEN_IMAGE:-docker.m.daocloud.io/library/maven:3.9.9-eclipse-temurin-21}
+        JAVA_RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-docker.m.daocloud.io/library/eclipse-temurin:21-jre-alpine}
     image: rayk-a1-server:dev
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
@@ -104,9 +107,18 @@ services:
       JWT_EXPIRE_SECONDS: ${JWT_EXPIRE_SECONDS:-7200}
       RAYK_AI_BASE_URL: ${RAYK_AI_BASE_URL:-http://rayk-ai:8000}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://127.0.0.1:9000}
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-rayk_minio}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-rayk_minio_dev_password}
       MINIO_BUCKET_REPORTS: ${MINIO_BUCKET_REPORTS:-rayk-reports}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      MINIO_PRESIGN_EXPIRY_SECONDS: ${MINIO_PRESIGN_EXPIRY_SECONDS:-600}
+      WECHAT_APP_ID: ${WECHAT_APP_ID:-}
+      WECHAT_APP_SECRET: ${WECHAT_APP_SECRET:-}
+      WECHAT_CODE2SESSION_URL: ${WECHAT_CODE2SESSION_URL:-https://api.weixin.qq.com/sns/jscode2session}
+      WECHAT_MOCK_ENABLED: ${WECHAT_MOCK_ENABLED:-false}
+      WECHAT_MOCK_OPENID: ${WECHAT_MOCK_OPENID:-rayk-dev-openid}
+      WECHAT_AUTO_BIND_USERNAME: ${WECHAT_AUTO_BIND_USERNAME:-}
       TZ: Asia/Shanghai
     depends_on:
       mysql:

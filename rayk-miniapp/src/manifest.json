@@ -6,6 +6,8 @@
   "versionCode": "100",
   "transformPx": false,
   "h5": { "router": { "mode": "hash" }, "title": "RayK A1" },
-  "mp-weixin": { "appid": "touristappid", "setting": { "urlCheck": false, "es6": true, "minified": true } }
+  "mp-weixin": {
+    "appid": "touristappid",
+    "setting": { "urlCheck": false, "es6": true, "minified": true }
+  }
 }
-

@@ -13,6 +13,10 @@ services:
     ports:
       - "${AI_PORT:-8000}:8000"
   rayk-server:
+    environment:
+      WECHAT_MOCK_ENABLED: ${WECHAT_MOCK_ENABLED:-true}
+      WECHAT_MOCK_OPENID: ${WECHAT_MOCK_OPENID:-rayk-dev-openid}
+      WECHAT_AUTO_BIND_USERNAME: ${WECHAT_AUTO_BIND_USERNAME:-customer}
     ports:
       - "${JAVA_PORT:-8080}:8080"
   nginx:

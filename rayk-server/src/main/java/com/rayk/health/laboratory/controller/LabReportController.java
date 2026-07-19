@@ -4,15 +4,16 @@ import com.rayk.health.assessment.application.WorkflowApplicationService;
 import com.rayk.health.assessment.vo.AssessmentVo;
 import com.rayk.health.common.api.ApiResponse;
 import com.rayk.health.common.api.PageResponse;
-import com.rayk.health.common.exception.BusinessException;
-import com.rayk.health.common.exception.ErrorCode;
+import com.rayk.health.laboratory.application.LabReportFileService;
 import com.rayk.health.laboratory.dto.ConfirmIndicatorsRequest;
 import com.rayk.health.laboratory.dto.CreateLabReportRequest;
 import com.rayk.health.laboratory.vo.LabReportVo;
+import com.rayk.health.laboratory.vo.LabReportFileVo;
+import com.rayk.health.laboratory.vo.LabReportUploadVo;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
-import java.util.Locale;
-import java.util.Set;
+import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,13 +28,13 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/v1/lab-reports")
 public class LabReportController {
-    private static final Set<String> ALLOWED_MIME =
-            Set.of("application/pdf", "image/jpeg", "image/png");
-    private static final long MAX_BYTES = 20L * 1024 * 1024;
     private final WorkflowApplicationService service;
+    private final LabReportFileService fileService;
 
-    public LabReportController(WorkflowApplicationService service) {
+    public LabReportController(
+            WorkflowApplicationService service, LabReportFileService fileService) {
         this.service = service;
+        this.fileService = fileService;
     }
 
     @PostMapping
@@ -42,13 +43,14 @@ public class LabReportController {
     }
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
-    public ApiResponse<LabReportVo> simulatedUpload(
-            @RequestParam long patientId, @RequestPart MultipartFile file) {
-        validateFile(file);
-        CreateLabReportRequest request =
-                new CreateLabReportRequest(
-                        patientId, file.getOriginalFilename(), LocalDate.now(), "SIMULATED_UPLOAD");
-        return ApiResponse.success(service.createLabReport(request));
+    public ApiResponse<LabReportUploadVo> upload(
+            @RequestParam long patientId,
+            @RequestParam(required = false) String reportName,
+            @RequestParam(required = false)
+                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate reportDate,
+            @RequestPart MultipartFile file) {
+        return ApiResponse.success(fileService.upload(patientId, reportName, reportDate, file));
     }
 
     @GetMapping
@@ -77,18 +79,14 @@ public class LabReportController {
         return ApiResponse.success(service.submitAi(id));
     }
 
-    private void validateFile(MultipartFile file) {
-        String contentType = file.getContentType();
-        String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
-        String lower = name.toLowerCase(Locale.ROOT);
-        boolean allowedExtension =
-                lower.endsWith(".pdf") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png");
-        if (file.isEmpty()
-                || file.getSize() > MAX_BYTES
-                || !ALLOWED_MIME.contains(contentType)
-                || !allowedExtension) {
-            throw new BusinessException(ErrorCode.SYSTEM_VALIDATION_ERROR);
-        }
+    @GetMapping("/{id}/files")
+    public ApiResponse<List<LabReportFileVo>> files(@PathVariable long id) {
+        return ApiResponse.success(fileService.list(id));
+    }
+
+    @PostMapping("/{id}/files/{fileId}/download-url")
+    public ApiResponse<LabReportFileVo> downloadUrl(
+            @PathVariable long id, @PathVariable long fileId) {
+        return ApiResponse.success(fileService.createDownloadUrl(id, fileId));
     }
 }
-

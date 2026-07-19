@@ -10,5 +10,4 @@ npm run build:h5
 npm run build:mp-weixin
 ```
 
-微信开发者工具导入 `dist/build/mp-weixin`。当前使用 `touristappid`，接入真实微信登录前替换为正式 AppID。
-
+微信开发者工具导入 `dist/build/mp-weixin`。登录页已接入 `uni.login`，报告页已接入真实 PDF/JPG/PNG 文件选择与上传进度。当前使用 `touristappid` 进行本机开发；发布前替换正式 AppID，并配置 API 和对象存储 HTTPS 合法域名。

@@ -83,7 +83,7 @@ E:\health                               项目源码
 
 项目不会修改 Docker Desktop 全局设置。**不要手动移动 Docker WSL 文件，不要执行 `wsl --export/import` 来迁移本项目。** MySQL 使用 Docker 命名卷，未把 `/var/lib/mysql` 直接绑定到 Windows NTFS。
 
-为改善国内网络下载速度，项目内 Maven 使用阿里云公共仓库、pip 使用清华 PyPI、npm 使用 npmmirror；这些配置不影响宿主机全局设置。基础容器镜像仍默认使用官方名称，可在 `.env` 通过 `MYSQL_IMAGE`、`REDIS_IMAGE`、`MINIO_IMAGE`、`MINIO_MC_IMAGE`、`NGINX_IMAGE` 指向你信任的国内镜像代理。
+为改善国内网络下载速度，项目内 Maven 使用阿里云公共仓库、pip 使用清华 PyPI、npm 使用 npmmirror；Java 构建和运行基础镜像默认经过 DaoCloud 镜像代理。所有镜像地址都可在 `.env` 中替换，不影响宿主机全局设置。
 
 ## 环境变量
 
@@ -94,6 +94,8 @@ Copy-Item .env.example .env
 ```
 
 至少更换 MySQL、Redis、MinIO 密码与长度不少于 32 字节的 `JWT_SECRET`。`.env` 已被 Git 忽略，不应提交生产密钥。Compose 内的默认值只用于本机框架演示。
+
+微信开发联调默认启用固定 openid 并自动绑定 `customer` 测试用户。生产覆盖文件会强制关闭模拟模式；正式部署需在本地 `.env` 配置 `WECHAT_APP_ID`、`WECHAT_APP_SECRET`，并把 `MINIO_PUBLIC_ENDPOINT` 设置为客户端可访问的 HTTPS 对象存储域名。后端只使用微信 `code2Session` 返回的身份，不保存 `session_key`。
 
 ## 启动
 
@@ -167,12 +169,12 @@ npm run build:h5
 npm run build:mp-weixin
 ```
 
-微信开发者工具导入 `rayk-miniapp\dist\build\mp-weixin`。当前 `manifest.json` 使用游客 AppID 供框架构建；真实发布前替换正式 AppID，配置合法域名并接入微信登录。开发 H5 通过 Vite 代理访问 Nginx。
+微信开发者工具导入 `rayk-miniapp\dist\build\mp-weixin`。当前 `manifest.json` 使用游客 AppID 供框架构建；开发工具内可直接验证微信一键登录。正式发布前替换正式 AppID，并在微信公众平台配置 API 与 MinIO 下载的 HTTPS 合法域名。开发 H5 通过 Vite 代理访问 Nginx，保留调试身份登录。
 
 ## 最小业务闭环
 
-1. 使用任一模拟身份登录并进入对应工作台。
-2. 健康管理师创建/查看客户和检验报告。
+1. 在微信开发者工具中一键登录，或使用开发调试身份进入对应工作台。
+2. 客户或健康管理师选择真实 PDF/JPG/PNG 报告上传；Java 校验文件、写入 MinIO 私有 Bucket，并在 MySQL 保存大小、MIME 与 SHA-256 元数据。
 3. 录入 Mock OCR 指标并人工确认。
 4. Java 建立 AI 任务并通过 HTTP 调用 Python DemoRuleEngine。
 5. Python 返回带免责声明的结构化结果，Java 保存快照并创建待审核任务。
@@ -217,9 +219,11 @@ Java 单元测试在 Docker 多阶段构建的 Maven `package` 中执行。Pytho
 - **小程序 401/403：** 401 会回登录页，403 会进入无权限页；切换工作台后重新加载首页和菜单。
 - **Docker 数据仍在 C 盘：** 只在 Docker Desktop 设置中检查磁盘镜像位置，勿手动移动 WSL 数据文件。
 - **MinIO Bucket：** `minio-init` 会创建私有 `rayk-reports`，不会设为公开访问。
+- **微信一键登录提示未绑定：** 开发环境检查 `WECHAT_MOCK_ENABLED` 和 `WECHAT_AUTO_BIND_USERNAME`；生产环境需先通过已登录账号调用绑定接口建立 openid 关系。
+- **上传失败：** 仅支持内容与扩展名一致的 PDF/JPG/PNG，最大 20MB；同时检查 Nginx、Java 和 MinIO 健康状态。
 
 ## 文档与下一阶段
 
-详细设计见 [docs](./docs)。下一阶段包括真实微信登录、真实 MinIO 上传与预签名 URL、PaddleOCR、正式健康评估规则、PDF 报告、订阅消息、会员、支付、商城和机构分润。
+详细设计见 [docs](./docs)。微信 `code2Session` 身份绑定、JWT 登录、真实 MinIO 上传与短时预签名下载已经完成。下一阶段包括 PaddleOCR、报告指标抽取队列、正式健康评估规则、PDF 报告、订阅消息、会员、支付、商城和机构分润。
 
 在引入任何真实医学规则或健康数据前，应补齐隐私授权、数据加密、保留策略、审计、规则验证、人工复核和适用地区合规评估。

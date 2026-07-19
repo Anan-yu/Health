@@ -17,12 +17,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException exception) {
         ErrorCode error = exception.getErrorCode();
-        HttpStatus status =
-                error == ErrorCode.AUTH_UNAUTHORIZED
-                        ? HttpStatus.UNAUTHORIZED
-                        : error == ErrorCode.AUTH_FORBIDDEN
-                                ? HttpStatus.FORBIDDEN
-                                : HttpStatus.BAD_REQUEST;
+        HttpStatus status = switch (error) {
+            case AUTH_UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+            case AUTH_FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case FILE_STORAGE_UNAVAILABLE, AI_SERVICE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+            default -> HttpStatus.BAD_REQUEST;
+        };
         return ResponseEntity.status(status).body(ApiResponse.error(error.code(), error.message()));
     }
 
@@ -42,4 +42,3 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ErrorCode.SYSTEM_ERROR.code(), ErrorCode.SYSTEM_ERROR.message()));
     }
 }
-

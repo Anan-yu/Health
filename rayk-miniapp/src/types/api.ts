@@ -34,6 +34,14 @@ export interface AuthData {
   defaultWorkbench: Role
 }
 
+export interface WeChatBinding {
+  userId: string
+  appId: string
+  openidMasked: string
+  status: string
+  boundAt: string
+}
+
 export interface HomeMetric {
   code: string
   label: string
@@ -80,6 +88,24 @@ export interface LabReport {
   sourceType: string
   indicators: Indicator[]
   createdAt: string
+}
+
+export interface LabReportFile {
+  id: string
+  reportId: string
+  originalName: string
+  mimeType: string
+  fileSize: number
+  sha256: string
+  status: string
+  downloadUrl?: string
+  downloadUrlExpiresAt?: string
+  createdAt: string
+}
+
+export interface LabReportUpload {
+  report: LabReport
+  file: LabReportFile
 }
 
 export interface Assessment {
