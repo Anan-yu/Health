@@ -11,8 +11,10 @@ const labels: Record<string, string> = {
   NORMAL: '正常',
   INACTIVE: '已停用',
   UPLOADED: '已上传',
+  OCR_PENDING: '排队中',
   STORED: '已存储',
   OCR_PROCESSING: '识别中',
+  OCR_FAILED: '识别失败',
   WAITING_CONFIRMATION: '待确认',
   CONFIRMED: '已确认',
   PUBLISHED: '已发布',
@@ -21,7 +23,8 @@ const labels: Record<string, string> = {
   APPROVED: '已通过',
   FAILED: '失败',
   REJECTED: '已退回',
-  HIGH: '高风险',
+  HIGH: '偏高',
+  LOW: '偏低',
   ATTENTION: '需关注',
   REVIEWING: '审核中',
   WAITING_REVIEW: '待审核',
@@ -62,8 +65,10 @@ const label = computed(() => labels[props.status] || props.status)
   color: #14744c;
 }
 .failed,
+.ocr_failed,
 .rejected,
-.high {
+.high,
+.low {
   background: #ffebeb;
   color: #b42318;
 }
@@ -76,6 +81,7 @@ const label = computed(() => labels[props.status] || props.status)
   color: #8c5d08;
 }
 .uploaded,
+.ocr_pending,
 .ocr_processing {
   background: #eaf1ff;
   color: #416ba8;

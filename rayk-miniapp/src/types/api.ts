@@ -106,6 +106,24 @@ export interface LabReportFile {
 export interface LabReportUpload {
   report: LabReport
   file: LabReportFile
+  ocrTask: OcrTask
+}
+
+export interface OcrTask {
+  id: string
+  reportId: string
+  fileId?: string
+  taskCode: string
+  status: string
+  engine?: string
+  confidence?: number
+  attemptCount: number
+  indicatorCount: number
+  warnings: string[]
+  errorMessage?: string
+  startedAt?: string
+  finishedAt?: string
+  createdAt: string
 }
 
 export interface Assessment {

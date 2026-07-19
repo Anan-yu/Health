@@ -46,5 +46,32 @@ public class AiServiceClient {
             log.info("AI evaluate call elapsedMs={}", (System.nanoTime() - started) / 1_000_000);
         }
     }
-}
 
+    public AiDtos.OcrRecognizeData recognize(AiDtos.OcrRecognizeRequest request) {
+        long started = System.nanoTime();
+        try {
+            AiDtos.ApiEnvelope<AiDtos.OcrRecognizeData> response =
+                    webClient
+                            .post()
+                            .uri("/api/v1/ocr/recognize")
+                            .header("X-Request-Id", MDC.get("requestId"))
+                            .bodyValue(request)
+                            .retrieve()
+                            .bodyToMono(
+                                    new ParameterizedTypeReference<
+                                            AiDtos.ApiEnvelope<AiDtos.OcrRecognizeData>>() {})
+                            .block(Duration.ofSeconds(125));
+            if (response == null || response.code() != 0 || response.data() == null) {
+                throw new BusinessException(ErrorCode.OCR_SERVICE_UNAVAILABLE);
+            }
+            return response.data();
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            log.warn("OCR service call failed: {}", exception.getClass().getSimpleName());
+            throw new BusinessException(ErrorCode.OCR_SERVICE_UNAVAILABLE);
+        } finally {
+            log.info("OCR recognize call elapsedMs={}", (System.nanoTime() - started) / 1_000_000);
+        }
+    }
+}

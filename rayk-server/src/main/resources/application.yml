@@ -71,7 +71,7 @@ rayk:
   ai:
     base-url: ${RAYK_AI_BASE_URL:http://localhost:8000}
     connect-timeout-seconds: 5
-    read-timeout-seconds: 30
+    read-timeout-seconds: ${RAYK_AI_READ_TIMEOUT_SECONDS:180}
   minio:
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
     public-endpoint: ${MINIO_PUBLIC_ENDPOINT:http://127.0.0.1:9000}

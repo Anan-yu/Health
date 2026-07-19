@@ -8,6 +8,13 @@ public final class AiDtos {
 
     public record EvaluateRequest(String taskId, String patientId, List<Indicator> indicators) {}
 
+    public record OcrRecognizeRequest(
+            String taskId,
+            String fileId,
+            String objectName,
+            String mimeType,
+            String downloadUrl) {}
+
     public record Indicator(
             String code,
             String name,
@@ -15,6 +22,14 @@ public final class AiDtos {
             String unit,
             BigDecimal referenceLow,
             BigDecimal referenceHigh) {}
+
+    public record OcrRecognizeData(
+            String engine,
+            String status,
+            BigDecimal confidence,
+            List<Indicator> indicators,
+            List<String> rawLines,
+            List<String> warnings) {}
 
     public record ApiEnvelope<T>(int code, String message, String requestId, long timestamp, T data) {}
 
@@ -34,4 +49,3 @@ public final class AiDtos {
             List<String> missingIndicators,
             List<String> recommendations) {}
 }
-

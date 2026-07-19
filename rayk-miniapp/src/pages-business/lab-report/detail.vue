@@ -11,18 +11,14 @@
         ><view
           ><text class="metric">{{ indicator.value }}</text> {{ indicator.unit }}</view
         ></view
-      ><button
-        v-if="item?.status === 'UPLOADED' || item?.status === 'WAITING_CONFIRMATION'"
-        class="primary"
-        @click="correct"
-      >
+      ><button v-if="canCorrect" class="primary" @click="correct">
         进入OCR指标校对
       </button></PageState
     ></view
   >
 </template>
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getLabReport } from '@/api/lab-report'
 import type { LabReport } from '@/types/api'
@@ -39,5 +35,10 @@ onLoad(async (q) => {
     loading.value = false
   }
 })
+const canCorrect = computed(() =>
+  ['UPLOADED', 'OCR_PENDING', 'OCR_PROCESSING', 'OCR_FAILED', 'WAITING_CONFIRMATION'].includes(
+    item.value?.status || '',
+  ),
+)
 const correct = () => uni.navigateTo({ url: `/pages-business/indicator/index?id=${id.value}` })
 </script>

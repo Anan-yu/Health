@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import lombok.Data;
 
 @Data
@@ -19,6 +20,10 @@ public class AiTaskEntity {
     private String taskCode;
     private String taskType;
     private String status;
+    private String engineVersion;
+    private BigDecimal confidence;
+    private String resultSnapshot;
+    private Integer attemptCount;
     private String errorMessage;
     private LocalDateTime startedAt;
     private LocalDateTime finishedAt;
@@ -30,4 +35,3 @@ public class AiTaskEntity {
     @TableLogic private Integer deleted;
     private Integer version;
 }
-

@@ -5,11 +5,13 @@ import com.rayk.health.assessment.vo.AssessmentVo;
 import com.rayk.health.common.api.ApiResponse;
 import com.rayk.health.common.api.PageResponse;
 import com.rayk.health.laboratory.application.LabReportFileService;
+import com.rayk.health.laboratory.application.OcrTaskService;
 import com.rayk.health.laboratory.dto.ConfirmIndicatorsRequest;
 import com.rayk.health.laboratory.dto.CreateLabReportRequest;
 import com.rayk.health.laboratory.vo.LabReportVo;
 import com.rayk.health.laboratory.vo.LabReportFileVo;
 import com.rayk.health.laboratory.vo.LabReportUploadVo;
+import com.rayk.health.laboratory.vo.OcrTaskVo;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
@@ -30,11 +32,15 @@ import org.springframework.web.multipart.MultipartFile;
 public class LabReportController {
     private final WorkflowApplicationService service;
     private final LabReportFileService fileService;
+    private final OcrTaskService ocrTaskService;
 
     public LabReportController(
-            WorkflowApplicationService service, LabReportFileService fileService) {
+            WorkflowApplicationService service,
+            LabReportFileService fileService,
+            OcrTaskService ocrTaskService) {
         this.service = service;
         this.fileService = fileService;
+        this.ocrTaskService = ocrTaskService;
     }
 
     @PostMapping
@@ -77,6 +83,18 @@ public class LabReportController {
     @PostMapping("/{id}/submit-ai")
     public ApiResponse<AssessmentVo> submitAi(@PathVariable long id) {
         return ApiResponse.success(service.submitAi(id));
+    }
+
+    @GetMapping("/{id}/ocr-task")
+    public ApiResponse<OcrTaskVo> ocrTask(@PathVariable long id) {
+        service.getLabReport(id);
+        return ApiResponse.success(ocrTaskService.latest(id));
+    }
+
+    @PostMapping("/{id}/ocr-task/retry")
+    public ApiResponse<OcrTaskVo> retryOcr(@PathVariable long id) {
+        service.getLabReport(id);
+        return ApiResponse.success(ocrTaskService.retry(id));
     }
 
     @GetMapping("/{id}/files")

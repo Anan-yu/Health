@@ -25,7 +25,7 @@ flowchart TB
   PY -.不访问业务数据库.-> MYSQL
 ```
 
-Java 是核心业务和数据一致性的唯一入口；Python 只负责模拟 OCR、标准化、演示规则评分和文字生成。
+Java 是核心业务和数据一致性的唯一入口；Python 负责 PaddleOCR、指标标准化、演示规则评分和文字生成，不直接访问业务数据库。
 
 ## 角色与工作台
 
@@ -43,7 +43,7 @@ Java 是核心业务和数据一致性的唯一入口；Python 只负责模拟 O
 
 - 小程序：uni-app、Vue 3、TypeScript、Pinia、Vite、uni-ui、ECharts 依赖、ESLint、Prettier
 - 业务端：Java 21、Spring Boot 3、Spring Security、JWT、Redis、MyBatis-Plus、Flyway、WebClient、MapStruct、Actuator、Springdoc
-- AI 端：Python 3.12、FastAPI、Pydantic、NumPy、Pandas、scikit-learn、Pytest、Ruff、Black、MyPy
+- AI 端：Python 3.12、FastAPI、Pydantic、PaddleOCR、PaddlePaddle、NumPy、Pandas、scikit-learn、Pytest、Ruff、Black、MyPy
 - 基础设施：MySQL 8.4、Redis 7、MinIO、Nginx、Docker Compose
 
 ## 目录
@@ -175,12 +175,13 @@ npm run build:mp-weixin
 
 1. 在微信开发者工具中一键登录，或使用开发调试身份进入对应工作台。
 2. 客户或健康管理师选择真实 PDF/JPG/PNG 报告上传；Java 校验文件、写入 MinIO 私有 Bucket，并在 MySQL 保存大小、MIME 与 SHA-256 元数据。
-3. 录入 Mock OCR 指标并人工确认。
-4. Java 建立 AI 任务并通过 HTTP 调用 Python DemoRuleEngine。
-5. Python 返回带免责声明的结构化结果，Java 保存快照并创建待审核任务。
-6. 医生查看证据、缺失指标和建议，审核通过或退回。
-7. 医生二次确认后发布，客户只可查看已发布报告。
-8. 机构人员创建/处理随访，客户提交反馈。
+3. Java 创建异步 OCR 任务，Python 从短时预签名地址读取文件并使用 PaddleOCR 识别；小程序轮询展示进度、置信度和失败重试入口。
+4. 用户核对、增删或修正指标后人工确认，Java 才允许进入后续 AI 健康评估。
+5. Java 建立评估任务并通过 HTTP 调用 Python DemoRuleEngine。
+6. Python 返回带免责声明的结构化结果，Java 保存快照并创建待审核任务。
+7. 医生查看证据、缺失指标和建议，审核通过或退回。
+8. 医生二次确认后发布，客户只可查看已发布报告。
+9. 机构人员创建/处理随访，客户提交反馈。
 
 种子数据中已有一个客户、八项指标、一份发布报告和一个待完成随访，全部标记为开发测试数据。
 
@@ -224,6 +225,6 @@ Java 单元测试在 Docker 多阶段构建的 Maven `package` 中执行。Pytho
 
 ## 文档与下一阶段
 
-详细设计见 [docs](./docs)。微信 `code2Session` 身份绑定、JWT 登录、真实 MinIO 上传与短时预签名下载已经完成。下一阶段包括 PaddleOCR、报告指标抽取队列、正式健康评估规则、PDF 报告、订阅消息、会员、支付、商城和机构分润。
+详细设计见 [docs](./docs)。微信 `code2Session` 身份绑定、JWT 登录、真实 MinIO 上传、PaddleOCR 异步识别、任务进度与失败重试、指标人工校对和确认均已完成。下一阶段建议优先完成可配置健康评估规则、医生审核和 PDF 健康报告，再逐步接入订阅消息、会员、支付、商城和机构分润。
 
 在引入任何真实医学规则或健康数据前，应补齐隐私授权、数据加密、保留策略、审计、规则验证、人工复核和适用地区合规评估。

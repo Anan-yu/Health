@@ -14,8 +14,8 @@
       <view class="step" :class="{ active: state !== 'IDLE' }"
         ><text>2</text><view>上传文件</view></view
       >
-      <view class="step-line" :class="{ active: state === 'WAITING_CONFIRMATION' }" />
-      <view class="step" :class="{ active: state === 'WAITING_CONFIRMATION' }"
+      <view class="step-line" :class="{ active: state === 'OCR_PROCESSING' }" />
+      <view class="step" :class="{ active: state === 'OCR_PROCESSING' }"
         ><text>3</text><view>确认指标</view></view
       >
     </view>
@@ -47,7 +47,7 @@
       </view>
       <view v-if="progress > 0" class="progress-box">
         <view class="row"
-          ><text>{{ state === 'WAITING_CONFIRMATION' ? '上传完成' : '正在上传' }}</text
+          ><text>{{ state === 'OCR_PROCESSING' ? '上传完成，已进入识别队列' : '正在上传' }}</text
           ><text>{{ progress }}%</text></view
         >
         <progress :percent="progress" active-color="#0f7a62" background-color="#e3eeea" />
@@ -157,8 +157,8 @@ async function submit() {
       reportDate.value,
       (value) => (progress.value = value),
     )
-    state.value = 'WAITING_CONFIRMATION'
-    uni.showToast({ title: '上传成功' })
+    state.value = 'OCR_PROCESSING'
+    uni.showToast({ title: '已开始识别' })
     setTimeout(
       () => uni.navigateTo({ url: `/pages-customer/lab-report/confirm?id=${result.report.id}` }),
       500,

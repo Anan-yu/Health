@@ -1,4 +1,12 @@
-import type { ApiResponse, Indicator, LabReport, LabReportUpload, PageResponse } from '@/types/api'
+import type {
+  ApiResponse,
+  Indicator,
+  LabReport,
+  LabReportFile,
+  LabReportUpload,
+  OcrTask,
+  PageResponse,
+} from '@/types/api'
 import { ApiError, getApiBaseUrl, getRequestHeaders, request } from '@/utils/request'
 
 export const getLabReports = () =>
@@ -7,6 +15,17 @@ export const getMyLabReports = () =>
   request<LabReport[]>({ url: '/api/v1/me/lab-reports', method: 'GET' })
 export const getLabReport = (id: string) =>
   request<LabReport>({ url: `/api/v1/lab-reports/${id}`, method: 'GET' })
+export const getOcrTask = (id: string) =>
+  request<OcrTask>({ url: `/api/v1/lab-reports/${id}/ocr-task`, method: 'GET' })
+export const retryOcrTask = (id: string) =>
+  request<OcrTask>({ url: `/api/v1/lab-reports/${id}/ocr-task/retry`, method: 'POST' })
+export const getReportFiles = (id: string) =>
+  request<LabReportFile[]>({ url: `/api/v1/lab-reports/${id}/files`, method: 'GET' })
+export const getFileDownloadUrl = (reportId: string, fileId: string) =>
+  request<LabReportFile>({
+    url: `/api/v1/lab-reports/${reportId}/files/${fileId}/download-url`,
+    method: 'POST',
+  })
 export const uploadLabReport = (
   filePath: string,
   patientId: string,

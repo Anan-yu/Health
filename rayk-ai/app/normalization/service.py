@@ -35,16 +35,15 @@ class IndicatorNormalizationService:
         if definition is None:
             return NormalizedIndicator(
                 code=indicator.code or "unrecognized",
-                standardName=indicator.name,
+                standard_name=indicator.name,
                 value=indicator.value,
                 unit=indicator.unit,
                 recognized=False,
             )
         return NormalizedIndicator(
             code=definition.code,
-            standardName=definition.name,
+            standard_name=definition.name,
             value=indicator.value,
             unit=definition.unit,
             recognized=True,
         )
-

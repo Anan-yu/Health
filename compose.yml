@@ -77,6 +77,12 @@ services:
     image: rayk-a1-ai:dev
     environment:
       TZ: Asia/Shanghai
+      RAYK_OCR_MODE: ${RAYK_OCR_MODE:-paddle}
+      PADDLE_PDX_MODEL_SOURCE: ${PADDLE_PDX_MODEL_SOURCE:-BOS}
+      PADDLE_HOME: /app/.paddlex
+      XDG_CACHE_HOME: /app/.cache
+    volumes:
+      - rayk_ocr_models_data:/app/.paddlex
     networks: [rayk-net]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -106,6 +112,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-rayk_dev_only_secret_change_before_production_123456}
       JWT_EXPIRE_SECONDS: ${JWT_EXPIRE_SECONDS:-7200}
       RAYK_AI_BASE_URL: ${RAYK_AI_BASE_URL:-http://rayk-ai:8000}
+      RAYK_AI_READ_TIMEOUT_SECONDS: ${RAYK_AI_READ_TIMEOUT_SECONDS:-180}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
       MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://127.0.0.1:9000}
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-rayk_minio}
@@ -173,3 +180,5 @@ volumes:
     name: rayk_minio_data
   rayk_logs_data:
     name: rayk_logs_data
+  rayk_ocr_models_data:
+    name: rayk_ocr_models_data

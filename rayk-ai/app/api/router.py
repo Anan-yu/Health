@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from app.core.constants import DISCLAIMER
 from app.core.request_context import get_request_id
 from app.normalization.service import IndicatorNormalizationService
-from app.ocr.service import MockOcrService
+from app.ocr.service import build_ocr_service
 from app.report.service import DemoReportService
 from app.schemas.assessment import AssessmentData, AssessmentRequest
 from app.schemas.common import ApiResponse
@@ -15,14 +15,14 @@ from app.schemas.report import ReportGenerateData, ReportGenerateRequest
 from app.scoring.engine import DemoRuleEngine
 
 router = APIRouter(prefix="/api/v1")
-ocr_service = MockOcrService()
+ocr_service = build_ocr_service()
 normalization_service = IndicatorNormalizationService()
 rule_engine = DemoRuleEngine()
 report_service = DemoReportService()
 
 
 def ok(data: object) -> ApiResponse[object]:
-    return ApiResponse(requestId=get_request_id(), timestamp=int(time.time() * 1000), data=data)
+    return ApiResponse(request_id=get_request_id(), timestamp=int(time.time() * 1000), data=data)
 
 
 @router.post("/ocr/recognize", response_model=ApiResponse[OcrRecognizeData])
@@ -41,8 +41,8 @@ def normalize(request: NormalizationRequest) -> ApiResponse[object]:
 @router.post("/assessments/evaluate", response_model=ApiResponse[AssessmentData])
 def evaluate(request: AssessmentRequest) -> ApiResponse[object]:
     data = AssessmentData(
-        taskId=request.task_id,
-        modelVersion="DEMO_1.0.0",
+        task_id=request.task_id,
+        model_version="DEMO_1.0.0",
         status="SUCCESS",
         disclaimer=DISCLAIMER,
         results=rule_engine.evaluate(request),
@@ -53,4 +53,3 @@ def evaluate(request: AssessmentRequest) -> ApiResponse[object]:
 @router.post("/reports/generate", response_model=ApiResponse[ReportGenerateData])
 def generate_report(request: ReportGenerateRequest) -> ApiResponse[object]:
     return ok(report_service.generate(request))
-

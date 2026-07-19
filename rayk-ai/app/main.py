@@ -27,7 +27,7 @@ app.include_router(router)
 @app.get("/health", response_model=ApiResponse[HealthData])
 def health() -> ApiResponse[HealthData]:
     return ApiResponse(
-        requestId=get_request_id(),
+        request_id=get_request_id(),
         timestamp=int(time.time() * 1000),
         data=HealthData(status="UP", service="rayk-ai", version="0.1.0"),
     )
@@ -35,6 +35,10 @@ def health() -> ApiResponse[HealthData]:
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+    safe_errors = [
+        {key: value for key, value in error.items() if key not in {"input", "url"}}
+        for error in exc.errors()
+    ]
     return JSONResponse(
         status_code=422,
         content={
@@ -42,7 +46,7 @@ async def validation_error(_: Request, exc: RequestValidationError) -> JSONRespo
             "message": "请求参数校验失败",
             "requestId": get_request_id(),
             "timestamp": int(time.time() * 1000),
-            "data": {"errors": exc.errors(include_url=False, include_input=False)},
+            "data": {"errors": safe_errors},
         },
     )
 
@@ -60,4 +64,3 @@ async def unhandled_error(_: Request, __: Exception) -> JSONResponse:
             "data": None,
         },
     )
-

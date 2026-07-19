@@ -46,6 +46,7 @@ public class LabReportFileService {
     private final WorkflowApplicationService workflowService;
     private final LabReportFileMapper fileMapper;
     private final LabReportMapper reportMapper;
+    private final OcrTaskService ocrTaskService;
 
     public LabReportFileService(
             MinioClient minioClient,
@@ -53,13 +54,15 @@ public class LabReportFileService {
             MinioProperties properties,
             WorkflowApplicationService workflowService,
             LabReportFileMapper fileMapper,
-            LabReportMapper reportMapper) {
+            LabReportMapper reportMapper,
+            OcrTaskService ocrTaskService) {
         this.minioClient = minioClient;
         this.minioPublicClient = minioPublicClient;
         this.properties = properties;
         this.workflowService = workflowService;
         this.fileMapper = fileMapper;
         this.reportMapper = reportMapper;
+        this.ocrTaskService = ocrTaskService;
     }
 
     @Transactional
@@ -113,7 +116,9 @@ public class LabReportFileService {
             entity.setDeleted(0);
             entity.setVersion(0);
             fileMapper.insert(entity);
-            return new LabReportUploadVo(report, toVo(entity, true));
+            var ocrTask = ocrTaskService.start(reportId, entity.getId());
+            return new LabReportUploadVo(
+                    workflowService.getLabReport(reportId), toVo(entity, true), ocrTask);
         } catch (BusinessException exception) {
             if (objectStored) {
                 removeQuietly(objectPath);

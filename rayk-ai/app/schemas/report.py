@@ -1,7 +1,7 @@
 from pydantic import Field
 
-from app.schemas.common import RaykModel
 from app.schemas.assessment import ModelResult
+from app.schemas.common import RaykModel
 
 
 class ReportGenerateRequest(RaykModel):
