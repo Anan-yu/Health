@@ -40,7 +40,7 @@
       </view>
     </view>
 
-    <view class="help-card" @click="goSupport">
+    <view v-if="!isPlatform" class="help-card" @click="goSupport">
       <view class="help-icon">?</view>
       <view class="help-content">
         <view class="help-title">找不到需要的功能？</view>
@@ -88,6 +88,7 @@ const visibleMenus = computed(() =>
 const open = (url: string) => uni.navigateTo({ url })
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
+const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 </script>
 
 <style scoped>

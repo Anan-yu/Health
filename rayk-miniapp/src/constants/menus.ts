@@ -118,6 +118,12 @@ const platform: MenuItem[] = [
     icon: '迹',
     route: '/pages-tenant/audit/index',
   },
+  {
+    title: '反馈中心',
+    description: '统一查看、回复与关闭用户反馈',
+    icon: '答',
+    route: '/pages-platform/support/index',
+  },
 ]
 export const menusFor = (role: Role | '') =>
   role === 'CUSTOMER'

@@ -57,6 +57,12 @@
         { "path": "dashboard/index", "style": { "navigationBarTitleText": "数据概览" } },
         { "path": "audit/index", "style": { "navigationBarTitleText": "审计记录" } }
       ]
+    },
+    {
+      "root": "pages-platform",
+      "pages": [
+        { "path": "support/index", "style": { "navigationBarTitleText": "反馈中心" } }
+      ]
     }
   ],
   "tabBar": {

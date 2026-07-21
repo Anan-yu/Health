@@ -1,6 +1,7 @@
 package com.rayk.health.system.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -11,6 +12,7 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.rayk.health.security.service.CurrentPrincipal;
 import com.rayk.health.system.dto.CreateSupportTicketRequest;
+import com.rayk.health.system.dto.ReplySupportTicketRequest;
 import com.rayk.health.system.entity.SupportTicketEntity;
 import com.rayk.health.system.mapper.SupportTicketMapper;
 import com.rayk.health.system.vo.SupportTicketVo;
@@ -106,5 +108,61 @@ class SupportTicketServiceTest {
         assertThat(tickets).hasSize(1);
         assertThat(tickets.get(0).id()).isEqualTo("2079545597569081345");
         assertThat(tickets.get(0).content()).isEqualTo("联调反馈");
+    }
+
+    @Test
+    void rejectsPlatformAdministratorTicketCreation() {
+        CurrentPrincipal platform =
+                new CurrentPrincipal(
+                        "platform-test",
+                        "platform_admin",
+                        10001L,
+                        1L,
+                        List.of("PLATFORM_ADMIN"),
+                        List.of("platform:audit:list"),
+                        "PLATFORM_ADMIN");
+        SecurityContextHolder.getContext()
+                .setAuthentication(new TestingAuthenticationToken(platform, null));
+
+        assertThatThrownBy(
+                        () ->
+                                service.create(
+                                        new CreateSupportTicketRequest("BUG", "不应允许平台提交", null)))
+                .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void platformAdministratorCanReplyAcrossTenants() {
+        CurrentPrincipal platform =
+                new CurrentPrincipal(
+                        "platform-test",
+                        "platform_admin",
+                        10001L,
+                        1L,
+                        List.of("PLATFORM_ADMIN"),
+                        List.of("platform:audit:list"),
+                        "PLATFORM_ADMIN");
+        SecurityContextHolder.getContext()
+                .setAuthentication(new TestingAuthenticationToken(platform, null));
+        SupportTicketEntity entity = new SupportTicketEntity();
+        entity.setId(2079545597569081345L);
+        entity.setTenantId(20001L);
+        entity.setUserId(10005L);
+        entity.setCategory("BUG");
+        entity.setContent("机构端异常");
+        entity.setStatus("OPEN");
+        entity.setCreatedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now());
+        when(ticketMapper.selectPlatformTicketById(entity.getId())).thenReturn(entity);
+        when(ticketMapper.updatePlatformReply(any(Long.class), any(), any(), any(Long.class), any()))
+                .thenReturn(1);
+
+        var replied =
+                service.replyForPlatform(
+                        entity.getId(), new ReplySupportTicketRequest("已处理，请刷新后重试", "RESOLVED"));
+
+        assertThat(replied.tenantId()).isEqualTo("20001");
+        assertThat(replied.reply()).isEqualTo("已处理，请刷新后重试");
+        assertThat(replied.status()).isEqualTo("RESOLVED");
     }
 }

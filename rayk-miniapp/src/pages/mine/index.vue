@@ -58,7 +58,7 @@
         </view>
         <view class="setting-arrow">›</view>
       </view>
-      <view class="setting last" @click="goSupport">
+      <view v-if="!isPlatform" class="setting last" @click="goSupport">
         <view class="setting-icon purple">帮</view>
         <view class="setting-content">
           <view class="setting-title">帮助与反馈</view>
@@ -94,6 +94,7 @@ const workbenchName = computed(() =>
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goPrivacy = () => uni.navigateTo({ url: '/pages-customer/privacy/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
+const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 async function bindCurrentWeChat() {
   // #ifdef MP-WEIXIN
   try {

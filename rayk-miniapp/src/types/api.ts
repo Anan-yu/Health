@@ -99,6 +99,11 @@ export interface SupportTicket {
   updatedAt: string
 }
 
+export interface PlatformSupportTicket extends SupportTicket {
+  tenantId: string
+  submitterUserId: string
+}
+
 export interface PrivacyConsent {
   id: string
   consentType: string
