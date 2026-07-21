@@ -5,4 +5,3 @@ request_id_context: ContextVar[str] = ContextVar("request_id", default="unknown"
 
 def get_request_id() -> str:
     return request_id_context.get()
-

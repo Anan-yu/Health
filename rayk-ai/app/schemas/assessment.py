@@ -8,6 +8,7 @@ class AssessmentRequest(RaykModel):
     task_id: str = Field(alias="taskId", min_length=1)
     patient_id: str = Field(alias="patientId", min_length=1)
     indicators: list[IndicatorInput]
+    model_codes: list[str] | None = Field(default=None, alias="modelCodes")
 
 
 class ModelResult(RaykModel):

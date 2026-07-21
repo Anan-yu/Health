@@ -3,10 +3,19 @@ package com.rayk.health.security.service;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+/**
+ * 内存固定开发账号目录。
+ *
+ * @deprecated 已被 {@link DatabaseUserCatalog} 取代。默认 rayk.auth.mode=database 时不会装配本类，
+ *     仅当显式设置 rayk.auth.mode=mock 时才启用，用于无数据库的极简本地调试。
+ */
+@Deprecated
 @Component
-public class MockUserCatalog {
+@ConditionalOnProperty(name = "rayk.auth.mode", havingValue = "mock", matchIfMissing = false)
+public class MockUserCatalog implements UserCatalog {
     private static final String HASH = "$2b$12$a3HfX53cvu1FWiTpSPjlh.o3SE16baDRxiMxEHjejlP4fLbG3OYXC";
     private final Map<String, MockAccount> accounts = new LinkedHashMap<>();
 
@@ -107,18 +116,38 @@ public class MockUserCatalog {
                         workbenches.getFirst().code()));
     }
 
-    public MockAccount require(String username) {
-        return accounts.get(username);
+    @Override
+    public UserAccount findByUsername(String username) {
+        MockAccount account = accounts.get(username);
+        return account == null ? null : toUserAccount(account);
     }
 
-    public MockAccount findByUserId(long userId) {
+    @Override
+    public UserAccount findByUserId(long userId) {
         return accounts.values().stream()
                 .filter(account -> account.userId() == userId)
                 .findFirst()
+                .map(MockUserCatalog::toUserAccount)
                 .orElse(null);
     }
 
-    public List<MockAccount> all() {
-        return List.copyOf(accounts.values());
+    @Override
+    public List<UserAccount> all() {
+        return accounts.values().stream().map(MockUserCatalog::toUserAccount).toList();
+    }
+
+    private static UserAccount toUserAccount(MockAccount account) {
+        return new UserAccount(
+                account.userId(),
+                account.tenantId(),
+                account.tenantName(),
+                account.username(),
+                account.displayName(),
+                account.passwordHash(),
+                "ACTIVE",
+                account.roles(),
+                account.permissions(),
+                account.workbenches(),
+                account.defaultWorkbench());
     }
 }

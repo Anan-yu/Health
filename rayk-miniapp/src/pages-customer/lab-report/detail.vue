@@ -1,6 +1,6 @@
 <template>
   <view class="page report-detail-page">
-    <PageState :loading="loading" :empty="!report">
+    <PageState :loading="loading" :error="error" :empty="!report">
       <view class="report-hero">
         <view class="report-symbol">报</view>
         <view class="report-head-content">
@@ -53,13 +53,14 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getLabReport } from '@/api/lab-report'
 import type { LabReport } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 const report = ref<LabReport>(),
-  loading = ref(true)
+  loading = ref(true),
+  error = ref('')
 const abnormalCount = computed(
   () =>
     report.value?.indicators.filter((item) => item.abnormalFlag && item.abnormalFlag !== 'NORMAL')
@@ -77,10 +78,21 @@ const isProcessing = computed(() =>
   ['UPLOADED', 'OCR_PENDING', 'OCR_PROCESSING'].includes(report.value?.status || ''),
 )
 const reportId = ref('')
-onLoad(async (q) => {
+onLoad((q) => {
   reportId.value = String(q?.id || '')
+})
+onShow(async () => {
+  if (!reportId.value) {
+    error.value = '缺少检验报告编号'
+    loading.value = false
+    return
+  }
+  loading.value = true
+  error.value = ''
   try {
     report.value = await getLabReport(reportId.value)
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '检验报告加载失败'
   } finally {
     loading.value = false
   }

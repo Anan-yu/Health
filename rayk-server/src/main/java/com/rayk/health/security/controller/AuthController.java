@@ -2,7 +2,6 @@ package com.rayk.health.security.controller;
 
 import com.rayk.health.common.api.ApiResponse;
 import com.rayk.health.security.dto.AuthData;
-import com.rayk.health.security.dto.MockLoginRequest;
 import com.rayk.health.security.dto.ProfileData;
 import com.rayk.health.security.dto.WeChatBindingData;
 import com.rayk.health.security.dto.WeChatLoginRequest;
@@ -26,11 +25,6 @@ public class AuthController {
     public AuthController(AuthService authService, WeChatAuthService weChatAuthService) {
         this.authService = authService;
         this.weChatAuthService = weChatAuthService;
-    }
-
-    @PostMapping("/mock-login")
-    public ApiResponse<AuthData> mockLogin(@Valid @RequestBody MockLoginRequest request) {
-        return ApiResponse.success(authService.login(request));
     }
 
     @PostMapping("/wechat-login")

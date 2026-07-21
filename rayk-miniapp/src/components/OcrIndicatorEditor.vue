@@ -144,6 +144,8 @@ const retrying = ref(false)
 const confirmed = ref(false)
 const error = ref('')
 let timer: ReturnType<typeof globalThis.setTimeout> | undefined
+let pollFailures = 0
+let pollStartedAt = 0
 
 const isProcessing = computed(() => ['PENDING', 'PROCESSING'].includes(task.value?.status || ''))
 const displayStatus = computed(() => {
@@ -176,6 +178,8 @@ onUnmounted(() => timer && globalThis.clearTimeout(timer))
 async function load() {
   loading.value = true
   error.value = ''
+  pollFailures = 0
+  pollStartedAt = Date.now()
   try {
     report.value = await getLabReport(props.reportId)
     indicators.value = report.value.indicators.map((item) => ({ ...item }))
@@ -196,16 +200,26 @@ async function load() {
 function schedulePoll() {
   if (timer) globalThis.clearTimeout(timer)
   if (!isProcessing.value) return
+  if (Date.now() - pollStartedAt > 5 * 60 * 1000) {
+    error.value = '识别时间超过预期，请稍后从报告列表重新进入查看进度'
+    return
+  }
   timer = globalThis.setTimeout(async () => {
     try {
       task.value = await getOcrTask(props.reportId)
+      pollFailures = 0
       if (!isProcessing.value) {
         report.value = await getLabReport(props.reportId)
         indicators.value = report.value.indicators.map((item) => ({ ...item }))
       }
-    } finally {
-      schedulePoll()
+    } catch (cause) {
+      pollFailures += 1
+      if (pollFailures >= 3) {
+        error.value = cause instanceof Error ? cause.message : '识别进度查询失败，请稍后重试'
+        return
+      }
     }
+    schedulePoll()
   }, 1800)
 }
 
@@ -214,6 +228,8 @@ async function retry() {
   error.value = ''
   try {
     task.value = await retryOcrTask(props.reportId)
+    pollFailures = 0
+    pollStartedAt = Date.now()
     schedulePoll()
   } catch (e) {
     error.value = e instanceof Error ? e.message : '重新识别失败'
@@ -246,8 +262,15 @@ async function saveAndConfirm() {
     error.value = '请至少添加一项检验指标'
     return
   }
-  if (indicators.value.some((item) => !item.name.trim() || !item.unit.trim())) {
-    error.value = '请补全每项指标的名称和单位'
+  if (
+    indicators.value.some((item) => !item.code.trim() || !item.name.trim() || !item.unit.trim())
+  ) {
+    error.value = '请补全每项指标的编码、名称和单位'
+    return
+  }
+  const codes = indicators.value.map((item) => item.code.trim())
+  if (new Set(codes).size !== codes.length) {
+    error.value = '指标编码不能重复'
     return
   }
   saving.value = true
@@ -261,6 +284,17 @@ async function saveAndConfirm() {
     }))
     if (normalized.some((item) => !Number.isFinite(item.value))) {
       error.value = '检测结果必须为有效数值'
+      return
+    }
+    if (
+      normalized.some(
+        (item) =>
+          item.referenceLow !== undefined &&
+          item.referenceHigh !== undefined &&
+          item.referenceLow > item.referenceHigh,
+      )
+    ) {
+      error.value = '参考下限不能高于参考上限'
       return
     }
     await saveIndicators(props.reportId, normalized)

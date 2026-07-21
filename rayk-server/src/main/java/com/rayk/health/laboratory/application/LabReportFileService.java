@@ -66,7 +66,7 @@ public class LabReportFileService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyAuthority('lab-report:manage', 'self:lab-report')")
+    @PreAuthorize("hasAuthority('lab-report:manage') or (hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER')")
     public LabReportUploadVo upload(
             long patientId, String reportName, LocalDate reportDate, MultipartFile file) {
         ValidatedFile validated = validate(file);

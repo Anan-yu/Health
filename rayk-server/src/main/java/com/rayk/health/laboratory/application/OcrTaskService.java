@@ -8,6 +8,7 @@ import com.rayk.health.assessment.entity.AiTaskEntity;
 import com.rayk.health.assessment.mapper.AiTaskMapper;
 import com.rayk.health.common.exception.BusinessException;
 import com.rayk.health.common.exception.ErrorCode;
+import com.rayk.health.common.util.TaskIdempotencyGuard;
 import com.rayk.health.indicator.entity.IndicatorValueEntity;
 import com.rayk.health.indicator.mapper.IndicatorValueMapper;
 import com.rayk.health.integration.ai.AiDtos;
@@ -19,6 +20,7 @@ import com.rayk.health.laboratory.mapper.LabReportMapper;
 import com.rayk.health.laboratory.vo.OcrTaskVo;
 import com.rayk.health.security.service.CurrentPrincipal;
 import com.rayk.health.security.service.CurrentUser;
+import com.rayk.health.tenant.TenantContext;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.http.Method;
@@ -51,6 +53,7 @@ public class OcrTaskService {
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final TransactionTemplate transactionTemplate;
+    private final TaskIdempotencyGuard idempotencyGuard;
 
     public OcrTaskService(
             AiTaskMapper taskMapper,
@@ -61,7 +64,8 @@ public class OcrTaskService {
             MinioClient minioClient,
             ObjectMapper objectMapper,
             ApplicationEventPublisher eventPublisher,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            TaskIdempotencyGuard idempotencyGuard) {
         this.taskMapper = taskMapper;
         this.reportMapper = reportMapper;
         this.fileMapper = fileMapper;
@@ -71,6 +75,7 @@ public class OcrTaskService {
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.idempotencyGuard = idempotencyGuard;
     }
 
     @Transactional
@@ -93,7 +98,7 @@ public class OcrTaskService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyAuthority('lab-report:manage', 'indicator:confirm', 'self:lab-report')")
+    @PreAuthorize("hasAnyAuthority('lab-report:manage', 'indicator:confirm') or (hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER')")
     public OcrTaskVo retry(long reportId) {
         AiTaskEntity active = latestEntity(reportId);
         if (active != null && ACTIVE_STATUSES.contains(active.getStatus())) {
@@ -118,48 +123,56 @@ public class OcrTaskService {
     @Async("ocrTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void process(OcrTaskCreated event) {
-        ProcessingContext context =
-                transactionTemplate.execute(status -> prepare(event.taskId(), event.fileId()));
-        if (context == null) {
-            return;
-        }
-        AiTaskEntity task = context.task();
-        LabReportEntity report = context.report();
-        LabReportFileEntity file = context.file();
-        try {
-            String downloadUrl =
-                    minioClient.getPresignedObjectUrl(
-                            GetPresignedObjectUrlArgs.builder()
-                                    .method(Method.GET)
-                                    .bucket(file.getBucketName())
-                                    .object(file.getObjectPath())
-                                    .expiry(600)
-                                    .build());
-            AiDtos.OcrRecognizeData result =
-                    aiServiceClient.recognize(
-                            new AiDtos.OcrRecognizeRequest(
-                                    task.getTaskCode(),
-                                    String.valueOf(file.getId()),
-                                    file.getOriginalName(),
-                                    file.getMimeType(),
-                                    downloadUrl));
-            transactionTemplate.executeWithoutResult(
-                    status -> {
-                        try {
-                            applyDraftIndicators(report, task, result);
-                        } catch (Exception exception) {
-                            throw new OcrPersistenceException(exception);
-                        }
-                    });
-        } catch (Exception exception) {
-            transactionTemplate.executeWithoutResult(
-                    status -> markFailed(task, report, "识别服务调用失败，请稍后重试"));
-        }
+        TenantContext.execute(
+                event.tenantId(),
+                () -> {
+                    ProcessingContext context =
+                            transactionTemplate.execute(
+                                    status -> prepare(event.taskId(), event.fileId()));
+                    if (context == null) {
+                        return;
+                    }
+                    AiTaskEntity task = context.task();
+                    LabReportEntity report = context.report();
+                    LabReportFileEntity file = context.file();
+                    try {
+                        String downloadUrl =
+                                minioClient.getPresignedObjectUrl(
+                                        GetPresignedObjectUrlArgs.builder()
+                                                .method(Method.GET)
+                                                .bucket(file.getBucketName())
+                                                .object(file.getObjectPath())
+                                                .expiry(600)
+                                                .build());
+                        AiDtos.OcrRecognizeData result =
+                                aiServiceClient.recognize(
+                                        new AiDtos.OcrRecognizeRequest(
+                                                task.getTaskCode(),
+                                                String.valueOf(file.getId()),
+                                                file.getOriginalName(),
+                                                file.getMimeType(),
+                                                downloadUrl));
+                        transactionTemplate.executeWithoutResult(
+                                status -> {
+                                    try {
+                                        applyDraftIndicators(report, task, result);
+                                    } catch (Exception exception) {
+                                        throw new OcrPersistenceException(exception);
+                                    }
+                                });
+                    } catch (Exception exception) {
+                        transactionTemplate.executeWithoutResult(
+                                status -> markFailed(task, report, "识别服务调用失败，请稍后重试"));
+                    }
+                });
     }
 
     private ProcessingContext prepare(long taskId, long fileId) {
+        if (!idempotencyGuard.tryAcquire(taskId, "PENDING", "PROCESSING")) {
+            return null;
+        }
         AiTaskEntity task = taskMapper.selectById(taskId);
-        if (task == null || !"PENDING".equals(task.getStatus())) {
+        if (task == null) {
             return null;
         }
         LabReportEntity report = reportMapper.selectById(task.getReportId());
@@ -168,10 +181,6 @@ public class OcrTaskService {
             markFailed(task, report, "报告文件不存在");
             return null;
         }
-        task.setStatus("PROCESSING");
-        task.setStartedAt(LocalDateTime.now());
-        touch(task, task.getCreatedBy());
-        taskMapper.updateById(task);
         report.setStatus("OCR_PROCESSING");
         report.setFailureReason(null);
         touch(report, task.getCreatedBy());
@@ -208,7 +217,7 @@ public class OcrTaskService {
         report.setFailureReason(null);
         touch(report, current.userId());
         reportMapper.updateById(report);
-        eventPublisher.publishEvent(new OcrTaskCreated(task.getId(), fileId));
+        eventPublisher.publishEvent(new OcrTaskCreated(task.getId(), fileId, current.tenantId()));
         return toVo(task, fileId);
     }
 
@@ -377,7 +386,7 @@ public class OcrTaskService {
         }
     }
 
-    public record OcrTaskCreated(long taskId, long fileId) {}
+    public record OcrTaskCreated(long taskId, long fileId, long tenantId) {}
 
     private record ProcessingContext(
             AiTaskEntity task, LabReportEntity report, LabReportFileEntity file) {}

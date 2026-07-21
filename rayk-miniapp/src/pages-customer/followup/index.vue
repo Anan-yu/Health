@@ -1,7 +1,7 @@
 <template>
   <view class="page"
     ><view class="title">我的随访</view
-    ><PageState :loading="loading" :empty="items.length === 0"
+    ><PageState :loading="loading" :error="error" :empty="items.length === 0"
       ><view v-for="item in items" :key="item.id" class="card"
         ><view class="row"
           ><view class="section-title">{{ item.title }}</view
@@ -23,11 +23,15 @@ import type { Followup } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 const items = ref<Followup[]>([]),
-  loading = ref(true)
+  loading = ref(true),
+  error = ref('')
 onShow(async () => {
   loading.value = true
+  error.value = ''
   try {
     items.value = await getMyFollowups()
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '随访任务加载失败'
   } finally {
     loading.value = false
   }

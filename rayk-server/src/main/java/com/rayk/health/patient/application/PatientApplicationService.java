@@ -38,7 +38,7 @@ public class PatientApplicationService {
         return converter.toVo(dataScopeService.requirePatient(id));
     }
 
-    @PreAuthorize("hasAnyAuthority('patient:create', 'self:health-record')")
+    @PreAuthorize("hasAuthority('patient:create') or (hasAuthority('self:health-record') and principal.workbench == 'CUSTOMER')")
     public PatientVo create(CreatePatientRequest request) {
         CurrentPrincipal current = CurrentUser.require();
         PatientEntity entity = new PatientEntity();
@@ -68,4 +68,3 @@ public class PatientApplicationService {
         return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
     }
 }
-

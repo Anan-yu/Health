@@ -14,13 +14,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthService {
     private static final String SESSION_PREFIX = "rayk:session:";
-    private final MockUserCatalog catalog;
+    private final UserCatalog catalog;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final StringRedisTemplate redisTemplate;
 
     public AuthService(
-            MockUserCatalog catalog,
+            UserCatalog catalog,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             StringRedisTemplate redisTemplate) {
@@ -31,14 +31,16 @@ public class AuthService {
     }
 
     public AuthData login(MockLoginRequest request) {
-        MockAccount account = catalog.require(request.username());
-        if (account == null || !passwordEncoder.matches(request.password(), account.passwordHash())) {
+        UserAccount account = catalog.findByUsername(request.username());
+        if (account == null
+                || !account.isActive()
+                || !passwordEncoder.matches(request.password(), account.passwordHash())) {
             throw new BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS);
         }
         return issue(account);
     }
 
-    public AuthData issue(MockAccount account) {
+    public AuthData issue(UserAccount account) {
         JwtService.IssuedToken issued =
                 jwtService.issue(
                         account.username(),
@@ -72,7 +74,7 @@ public class AuthService {
 
     public ProfileData profile() {
         CurrentPrincipal principal = CurrentUser.require();
-        MockAccount account = catalog.require(principal.username());
+        UserAccount account = catalog.findByUserId(principal.userId());
         if (account == null) {
             throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED);
         }
@@ -90,8 +92,9 @@ public class AuthService {
 
     public String switchWorkbench(String code) {
         CurrentPrincipal principal = CurrentUser.require();
-        MockAccount account = catalog.require(principal.username());
-        boolean allowed = account.workbenches().stream().anyMatch(item -> item.code().equals(code));
+        UserAccount account = catalog.findByUserId(principal.userId());
+        boolean allowed =
+                account != null && account.workbenches().stream().anyMatch(item -> item.code().equals(code));
         if (!allowed) {
             throw new BusinessException(ErrorCode.WORKBENCH_NOT_ALLOWED);
         }

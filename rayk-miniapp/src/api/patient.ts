@@ -9,3 +9,14 @@ export const createPatient = (data: object) =>
   request<Patient>({ url: '/api/v1/patients', method: 'POST', data })
 export const getMyProfile = () =>
   request<Patient | null>({ url: '/api/v1/me/health-profile', method: 'GET' })
+export const getHealthProfile = (patientId: string) =>
+  request<import('@/types/api').HealthProfile>({
+    url: `/api/v1/patients/${patientId}/profile`,
+    method: 'GET',
+  })
+export const updateHealthProfile = (patientId: string, data: object) =>
+  request<import('@/types/api').HealthProfile>({
+    url: `/api/v1/patients/${patientId}/profile`,
+    method: 'PUT',
+    data,
+  })

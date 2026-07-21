@@ -7,3 +7,4 @@ scikit-learn==1.6.1
 httpx==0.28.1
 paddlepaddle==3.2.2
 paddleocr==3.7.0
+reportlab==4.3.1

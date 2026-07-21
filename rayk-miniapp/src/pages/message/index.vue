@@ -1,46 +1,86 @@
 <template>
   <view class="page message-page">
     <view class="page-heading">
-      <view>
-        <view class="eyebrow">NOTIFICATIONS</view>
-        <view class="title">消息中心</view>
-        <view class="subtitle">任务进度与重要动态都会在这里提醒</view>
+      <view
+        ><view class="eyebrow">NOTIFICATIONS</view><view class="title">消息中心</view
+        ><view class="subtitle">已发布报告和待处理随访会在这里汇总</view></view
+      >
+      <view class="message-count">{{ items.length }}</view>
+    </view>
+    <PageState :loading="loading" :error="error" :empty="items.length === 0">
+      <view v-for="item in items" :key="item.id" class="card notification" @click="open(item)">
+        <view
+          class="notification-icon"
+          :class="item.kind === 'report' ? 'report-icon' : 'followup-icon'"
+          >{{ item.kind === 'report' ? '报' : '访' }}</view
+        >
+        <view class="notification-content"
+          ><view class="notification-title">{{ item.title }}</view
+          ><view class="notification-copy">{{ item.content }}</view
+          ><view class="notification-time">{{ item.time }}</view></view
+        >
+        <view class="chevron">›</view>
       </view>
-      <view class="message-count">2</view>
-    </view>
-
-    <view class="filter-row">
-      <view class="filter active">全部</view>
-      <view class="filter">业务提醒</view>
-      <view class="filter">系统通知</view>
-    </view>
-
-    <view class="card notification unread">
-      <view class="notification-icon report-icon">报</view>
-      <view class="notification-content">
-        <view class="notification-head">
-          <view class="notification-title">健康报告已发布</view>
-          <view class="unread-dot" />
-        </view>
-        <view class="notification-copy">新的健康管理报告已经生成，可前往报告中心查看。</view>
-        <view class="notification-time">刚刚 · 业务提醒</view>
-      </view>
-      <view class="chevron">›</view>
-    </view>
-
-    <view class="card notification">
-      <view class="notification-icon system-icon">系</view>
-      <view class="notification-content">
-        <view class="notification-title">欢迎使用 RayK A1</view>
-        <view class="notification-copy">你的健康管理工作台已经准备就绪。</view>
-        <view class="notification-time">今天 · 系统通知</view>
-      </view>
-      <view class="chevron">›</view>
-    </view>
-
-    <view class="message-footer">仅展示最近 30 天消息</view>
+    </PageState>
+    <view v-if="items.length" class="message-footer">仅展示与你相关的业务动态</view>
   </view>
 </template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { getMyFollowups } from '@/api/followup'
+import { getMyHealthReports } from '@/api/health-report'
+import PageState from '@/components/PageState.vue'
+
+type Notification = {
+  id: string
+  kind: 'report' | 'followup'
+  title: string
+  content: string
+  time: string
+}
+const reports = ref<Awaited<ReturnType<typeof getMyHealthReports>>>([])
+const followups = ref<Awaited<ReturnType<typeof getMyFollowups>>>([])
+const loading = ref(true)
+const error = ref('')
+const items = computed<Notification[]>(() => [
+  ...reports.value.map((report) => ({
+    id: report.id,
+    kind: 'report' as const,
+    title: '健康报告已发布',
+    content: report.title,
+    time: report.publishedAt || '刚刚',
+  })),
+  ...followups.value
+    .filter((followup) => followup.status !== 'COMPLETED')
+    .map((followup) => ({
+      id: followup.id,
+      kind: 'followup' as const,
+      title: '待完成随访',
+      content: followup.title,
+      time: `计划完成：${followup.dueDate}`,
+    })),
+])
+const open = (item: Notification) => {
+  const url =
+    item.kind === 'report'
+      ? `/pages-customer/health-report/detail?id=${item.id}`
+      : `/pages-customer/followup/feedback?id=${item.id}`
+  uni.navigateTo({ url })
+}
+onShow(async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    ;[reports.value, followups.value] = await Promise.all([getMyHealthReports(), getMyFollowups()])
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '消息加载失败'
+  } finally {
+    loading.value = false
+  }
+})
+</script>
 
 <style scoped>
 .message-page {
@@ -67,32 +107,11 @@
   font-size: 27rpx;
   font-weight: 750;
 }
-.filter-row {
-  display: flex;
-  gap: 14rpx;
-  margin-bottom: 24rpx;
-}
-.filter {
-  padding: 13rpx 24rpx;
-  border: 1rpx solid #e1e9e6;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.72);
-  color: #77857f;
-  font-size: 23rpx;
-}
-.filter.active {
-  border-color: #0f7a62;
-  background: #0f7a62;
-  color: #fff;
-}
 .notification {
   display: flex;
   align-items: center;
+  margin-bottom: 18rpx;
   padding: 28rpx 24rpx;
-}
-.notification.unread {
-  border-color: #cfe9e0;
-  box-shadow: 0 12rpx 34rpx rgba(23, 100, 81, 0.1);
 }
 .notification-icon {
   display: flex;
@@ -109,35 +128,27 @@
   background: #e1f5ee;
   color: #0e765e;
 }
-.system-icon {
-  background: #eaf1ff;
-  color: #476eae;
+.followup-icon {
+  background: #fff1e9;
+  color: #c76a32;
 }
 .notification-content {
   flex: 1;
   min-width: 0;
   margin-left: 22rpx;
 }
-.notification-head {
-  display: flex;
-  align-items: center;
-}
 .notification-title {
   font-size: 28rpx;
   font-weight: 680;
 }
-.unread-dot {
-  width: 12rpx;
-  height: 12rpx;
-  margin-left: 12rpx;
-  border-radius: 50%;
-  background: #ef6b56;
-}
 .notification-copy {
+  overflow: hidden;
   margin-top: 8rpx;
   color: #70817b;
   font-size: 23rpx;
   line-height: 1.55;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .notification-time {
   margin-top: 12rpx;

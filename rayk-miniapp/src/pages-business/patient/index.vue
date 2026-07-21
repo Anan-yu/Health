@@ -6,7 +6,7 @@
         <view class="title">客户管理</view>
         <view class="subtitle">客户档案与健康服务分配</view>
       </view>
-      <view class="create-button" @click="create">＋ 新建</view>
+      <view v-if="canCreate" class="create-button" @click="create">＋ 新建</view>
     </view>
 
     <view class="search-box">
@@ -62,12 +62,15 @@ import { getPatients } from '@/api/patient'
 import type { Patient } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import { useAuthStore } from '@/stores/auth'
 
+const auth = useAuthStore()
 const items = ref<Patient[]>([]),
   keyword = ref(''),
   loading = ref(true),
   error = ref('')
 const activeCount = computed(() => items.value.filter((item) => item.status === 'ACTIVE').length)
+const canCreate = computed(() => auth.permissions.includes('patient:create'))
 const filteredItems = computed(() => {
   const value = keyword.value.trim().toLowerCase()
   if (!value) return items.value

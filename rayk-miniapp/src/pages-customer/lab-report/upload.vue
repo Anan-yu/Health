@@ -22,8 +22,8 @@
 
     <view class="card form-card">
       <view class="form-heading"><text class="form-index">01</text><text>报告信息</text></view>
-      <view class="field-label">客户档案 ID</view>
-      <input v-model="patientId" class="input" placeholder="请输入客户档案ID" />
+      <view class="field-label">报告所属人</view>
+      <view class="input owner-field">{{ patient?.name || '正在识别当前账号…' }}</view>
       <view class="field-label">报告名称</view>
       <input v-model="reportName" class="input" placeholder="例如：生化检验报告" />
       <view class="field-label">报告日期</view>
@@ -56,7 +56,14 @@
 
     <view class="privacy-tip"
       ><view class="shield">安</view
-      ><view><text>隐私安全保护</text><text>文件将加密传输并保存至私有存储空间</text></view></view
+      ><view class="privacy-content"
+        ><text>{{ collectionAuthorized ? '隐私安全保护' : '需要健康数据采集授权' }}</text
+        ><text>{{
+          collectionAuthorized
+            ? '文件将加密传输并保存至私有存储空间'
+            : '授权后才能上传并保存检验报告'
+        }}</text></view
+      ><button v-if="!collectionAuthorized" size="mini" @click="openPrivacy">去授权</button></view
     >
     <view v-if="error" class="error">{{ error }} <text @click="submit">重新尝试</text></view>
     <button class="primary submit-button" :loading="loading" @click="submit">安全上传报告</button>
@@ -65,12 +72,16 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onShow } from '@dcloudio/uni-app'
 import { uploadLabReport } from '@/api/lab-report'
 import { getMyProfile } from '@/api/patient'
+import { getPrivacyConsents } from '@/api/privacy'
+import type { Patient } from '@/types/api'
 
 const today = new Date()
-const patientId = ref(''),
+const patient = ref<Patient | null>(null),
+  collectionAuthorized = ref(false),
+  patientId = ref(''),
   reportName = ref('生化检验报告'),
   reportDate = ref(
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
@@ -83,15 +94,20 @@ const patientId = ref(''),
   loading = ref(false),
   error = ref('')
 
-onLoad(async (query) => {
-  patientId.value = String(query?.patientId || '')
-  if (!patientId.value) {
-    try {
-      const profile = await getMyProfile()
-      patientId.value = profile?.id || ''
-    } catch {
-      // B端用户可手工填写客户档案 ID。
+onShow(async () => {
+  try {
+    patient.value = await getMyProfile()
+    patientId.value = patient.value?.id || ''
+    if (!patientId.value) {
+      error.value = '当前账号尚未关联客户档案'
+      return
     }
+    const consents = await getPrivacyConsents(patientId.value)
+    collectionAuthorized.value = consents.some(
+      (item) => item.consentType === 'DATA_COLLECTION' && item.consented === 1,
+    )
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '客户档案加载失败'
   }
 })
 
@@ -142,7 +158,15 @@ function choose() {
 }
 
 async function submit() {
-  if (!patientId.value || !reportName.value || !filePath.value) {
+  if (!patientId.value) {
+    error.value = '当前账号尚未关联客户档案，请联系机构管理员'
+    return
+  }
+  if (!collectionAuthorized.value) {
+    error.value = '请先完成健康数据采集授权'
+    return
+  }
+  if (!reportName.value.trim() || !filePath.value) {
     error.value = '请填写报告信息并选择文件'
     return
   }
@@ -153,7 +177,7 @@ async function submit() {
     const result = await uploadLabReport(
       filePath.value,
       patientId.value,
-      reportName.value,
+      reportName.value.trim(),
       reportDate.value,
       (value) => (progress.value = value),
     )
@@ -170,6 +194,8 @@ async function submit() {
     loading.value = false
   }
 }
+
+const openPrivacy = () => uni.navigateTo({ url: '/pages-customer/privacy/index' })
 
 function changeDate(event: { detail: { value: string } }) {
   reportDate.value = event.detail.value
@@ -295,6 +321,10 @@ function formatSize(size: number) {
   justify-content: space-between;
   color: #33463f;
 }
+.owner-field {
+  color: #33463f;
+  background: #f4f8f6;
+}
 .date-input text:last-child {
   color: #91a09b;
   font-size: 22rpx;
@@ -382,9 +412,15 @@ function formatSize(size: number) {
   font-size: 21rpx;
   font-weight: 740;
 }
-.privacy-tip > view:last-child {
+.privacy-content {
   display: flex;
   flex-direction: column;
+}
+.privacy-tip button {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #825908;
+  background: #ffe4a8;
 }
 .privacy-tip text:first-child {
   color: #72531a;

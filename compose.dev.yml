@@ -14,9 +14,11 @@ services:
       - "${AI_PORT:-8000}:8000"
   rayk-server:
     environment:
+      RAYK_DEVELOPMENT_LOGIN_ENABLED: "true"
       WECHAT_MOCK_ENABLED: ${WECHAT_MOCK_ENABLED:-true}
       WECHAT_MOCK_OPENID: ${WECHAT_MOCK_OPENID:-rayk-dev-openid}
-      WECHAT_AUTO_BIND_USERNAME: ${WECHAT_AUTO_BIND_USERNAME:-customer}
+      # 禁止把模拟微信身份自动绑定到固定账号；需先用开发入口登录后手动绑定。
+      WECHAT_AUTO_BIND_USERNAME: ""
     ports:
       - "${JAVA_PORT:-8080}:8080"
   nginx:

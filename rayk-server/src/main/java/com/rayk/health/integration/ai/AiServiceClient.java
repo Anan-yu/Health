@@ -14,9 +14,11 @@ import org.springframework.web.reactive.function.client.WebClient;
 public class AiServiceClient {
     private static final Logger log = LoggerFactory.getLogger(AiServiceClient.class);
     private final WebClient webClient;
+    private final Duration requestTimeout;
 
-    public AiServiceClient(WebClient aiWebClient) {
+    public AiServiceClient(WebClient aiWebClient, AiProperties properties) {
         this.webClient = aiWebClient;
+        this.requestTimeout = Duration.ofSeconds(properties.readTimeoutSeconds());
     }
 
     public AiDtos.AssessmentData evaluate(AiDtos.EvaluateRequest request) {
@@ -32,7 +34,7 @@ public class AiServiceClient {
                             .bodyToMono(
                                     new ParameterizedTypeReference<
                                             AiDtos.ApiEnvelope<AiDtos.AssessmentData>>() {})
-                            .block(Duration.ofSeconds(35));
+                            .block(requestTimeout);
             if (response == null || response.code() != 0 || response.data() == null) {
                 throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
             }
@@ -60,7 +62,7 @@ public class AiServiceClient {
                             .bodyToMono(
                                     new ParameterizedTypeReference<
                                             AiDtos.ApiEnvelope<AiDtos.OcrRecognizeData>>() {})
-                            .block(Duration.ofSeconds(125));
+                            .block(requestTimeout);
             if (response == null || response.code() != 0 || response.data() == null) {
                 throw new BusinessException(ErrorCode.OCR_SERVICE_UNAVAILABLE);
             }
@@ -72,6 +74,36 @@ public class AiServiceClient {
             throw new BusinessException(ErrorCode.OCR_SERVICE_UNAVAILABLE);
         } finally {
             log.info("OCR recognize call elapsedMs={}", (System.nanoTime() - started) / 1_000_000);
+        }
+    }
+
+    public AiDtos.ReportGenerateData generateReport(AiDtos.ReportGenerateRequest request) {
+        long started = System.nanoTime();
+        try {
+            AiDtos.ApiEnvelope<AiDtos.ReportGenerateData> response =
+                    webClient
+                            .post()
+                            .uri("/api/v1/reports/generate")
+                            .header("X-Request-Id", MDC.get("requestId"))
+                            .bodyValue(request)
+                            .retrieve()
+                            .bodyToMono(
+                                    new ParameterizedTypeReference<
+                                            AiDtos.ApiEnvelope<AiDtos.ReportGenerateData>>() {})
+                            .block(requestTimeout);
+            if (response == null || response.code() != 0 || response.data() == null) {
+                throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+            }
+            return response.data();
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            log.warn("AI report generation call failed: {}", exception.getClass().getSimpleName());
+            throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+        } finally {
+            log.info(
+                    "AI report generation call elapsedMs={}",
+                    (System.nanoTime() - started) / 1_000_000);
         }
     }
 }

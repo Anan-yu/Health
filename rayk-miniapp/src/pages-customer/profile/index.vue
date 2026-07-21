@@ -1,44 +1,92 @@
 <template>
-  <view class="page"
-    ><view class="title">我的健康档案</view
-    ><PageState :loading="loading" :error="error" :empty="!profile"
-      ><view class="card"
+  <view class="page">
+    <view class="title">我的健康档案</view>
+    <PageState :loading="loading" :error="error" :empty="!patient">
+      <view class="card"
         ><view class="row"
-          ><text>姓名</text><text>{{ profile?.name }}</text></view
+          ><text>姓名</text><text>{{ patient?.name }}</text></view
         ><view class="row"
-          ><text>性别</text><text>{{ profile?.gender }}</text></view
+          ><text>出生日期</text><text>{{ patient?.birthDate || '待完善' }}</text></view
         ><view class="row"
-          ><text>出生日期</text><text>{{ profile?.birthDate || '待完善' }}</text></view
+          ><text>身高 / 体重</text
+          ><text>{{ profile?.heightCm || '-' }} cm / {{ profile?.weightKg || '-' }} kg</text></view
         ><view class="row"
-          ><text>联系方式</text><text>{{ profile?.phoneMasked || '待完善' }}</text></view
+          ><text>BMI</text><text>{{ profile?.bmi || '-' }}</text></view
         ><view class="row"
-          ><text>档案状态</text><StatusTag :status="profile?.status || ''" /></view></view
-      ><view class="card"
-        ><view class="section-title">档案完整度 80%</view
-        ><progress percent="80" active-color="#176b57" /><view class="subtitle"
-          >一期展示基础档案；生活方式、过敏史和授权信息将在后续扩展。</view
+          ><text>运动 / 睡眠</text><text>{{ lifestyleLabel }}</text></view
+        ><view class="row"
+          ><text>最近更新</text><text>{{ formatTime(profile?.updatedAt) }}</text></view
         ></view
-      ></PageState
-    >
+      >
+      <view class="card"
+        ><view class="row"
+          ><view
+            ><view class="section-title">档案完整度</view
+            ><view class="subtitle">补充生活习惯和健康史，帮助医生更好解读报告</view></view
+          ><text class="completion">{{ profile?.profileCompleteness || 0 }}%</text></view
+        ><progress :percent="profile?.profileCompleteness || 0" active-color="#176b57"
+      /></view>
+      <view class="card"
+        ><view class="row"
+          ><view
+            ><view class="section-title">隐私与数据授权</view
+            ><view class="subtitle">可随时查看、授权或撤回数据使用范围</view></view
+          ><text class="link" @click="privacy">管理 ›</text></view
+        ></view
+      >
+      <button class="primary-button" @click="edit">完善健康档案</button>
+    </PageState>
   </view>
 </template>
+
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getMyProfile } from '@/api/patient'
-import type { Patient } from '@/types/api'
+import { getHealthProfile, getMyProfile } from '@/api/patient'
+import type { HealthProfile, Patient } from '@/types/api'
 import PageState from '@/components/PageState.vue'
-import StatusTag from '@/components/StatusTag.vue'
-const profile = ref<Patient | null>(null),
-  loading = ref(true),
-  error = ref('')
+
+const patient = ref<Patient | null>(null)
+const profile = ref<HealthProfile | null>(null)
+const loading = ref(true)
+const error = ref('')
+const lifestyleLabel = computed(() => {
+  const exercise = profile.value?.exerciseFrequency || '待完善'
+  const sleep = profile.value?.sleepQuality || '待完善'
+  return `${exercise} / ${sleep}`
+})
+const formatTime = (value?: string) => (value ? value.replace('T', ' ').slice(0, 16) : '待完善')
 onShow(async () => {
+  loading.value = true
+  error.value = ''
   try {
-    profile.value = await getMyProfile()
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : '加载失败'
+    patient.value = await getMyProfile()
+    if (patient.value) profile.value = await getHealthProfile(patient.value.id)
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '档案加载失败'
   } finally {
     loading.value = false
   }
 })
+const edit = () => uni.navigateTo({ url: '/pages-customer/profile/edit' })
+const privacy = () => uni.navigateTo({ url: '/pages-customer/privacy/index' })
 </script>
+
+<style scoped>
+.completion {
+  color: #0f7a62;
+  font-size: 32rpx;
+  font-weight: 750;
+}
+.link {
+  color: #0f7a62;
+  font-size: 24rpx;
+}
+.primary-button {
+  margin-top: 26rpx;
+  border-radius: 16rpx;
+  background: #0f7a62;
+  color: #fff;
+  font-size: 28rpx;
+}
+</style>

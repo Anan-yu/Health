@@ -58,6 +58,11 @@ springdoc:
     path: /v3/api-docs
 
 rayk:
+  auth:
+    # 账号体系模式：database=基于 sys_user/RBAC 表（默认）；mock=内存固定开发账号（仅本地调试）
+    mode: ${RAYK_AUTH_MODE:database}
+    # 仅本地开发环境允许账号密码调试入口；生产环境不注册该接口。
+    development-login-enabled: ${RAYK_DEVELOPMENT_LOGIN_ENABLED:false}
   jwt:
     secret: ${JWT_SECRET:rayk_dev_only_secret_change_before_production_123456}
     expire-seconds: ${JWT_EXPIRE_SECONDS:7200}
@@ -71,7 +76,7 @@ rayk:
   ai:
     base-url: ${RAYK_AI_BASE_URL:http://localhost:8000}
     connect-timeout-seconds: 5
-    read-timeout-seconds: ${RAYK_AI_READ_TIMEOUT_SECONDS:180}
+    read-timeout-seconds: ${RAYK_AI_READ_TIMEOUT_SECONDS:300}
   minio:
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
     public-endpoint: ${MINIO_PUBLIC_ENDPOINT:http://127.0.0.1:9000}
@@ -80,6 +85,10 @@ rayk:
     bucket-reports: ${MINIO_BUCKET_REPORTS:rayk-reports}
     region: ${MINIO_REGION:us-east-1}
     presign-expiry-seconds: ${MINIO_PRESIGN_EXPIRY_SECONDS:600}
+  task:
+    processing-timeout-minutes: ${RAYK_TASK_PROCESSING_TIMEOUT_MINUTES:10}
+    pending-timeout-minutes: ${RAYK_TASK_PENDING_TIMEOUT_MINUTES:2}
+    recovery-interval-ms: ${RAYK_TASK_RECOVERY_INTERVAL_MS:60000}
 
 logging:
   pattern:

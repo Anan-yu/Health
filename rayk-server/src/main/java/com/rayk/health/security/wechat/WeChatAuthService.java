@@ -8,8 +8,8 @@ import com.rayk.health.security.dto.WeChatBindingData;
 import com.rayk.health.security.service.AuthService;
 import com.rayk.health.security.service.CurrentPrincipal;
 import com.rayk.health.security.service.CurrentUser;
-import com.rayk.health.security.service.MockAccount;
-import com.rayk.health.security.service.MockUserCatalog;
+import com.rayk.health.security.service.UserAccount;
+import com.rayk.health.security.service.UserCatalog;
 import com.rayk.health.security.wechat.entity.WeChatUserBindingEntity;
 import com.rayk.health.security.wechat.mapper.WeChatUserBindingMapper;
 import java.time.LocalDateTime;
@@ -23,14 +23,14 @@ public class WeChatAuthService {
     private final WeChatCode2SessionClient code2SessionClient;
     private final WeChatProperties properties;
     private final WeChatUserBindingMapper bindingMapper;
-    private final MockUserCatalog catalog;
+    private final UserCatalog catalog;
     private final AuthService authService;
 
     public WeChatAuthService(
             WeChatCode2SessionClient code2SessionClient,
             WeChatProperties properties,
             WeChatUserBindingMapper bindingMapper,
-            MockUserCatalog catalog,
+            UserCatalog catalog,
             AuthService authService) {
         this.code2SessionClient = code2SessionClient;
         this.properties = properties;
@@ -44,7 +44,7 @@ public class WeChatAuthService {
         WeChatSessionIdentity identity = code2SessionClient.exchange(code);
         WeChatUserBindingEntity binding = findByIdentity(identity);
         if (binding == null && StringUtils.hasText(properties.autoBindUsername())) {
-            MockAccount account = catalog.require(properties.autoBindUsername());
+            UserAccount account = catalog.findByUsername(properties.autoBindUsername());
             if (account != null) {
                 binding = createBinding(identity, account);
             }
@@ -52,8 +52,8 @@ public class WeChatAuthService {
         if (binding == null || !"ACTIVE".equals(binding.getStatus())) {
             throw new BusinessException(ErrorCode.WECHAT_ACCOUNT_NOT_BOUND);
         }
-        MockAccount account = catalog.findByUserId(binding.getUserId());
-        if (account == null) {
+        UserAccount account = catalog.findByUserId(binding.getUserId());
+        if (account == null || !account.isActive()) {
             throw new BusinessException(ErrorCode.WECHAT_ACCOUNT_NOT_BOUND);
         }
         LocalDateTime now = LocalDateTime.now();
@@ -67,7 +67,7 @@ public class WeChatAuthService {
     @Transactional
     public WeChatBindingData bind(String code) {
         CurrentPrincipal current = CurrentUser.require();
-        MockAccount account = catalog.findByUserId(current.userId());
+        UserAccount account = catalog.findByUserId(current.userId());
         if (account == null) {
             throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED);
         }
@@ -91,7 +91,7 @@ public class WeChatAuthService {
     }
 
     private WeChatUserBindingEntity createBinding(
-            WeChatSessionIdentity identity, MockAccount account) {
+            WeChatSessionIdentity identity, UserAccount account) {
         WeChatUserBindingEntity binding = new WeChatUserBindingEntity();
         LocalDateTime now = LocalDateTime.now();
         binding.setTenantId(account.tenantId());
@@ -146,4 +146,3 @@ public class WeChatAuthService {
                 binding.getCreatedAt());
     }
 }
-

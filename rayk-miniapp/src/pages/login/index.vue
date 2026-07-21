@@ -25,19 +25,39 @@
     <view class="card login-card">
       <view class="card-kicker">欢迎使用</view>
       <view class="card-title">微信身份快捷登录</view>
-      <view class="subtitle">安全识别当前微信身份，自动进入对应工作台</view>
-      <button class="wechat" :loading="wechatLoading" @click="handleWeChatLogin">
+      <view class="subtitle">识别已绑定账号的角色与服务范围，再进入对应工作台</view>
+      <button
+        class="wechat"
+        :loading="wechatLoading"
+        :disabled="Boolean(identified)"
+        @click="handleWeChatLogin"
+      >
         <text class="wechat-mark">微</text> 微信一键登录
       </button>
+      <view v-if="wechatLoading" class="recognizing">正在安全识别你的微信账号…</view>
+      <view v-if="identified" class="identified">
+        <view class="identified-mark">✓</view>
+        <view
+          ><text>已识别：{{ identified.displayName }}</text
+          ><text>将进入{{ identified.workbench }}</text></view
+        >
+      </view>
       <view class="agreement">登录即表示同意《用户服务协议》和《隐私政策》</view>
       <view v-if="wechatError" class="error">{{ wechatError }}</view>
     </view>
     <!-- #endif -->
 
-    <view class="developer-trigger" @click="showDeveloper = !showDeveloper">
+    <!-- #ifdef H5 -->
+    <view v-if="!isDevBuild" class="card browser-tip">
+      <view class="card-title">请在微信中使用</view>
+      <view class="subtitle">正式账号通过微信小程序登录；此网页仅用于展示与本地运维验证。</view>
+    </view>
+    <!-- #endif -->
+
+    <view v-if="isDevBuild" class="developer-trigger" @click="showDeveloper = !showDeveloper">
       <text>开发调试身份</text><text>{{ showDeveloper ? '收起' : '展开' }} ›</text>
     </view>
-    <view v-if="showDeveloper" class="card development-card">
+    <view v-if="isDevBuild && showDeveloper" class="card development-card">
       <view class="row development-head">
         <view>
           <view class="card-title">选择体验身份</view>
@@ -75,6 +95,7 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
+import type { AuthData, Role } from '@/types/api'
 
 const accounts = [
   { username: 'platform_admin', icon: '平', name: '平台管理员', description: '平台基础查看' },
@@ -87,15 +108,21 @@ const username = ref('doctor'),
   password = ref('RayK@123456'),
   loading = ref(false),
   wechatLoading = ref(false),
-  showDeveloper = ref(false),
+  showDeveloper = ref(true),
   error = ref(''),
   wechatError = ref(''),
-  expired = ref(false)
+  expired = ref(false),
+  identified = ref<{ displayName: string; workbench: string } | null>(null)
 const auth = useAuthStore()
-
-// #ifdef H5
-showDeveloper.value = true
-// #endif
+const isDevBuild =
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEVELOPMENT_LOGIN === 'true'
+const workbenchNames: Record<Role, string> = {
+  PLATFORM_ADMIN: '平台管理工作台',
+  TENANT_ADMIN: '机构管理工作台',
+  DOCTOR: '医生工作台',
+  HEALTH_MANAGER: '健康管理工作台',
+  CUSTOMER: '个人健康中心',
+}
 
 onLoad((query) => {
   expired.value = query?.expired === '1'
@@ -107,7 +134,12 @@ async function handleWeChatLogin() {
   try {
     const result = await uni.login({ provider: 'weixin' })
     if (!result.code) throw new Error('微信未返回登录凭证')
-    await auth.loginWithWeChat(result.code)
+    const data: AuthData = await auth.loginWithWeChat(result.code)
+    identified.value = {
+      displayName: data.displayName,
+      workbench: workbenchNames[data.defaultWorkbench],
+    }
+    await new Promise((resolve) => setTimeout(resolve, 900))
     uni.switchTab({ url: '/pages/home/index' })
   } catch (e) {
     wechatError.value = e instanceof Error ? e.message : '微信登录失败'
@@ -261,6 +293,45 @@ async function handleLogin() {
   color: #94a09c;
   text-align: center;
   font-size: 20rpx;
+}
+.recognizing {
+  margin-top: 18rpx;
+  color: #5f8479;
+  text-align: center;
+  font-size: 22rpx;
+}
+.identified {
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+  margin-top: 22rpx;
+  padding: 18rpx;
+  border-radius: 16rpx;
+  background: #e7f8f1;
+  color: #176c57;
+  font-size: 22rpx;
+}
+.identified-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38rpx;
+  height: 38rpx;
+  border-radius: 50%;
+  background: #16a36f;
+  color: #fff;
+  font-weight: 800;
+}
+.identified text {
+  display: block;
+}
+.identified text + text {
+  margin-top: 4rpx;
+  color: #5d8377;
+  font-size: 20rpx;
+}
+.browser-tip {
+  padding: 34rpx;
 }
 .developer-trigger {
   display: flex;

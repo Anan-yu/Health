@@ -24,7 +24,7 @@
           <view class="eyebrow">OVERVIEW</view>
           <view class="section-title">今日概览</view>
         </view>
-        <view class="section-tip">数据实时更新</view>
+        <view class="section-tip refresh-tip" @click="refresh(true)">{{ refreshLabel }}</view>
       </view>
       <view class="metric-grid">
         <view
@@ -78,7 +78,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onHide, onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import PageState from '@/components/PageState.vue'
 import { getHomeSummary } from '@/api/workbench'
 import { menusFor } from '@/constants/menus'
@@ -89,6 +89,8 @@ const auth = useAuthStore()
 const summary = ref<HomeSummary>()
 const loading = ref(true),
   error = ref('')
+const lastUpdatedAt = ref<Date | null>(null)
+let refreshTimer: ReturnType<typeof globalThis.setInterval> | undefined
 const metricIcons = ['待', '报', '评', '访']
 const roleNames: Record<Role, string> = {
   PLATFORM_ADMIN: '平台管理工作台',
@@ -122,17 +124,37 @@ const dateText = computed(() => {
   const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
   return `${now.getMonth() + 1}月${now.getDate()}日 · ${weekdays[now.getDay()]}`
 })
+const refreshLabel = computed(() =>
+  lastUpdatedAt.value
+    ? `更新于 ${lastUpdatedAt.value.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · 刷新`
+    : '正在更新',
+)
 
-onShow(async () => {
-  loading.value = true
+async function refresh(silent = false) {
+  if (!silent) loading.value = true
   error.value = ''
   try {
     summary.value = await getHomeSummary()
+    lastUpdatedAt.value = new Date()
   } catch (e) {
     error.value = e instanceof Error ? e.message : '加载失败'
   } finally {
     loading.value = false
   }
+}
+
+onShow(() => {
+  void refresh()
+  if (refreshTimer) globalThis.clearInterval(refreshTimer)
+  refreshTimer = globalThis.setInterval(() => void refresh(true), 20_000)
+})
+onHide(() => {
+  if (refreshTimer) globalThis.clearInterval(refreshTimer)
+  refreshTimer = undefined
+})
+onPullDownRefresh(async () => {
+  await refresh(true)
+  uni.stopPullDownRefresh()
 })
 
 const open = (url: string) => uni.navigateTo({ url })
@@ -225,6 +247,9 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
 .section-tip {
   color: #84938e;
   font-size: 22rpx;
+}
+.refresh-tip {
+  color: #0f7a62;
 }
 .metric-grid {
   display: grid;

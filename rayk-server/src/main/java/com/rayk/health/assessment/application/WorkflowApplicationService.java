@@ -17,6 +17,7 @@ import com.rayk.health.followup.entity.FollowupTaskEntity;
 import com.rayk.health.followup.mapper.FollowupTaskMapper;
 import com.rayk.health.followup.vo.FollowupTaskVo;
 import com.rayk.health.indicator.entity.IndicatorValueEntity;
+import com.rayk.health.indicator.application.AssessmentModelService;
 import com.rayk.health.indicator.mapper.IndicatorValueMapper;
 import com.rayk.health.integration.ai.AiDtos;
 import com.rayk.health.integration.ai.AiServiceClient;
@@ -31,6 +32,7 @@ import com.rayk.health.patient.application.DataScopeService;
 import com.rayk.health.patient.converter.PatientConverter;
 import com.rayk.health.patient.entity.PatientEntity;
 import com.rayk.health.patient.mapper.PatientMapper;
+import com.rayk.health.report.application.PdfReportService;
 import com.rayk.health.report.entity.HealthReportEntity;
 import com.rayk.health.report.mapper.HealthReportMapper;
 import com.rayk.health.report.vo.HealthReportVo;
@@ -39,6 +41,8 @@ import com.rayk.health.review.mapper.AssessmentReviewMapper;
 import com.rayk.health.review.vo.ReviewTaskVo;
 import com.rayk.health.security.service.CurrentPrincipal;
 import com.rayk.health.security.service.CurrentUser;
+import com.rayk.health.system.aspect.Audited;
+import com.rayk.health.system.application.PrivacyConsentService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -67,6 +71,9 @@ public class WorkflowApplicationService {
     private final PatientConverter patientConverter;
     private final AiServiceClient aiServiceClient;
     private final ObjectMapper objectMapper;
+    private final PdfReportService pdfReportService;
+    private final AssessmentModelService assessmentModelService;
+    private final PrivacyConsentService privacyConsentService;
 
     public WorkflowApplicationService(
             LabReportMapper labReportMapper,
@@ -80,7 +87,10 @@ public class WorkflowApplicationService {
             DataScopeService dataScopeService,
             PatientConverter patientConverter,
             AiServiceClient aiServiceClient,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            PdfReportService pdfReportService,
+            AssessmentModelService assessmentModelService,
+            PrivacyConsentService privacyConsentService) {
         this.labReportMapper = labReportMapper;
         this.indicatorMapper = indicatorMapper;
         this.aiTaskMapper = aiTaskMapper;
@@ -93,6 +103,9 @@ public class WorkflowApplicationService {
         this.patientConverter = patientConverter;
         this.aiServiceClient = aiServiceClient;
         this.objectMapper = objectMapper;
+        this.pdfReportService = pdfReportService;
+        this.assessmentModelService = assessmentModelService;
+        this.privacyConsentService = privacyConsentService;
     }
 
     public List<Long> accessiblePatientIds() {
@@ -101,9 +114,12 @@ public class WorkflowApplicationService {
                 .toList();
     }
 
-    @PreAuthorize("hasAnyAuthority('lab-report:manage', 'self:lab-report')")
+    @PreAuthorize("hasAuthority('lab-report:manage') or (hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER')")
+    @Audited(operationType = "CREATE_LAB_REPORT", resourceType = "LAB_REPORT")
     public LabReportVo createLabReport(CreateLabReportRequest request) {
         dataScopeService.requirePatient(request.patientId());
+        privacyConsentService.requireConsent(
+                request.patientId(), PrivacyConsentService.TYPE_DATA_COLLECTION);
         CurrentPrincipal current = CurrentUser.require();
         LabReportEntity report = new LabReportEntity();
         report.setTenantId(current.tenantId());
@@ -137,7 +153,8 @@ public class WorkflowApplicationService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyAuthority('lab-report:manage', 'indicator:confirm', 'self:lab-report')")
+    @PreAuthorize("hasAnyAuthority('lab-report:manage', 'indicator:confirm') or (hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER')")
+    @Audited(operationType = "REPLACE_INDICATORS", resourceType = "LAB_REPORT")
     public LabReportVo replaceIndicators(long reportId, ConfirmIndicatorsRequest request) {
         LabReportEntity report = requireReport(reportId);
         if (Set.of("AI_PROCESSING", "REVIEWING", "PUBLISHED").contains(report.getStatus())) {
@@ -156,7 +173,8 @@ public class WorkflowApplicationService {
         return toLabReportVo(report);
     }
 
-    @PreAuthorize("hasAnyAuthority('lab-report:manage', 'indicator:confirm', 'self:lab-report')")
+    @PreAuthorize("hasAnyAuthority('lab-report:manage', 'indicator:confirm') or (hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER')")
+    @Audited(operationType = "CONFIRM_INDICATORS", resourceType = "LAB_REPORT")
     public LabReportVo confirmIndicators(long reportId) {
         LabReportEntity report = requireReport(reportId);
         if (!"WAITING_CONFIRMATION".equals(report.getStatus())) {
@@ -177,12 +195,15 @@ public class WorkflowApplicationService {
         return toLabReportVo(report);
     }
 
-    @PreAuthorize("hasAnyAuthority('assessment:create', 'lab-report:manage', 'self:assessment')")
+    @PreAuthorize("hasAnyAuthority('assessment:create', 'lab-report:manage') or (hasAuthority('self:assessment') and principal.workbench == 'CUSTOMER')")
+    @Audited(operationType = "SUBMIT_ASSESSMENT", resourceType = "LAB_REPORT")
     public AssessmentVo submitAi(long reportId) {
         LabReportEntity report = requireReport(reportId);
         if (!"CONFIRMED".equals(report.getStatus())) {
             throw new BusinessException(ErrorCode.LAB_REPORT_INVALID_STATUS);
         }
+        privacyConsentService.requireConsent(
+                report.getPatientId(), PrivacyConsentService.TYPE_HEALTH_ASSESSMENT);
         CurrentPrincipal current = CurrentUser.require();
         report.setStatus("AI_PROCESSING");
         touch(report, current.userId());
@@ -200,6 +221,10 @@ public class WorkflowApplicationService {
         aiTaskMapper.insert(task);
 
         try {
+            List<String> activeModelCodes = assessmentModelService.activeModelCodes();
+            if (activeModelCodes.isEmpty()) {
+                throw new BusinessException(ErrorCode.MODEL_CONFIG_NOT_FOUND);
+            }
             AiDtos.EvaluateRequest aiRequest =
                     new AiDtos.EvaluateRequest(
                             task.getTaskCode(),
@@ -214,7 +239,8 @@ public class WorkflowApplicationService {
                                                             item.getUnit(),
                                                             item.getReferenceLow(),
                                                             item.getReferenceHigh()))
-                                    .toList());
+                                    .toList(),
+                            activeModelCodes);
             AiDtos.AssessmentData aiResult = aiServiceClient.evaluate(aiRequest);
             task.setStatus("SUCCESS");
             task.setFinishedAt(LocalDateTime.now());
@@ -310,16 +336,22 @@ public class WorkflowApplicationService {
     }
 
     @PreAuthorize("hasAuthority('assessment:review')")
+    @Transactional
+    @Audited(operationType = "APPROVE_REVIEW", resourceType = "ASSESSMENT_REVIEW")
     public ReviewTaskVo approve(long id, String opinion) {
         return decide(id, opinion, "APPROVED");
     }
 
     @PreAuthorize("hasAuthority('assessment:review')")
+    @Transactional
+    @Audited(operationType = "REJECT_REVIEW", resourceType = "ASSESSMENT_REVIEW")
     public ReviewTaskVo reject(long id, String opinion) {
         return decide(id, opinion, "REJECTED");
     }
 
     @PreAuthorize("hasAuthority('report:publish')")
+    @Transactional
+    @Audited(operationType = "PUBLISH_HEALTH_REPORT", resourceType = "HEALTH_REPORT")
     public HealthReportVo publish(long reviewId) {
         AssessmentReviewEntity review = requireReview(reviewId);
         dataScopeService.requirePatient(review.getPatientId());
@@ -343,6 +375,10 @@ public class WorkflowApplicationService {
         report.setPublishedBy(current.userId());
         auditNew(report, current.userId());
         healthReportMapper.insert(report);
+
+        // A published report must have a downloadable artifact; storage failures roll back publication.
+        pdfReportService.generateAndStore(report, assessment, patient, current.userId());
+
         review.setStatus("PUBLISHED");
         touch(review, current.userId());
         reviewMapper.updateById(review);
@@ -379,6 +415,7 @@ public class WorkflowApplicationService {
     }
 
     @PreAuthorize("hasAnyAuthority('followup:manage', 'followup:create')")
+    @Audited(operationType = "CREATE_FOLLOWUP", resourceType = "FOLLOWUP_TASK")
     public FollowupTaskVo createFollowup(CreateFollowupRequest request) {
         dataScopeService.requirePatient(request.patientId());
         CurrentPrincipal current = CurrentUser.require();
@@ -400,18 +437,30 @@ public class WorkflowApplicationService {
         if (patientIds.isEmpty()) {
             return List.of();
         }
+        LambdaQueryWrapper<FollowupTaskEntity> query =
+                new LambdaQueryWrapper<FollowupTaskEntity>()
+                        .in(FollowupTaskEntity::getPatientId, patientIds)
+                        .orderByAsc(FollowupTaskEntity::getDueDate);
+        if ("CUSTOMER".equals(CurrentUser.require().workbench())) {
+            query.ne(FollowupTaskEntity::getStatus, "DRAFT");
+        }
         return followupMapper
-                .selectList(
-                        new LambdaQueryWrapper<FollowupTaskEntity>()
-                                .in(FollowupTaskEntity::getPatientId, patientIds)
-                                .orderByAsc(FollowupTaskEntity::getDueDate))
+                .selectList(query)
                 .stream()
                 .map(this::toFollowupVo)
                 .toList();
     }
 
+    public FollowupTaskVo getFollowup(long id) {
+        return toFollowupVo(requireFollowup(id));
+    }
+
+    @PreAuthorize("hasAnyAuthority('followup:manage', 'followup:create')")
     public FollowupTaskVo completeFollowup(long id) {
         FollowupTaskEntity task = requireFollowup(id);
+        if (!"PENDING".equals(task.getStatus())) {
+            throw new BusinessException(ErrorCode.FOLLOWUP_INVALID_STATUS);
+        }
         task.setStatus("COMPLETED");
         task.setCompletedAt(LocalDateTime.now());
         touch(task, CurrentUser.require().userId());
@@ -419,8 +468,12 @@ public class WorkflowApplicationService {
         return toFollowupVo(task);
     }
 
+    @PreAuthorize("hasAuthority('self:followup') and principal.workbench == 'CUSTOMER'")
     public FollowupTaskVo feedback(long id, String feedback) {
         FollowupTaskEntity task = requireFollowup(id);
+        if (!"PENDING".equals(task.getStatus())) {
+            throw new BusinessException(ErrorCode.FOLLOWUP_INVALID_STATUS);
+        }
         task.setFeedback(feedback);
         task.setStatus("COMPLETED");
         task.setCompletedAt(LocalDateTime.now());
@@ -432,7 +485,7 @@ public class WorkflowApplicationService {
     private ReviewTaskVo decide(long id, String opinion, String status) {
         AssessmentReviewEntity review = requireReview(id);
         dataScopeService.requirePatient(review.getPatientId());
-        if (!Set.of("WAITING_REVIEW", "REJECTED").contains(review.getStatus())) {
+        if (!"WAITING_REVIEW".equals(review.getStatus())) {
             throw new BusinessException(ErrorCode.REVIEW_INVALID_STATUS);
         }
         CurrentPrincipal current = CurrentUser.require();
@@ -442,6 +495,20 @@ public class WorkflowApplicationService {
         review.setReviewedAt(LocalDateTime.now());
         touch(review, current.userId());
         reviewMapper.updateById(review);
+        if ("REJECTED".equals(status)) {
+            HealthAssessmentEntity assessment = assessmentMapper.selectById(review.getAssessmentId());
+            if (assessment == null) {
+                throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
+            }
+            LabReportEntity labReport = labReportMapper.selectById(assessment.getReportId());
+            if (labReport == null) {
+                throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
+            }
+            labReport.setStatus("WAITING_CONFIRMATION");
+            labReport.setFailureReason(opinion);
+            touch(labReport, current.userId());
+            labReportMapper.updateById(labReport);
+        }
         return toReviewVo(review);
     }
 
@@ -465,7 +532,7 @@ public class WorkflowApplicationService {
     private FollowupTaskEntity requireFollowup(long id) {
         FollowupTaskEntity task = followupMapper.selectById(id);
         if (task == null) {
-            throw new BusinessException(ErrorCode.PATIENT_NOT_FOUND);
+            throw new BusinessException(ErrorCode.FOLLOWUP_NOT_FOUND);
         }
         dataScopeService.requirePatient(task.getPatientId());
         return task;
@@ -669,4 +736,3 @@ public class WorkflowApplicationService {
         }
     }
 }
-

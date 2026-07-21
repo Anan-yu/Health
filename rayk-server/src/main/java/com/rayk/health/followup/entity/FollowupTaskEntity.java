@@ -16,6 +16,7 @@ public class FollowupTaskEntity {
 
     private Long tenantId;
     private Long patientId;
+    private Long planId;
     private Long assigneeId;
     private String title;
     private String content;
@@ -31,4 +32,3 @@ public class FollowupTaskEntity {
     @TableLogic private Integer deleted;
     private Integer version;
 }
-

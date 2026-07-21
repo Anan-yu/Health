@@ -24,7 +24,7 @@ const customer: MenuItem[] = [
   },
   {
     title: '我的报告',
-    description: '查看检验和已发布报告',
+    description: '管理上传的原始检验报告',
     icon: '报',
     route: '/pages-customer/lab-report/index',
   },
@@ -33,6 +33,20 @@ const customer: MenuItem[] = [
     description: '查看健康风险与管理建议',
     icon: 'AI',
     route: '/pages-customer/assessment/index',
+  },
+  {
+    title: '健康报告',
+    description: '查看医生发布的 PDF 健康报告',
+    icon: '康',
+    route: '/pages-customer/health-report/index',
+    permission: 'self:health-report',
+  },
+  {
+    title: '指标趋势',
+    description: '查看历次确认指标的变化趋势',
+    icon: '趋',
+    route: '/pages-customer/trend/index',
+    permission: 'self:lab-report',
   },
   {
     title: '随访中心',

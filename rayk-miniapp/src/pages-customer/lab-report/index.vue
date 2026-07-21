@@ -25,14 +25,19 @@
     </view>
 
     <view class="filter-row">
-      <view class="filter active">全部</view>
-      <view class="filter">待确认</view>
-      <view class="filter">已完成</view>
+      <view
+        v-for="item in filters"
+        :key="item.code"
+        class="filter"
+        :class="{ active: activeFilter === item.code }"
+        @click="activeFilter = item.code"
+        >{{ item.label }}</view
+      >
     </view>
 
-    <PageState :loading="loading" :empty="reports.length === 0">
+    <PageState :loading="loading" :error="error" :empty="filteredReports.length === 0">
       <view
-        v-for="item in reports"
+        v-for="item in filteredReports"
         :key="item.id"
         class="card report-card"
         @click="detail(item.id)"
@@ -63,18 +68,35 @@ import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 
 const reports = ref<LabReport[]>([]),
-  loading = ref(true)
+  loading = ref(true),
+  error = ref(''),
+  activeFilter = ref<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
+const filters = [
+  { code: 'ALL' as const, label: '全部' },
+  { code: 'PENDING' as const, label: '待确认' },
+  { code: 'COMPLETED' as const, label: '已完成' },
+]
+const completedStatuses = ['CONFIRMED', 'AI_PROCESSING', 'AI_COMPLETED', 'COMPLETED', 'PUBLISHED']
+const filteredReports = computed(() => {
+  if (activeFilter.value === 'ALL') return reports.value
+  return reports.value.filter((item) =>
+    activeFilter.value === 'COMPLETED'
+      ? completedStatuses.includes(item.status)
+      : !completedStatuses.includes(item.status),
+  )
+})
 const confirmedCount = computed(
-  () =>
-    reports.value.filter((item) => ['CONFIRMED', 'COMPLETED', 'PUBLISHED'].includes(item.status))
-      .length,
+  () => reports.value.filter((item) => completedStatuses.includes(item.status)).length,
 )
 const pendingCount = computed(() => Math.max(reports.value.length - confirmedCount.value, 0))
 
 onShow(async () => {
   loading.value = true
+  error.value = ''
   try {
     reports.value = await getMyLabReports()
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '检验报告加载失败'
   } finally {
     loading.value = false
   }

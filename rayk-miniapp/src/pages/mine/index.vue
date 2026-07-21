@@ -42,7 +42,7 @@
         </view>
         <view class="setting-arrow">›</view>
       </view>
-      <view class="setting">
+      <view class="setting" @click="goPrivacy">
         <view class="setting-icon blue">隐</view>
         <view class="setting-content">
           <view class="setting-title">隐私授权</view>
@@ -50,7 +50,7 @@
         </view>
         <view class="setting-arrow">›</view>
       </view>
-      <view class="setting">
+      <view class="setting" @click="bindCurrentWeChat">
         <view class="setting-icon amber">安</view>
         <view class="setting-content">
           <view class="setting-title">账号安全</view>
@@ -75,6 +75,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { bindWeChat } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 import type { Role } from '@/types/api'
 
@@ -91,6 +92,22 @@ const workbenchName = computed(() =>
   auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '当前工作台',
 )
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
+const goPrivacy = () => uni.navigateTo({ url: '/pages-customer/privacy/index' })
+async function bindCurrentWeChat() {
+  // #ifdef MP-WEIXIN
+  try {
+    const result = await uni.login({ provider: 'weixin' })
+    if (!result.code) throw new Error('微信未返回登录凭证')
+    await bindWeChat(result.code)
+    uni.showToast({ title: '微信身份已绑定', icon: 'success' })
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '绑定失败', icon: 'none' })
+  }
+  // #endif
+  // #ifdef H5
+  uni.showToast({ title: '请在微信小程序中完成绑定', icon: 'none' })
+  // #endif
+}
 async function signOut() {
   await auth.signOut()
   uni.reLaunch({ url: '/pages/login/index' })

@@ -2,8 +2,10 @@ package com.rayk.health.workbench.controller;
 
 import com.rayk.health.common.api.ApiResponse;
 import com.rayk.health.security.service.AuthService;
+import com.rayk.health.security.service.CurrentPrincipal;
 import com.rayk.health.security.service.CurrentUser;
-import com.rayk.health.security.service.MockUserCatalog;
+import com.rayk.health.security.service.UserAccount;
+import com.rayk.health.security.service.UserCatalog;
 import com.rayk.health.security.service.WorkbenchOption;
 import com.rayk.health.workbench.dto.CurrentWorkbenchData;
 import com.rayk.health.workbench.dto.SwitchWorkbenchRequest;
@@ -19,16 +21,18 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/workbenches")
 public class WorkbenchController {
     private final AuthService authService;
-    private final MockUserCatalog catalog;
+    private final UserCatalog catalog;
 
-    public WorkbenchController(AuthService authService, MockUserCatalog catalog) {
+    public WorkbenchController(AuthService authService, UserCatalog catalog) {
         this.authService = authService;
         this.catalog = catalog;
     }
 
     @GetMapping
     public ApiResponse<List<WorkbenchOption>> list() {
-        return ApiResponse.success(catalog.require(CurrentUser.require().username()).workbenches());
+        CurrentPrincipal current = CurrentUser.require();
+        UserAccount account = catalog.findByUserId(current.userId());
+        return ApiResponse.success(account == null ? List.of() : account.workbenches());
     }
 
     @GetMapping("/current")

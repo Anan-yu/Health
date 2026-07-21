@@ -19,3 +19,17 @@ export const rejectReview = (id: string, opinion: string) =>
   })
 export const publishReview = (id: string) =>
   request<HealthReport>({ url: `/api/v1/reviews/tasks/${id}/publish`, method: 'POST' })
+
+export interface ReviewItemEdit {
+  modelCode: string
+  riskLevel: string
+  evidence: string[]
+  recommendations: string[]
+}
+
+export const editReview = (id: string, items: ReviewItemEdit[], overallOpinion: string) =>
+  request<ReviewTask>({
+    url: `/api/v1/reviews/tasks/${id}/edit`,
+    method: 'PUT',
+    data: { items, overallOpinion },
+  })

@@ -1,6 +1,11 @@
 <template>
   <view class="page editor-page">
-    <OcrIndicatorEditor :report-id="id" assessment-route="/pages-customer/assessment/index" />
+    <OcrIndicatorEditor
+      v-if="id"
+      :report-id="id"
+      assessment-route="/pages-customer/assessment/index"
+    />
+    <PageState v-else error="缺少检验报告编号，请从报告列表重新进入" />
   </view>
 </template>
 
@@ -8,6 +13,7 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import OcrIndicatorEditor from '@/components/OcrIndicatorEditor.vue'
+import PageState from '@/components/PageState.vue'
 
 const id = ref('')
 onLoad((query) => (id.value = String(query?.id || '')))

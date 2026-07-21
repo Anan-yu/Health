@@ -36,11 +36,7 @@ public class FollowupController {
 
     @GetMapping("/{id}")
     public ApiResponse<FollowupTaskVo> get(@PathVariable long id) {
-        return ApiResponse.success(
-                service.listFollowups().stream()
-                        .filter(item -> item.id().equals(String.valueOf(id)))
-                        .findFirst()
-                        .orElseThrow());
+        return ApiResponse.success(service.getFollowup(id));
     }
 
     @PutMapping("/{id}/complete")
@@ -54,4 +50,3 @@ public class FollowupController {
         return ApiResponse.success(service.feedback(id, request.feedback()));
     }
 }
-

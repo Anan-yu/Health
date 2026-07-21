@@ -67,6 +67,36 @@ export interface Patient {
   createdAt: string
 }
 
+export interface HealthProfile {
+  id: string
+  patientId: string
+  heightCm?: number
+  weightKg?: number
+  bmi?: number
+  bloodType?: string
+  lifestyleSummary?: string
+  medicalHistory?: string
+  allergyHistory?: string
+  currentMedications?: string
+  smokingStatus?: string
+  alcoholStatus?: string
+  exerciseFrequency?: string
+  sleepQuality?: string
+  stressLevel?: string
+  dietaryPreference?: string
+  profileCompleteness: number
+  updatedAt?: string
+}
+
+export interface PrivacyConsent {
+  id: string
+  consentType: string
+  policyVersion: string
+  consented: number
+  consentedAt?: string
+  revokedAt?: string
+}
+
 export interface Indicator {
   id?: string
   code: string
@@ -142,6 +172,7 @@ export interface Assessment {
       evidence: string[]
       missingIndicators: string[]
       recommendations: string[]
+      doctorEdited?: boolean
     }>
   }
   disclaimer: string
@@ -172,4 +203,84 @@ export interface Followup {
   dueDate: string
   status: string
   feedback?: string
+  completedAt?: string
+}
+
+export interface FollowupPlan {
+  id: string
+  patientId: string
+  planName: string
+  startDate: string
+  endDate: string
+  status: string
+  tasks: Followup[]
+  createdAt: string
+}
+
+export interface TrendPoint {
+  reportId: string
+  reportDate: string
+  value: number
+  unit: string
+  abnormalFlag?: string
+}
+
+export interface TrendSummary {
+  indicatorCode: string
+  indicatorName: string
+  latestValue?: number
+  minValue?: number
+  maxValue?: number
+  averageValue?: number
+  unit?: string
+  trendDirection: 'UP' | 'DOWN' | 'STABLE'
+  dataPoints: number
+}
+
+export interface AuditLog {
+  id: string
+  tenantId: string
+  operatorId: string
+  operationType: string
+  resourceType: string
+  resourceId?: string
+  requestId?: string
+  result: string
+  detailMasked?: string
+  createdAt: string
+}
+
+export interface TenantProfile {
+  id: string
+  name: string
+  status: string
+  servicePlan: string
+}
+
+export interface TenantStaff {
+  id: string
+  username: string
+  displayName: string
+  phoneMasked?: string
+  roles: Role[]
+  status: string
+}
+
+export interface TenantSummary {
+  id: string
+  code: string
+  name: string
+  status: string
+  servicePlan: string
+  userCount: number
+}
+
+export interface PlatformOverview {
+  tenantCount: number
+  activeTenantCount: number
+  userCount: number
+  patientCount: number
+  pendingReviewCount: number
+  pendingFollowupCount: number
+  tenants: TenantSummary[]
 }

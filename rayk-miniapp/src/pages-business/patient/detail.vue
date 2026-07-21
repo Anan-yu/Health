@@ -39,12 +39,12 @@
         ></view
       >
       <view class="action-grid">
-        <view class="action-card primary-action" @click="report"
+        <view v-if="canUploadReport" class="action-card primary-action" @click="report"
           ><view class="action-icon">传</view
           ><view><text>上传检验报告</text><text>创建新的报告任务</text></view
           ><text class="action-arrow">›</text></view
         >
-        <view class="action-card" @click="followup"
+        <view v-if="canManageFollowup" class="action-card" @click="followup"
           ><view class="action-icon followup-icon">访</view
           ><view><text>查看随访</text><text>跟进健康管理计划</text></view
           ><text class="action-arrow">›</text></view
@@ -55,12 +55,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getPatient } from '@/api/patient'
 import type { Patient } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import { useAuthStore } from '@/stores/auth'
+const auth = useAuthStore()
 const item = ref<Patient>(),
   loading = ref(true)
 onLoad(async (q) => {
@@ -72,7 +74,14 @@ onLoad(async (q) => {
 })
 const report = () =>
   uni.navigateTo({ url: `/pages-customer/lab-report/upload?patientId=${item.value?.id || ''}` })
-const followup = () => uni.navigateTo({ url: '/pages-business/followup/index' })
+const followup = () =>
+  uni.navigateTo({ url: `/pages-business/followup/index?patientId=${item.value?.id || ''}` })
+const canUploadReport = computed(() => auth.permissions.includes('lab-report:manage'))
+const canManageFollowup = computed(() =>
+  auth.permissions.some((permission) =>
+    ['followup:manage', 'followup:create'].includes(permission),
+  ),
+)
 </script>
 
 <style scoped>

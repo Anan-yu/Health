@@ -9,6 +9,7 @@ services:
     ports: []
   rayk-server:
     environment:
+      RAYK_DEVELOPMENT_LOGIN_ENABLED: "false"
       WECHAT_MOCK_ENABLED: "false"
       WECHAT_AUTO_BIND_USERNAME: ""
     ports: []

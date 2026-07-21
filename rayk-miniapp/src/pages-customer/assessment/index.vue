@@ -1,12 +1,15 @@
 <template>
   <view class="page"
     ><view class="title">AI评估结果</view
-    ><PageState :loading="loading" :empty="items.length === 0"
+    ><PageState :loading="loading" :error="error" :empty="items.length === 0"
       ><view v-for="assessment in items" :key="assessment.id" class="card"
         ><view class="row"
           ><view class="section-title">评估 #{{ assessment.id }}</view
           ><StatusTag :status="assessment.overallRiskLevel" /></view
-        ><view v-for="model in assessment.results.results" :key="model.modelCode" class="model"
+        ><view
+          v-for="model in assessment.results?.results || []"
+          :key="model.modelCode"
+          class="model"
           ><view class="row"
             ><text>{{ model.modelName }}</text
             ><text class="metric">{{ model.score }}</text></view
@@ -28,10 +31,15 @@ import type { Assessment } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 const items = ref<Assessment[]>([]),
-  loading = ref(true)
+  loading = ref(true),
+  error = ref('')
 onShow(async () => {
+  loading.value = true
+  error.value = ''
   try {
     items.value = await getMyAssessments()
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '评估结果加载失败'
   } finally {
     loading.value = false
   }

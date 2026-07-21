@@ -10,7 +10,6 @@
     <view class="state-copy">{{ error }}</view>
   </view>
   <view v-else-if="empty" class="state empty-state">
-    <view class="state-icon empty-icon">○</view>
     <view class="state-title">暂无数据</view>
     <view class="state-copy">完成相关操作后，内容会显示在这里</view>
   </view>
@@ -52,15 +51,14 @@ defineProps<{ loading?: boolean; error?: string; empty?: boolean }>()
   font-size: 34rpx;
   font-weight: 750;
 }
-.empty-icon {
-  background: #eaf5f1;
-  color: #5f8479;
-}
 .state-title {
   margin-top: 24rpx;
   color: #28443c;
   font-size: 29rpx;
   font-weight: 680;
+}
+.empty-state .state-title {
+  margin-top: 0;
 }
 .state-copy {
   max-width: 480rpx;

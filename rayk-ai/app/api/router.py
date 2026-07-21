@@ -12,7 +12,7 @@ from app.schemas.common import ApiResponse
 from app.schemas.indicator import NormalizationData, NormalizationRequest
 from app.schemas.ocr import OcrRecognizeData, OcrRecognizeRequest
 from app.schemas.report import ReportGenerateData, ReportGenerateRequest
-from app.scoring.engine import DemoRuleEngine
+from app.scoring.engine import MODEL_VERSION, DemoRuleEngine
 
 router = APIRouter(prefix="/api/v1")
 ocr_service = build_ocr_service()
@@ -42,10 +42,10 @@ def normalize(request: NormalizationRequest) -> ApiResponse[object]:
 def evaluate(request: AssessmentRequest) -> ApiResponse[object]:
     data = AssessmentData(
         task_id=request.task_id,
-        model_version="DEMO_1.0.0",
+        model_version=MODEL_VERSION,
         status="SUCCESS",
         disclaimer=DISCLAIMER,
-        results=rule_engine.evaluate(request),
+        results=rule_engine.evaluate(request, model_codes=request.model_codes),
     )
     return ok(data)
 

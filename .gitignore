@@ -36,6 +36,7 @@ htmlcov/
 .hypothesis/
 model_cache/
 models/tmp/
+tmp/
 *.ckpt.tmp
 *.download
 *.part
@@ -115,4 +116,3 @@ $RECYCLE.BIN/
 .Trashes
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
-
