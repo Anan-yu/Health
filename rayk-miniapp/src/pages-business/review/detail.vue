@@ -20,11 +20,33 @@
         <text class="risk-label">{{ task?.assessment.overallRiskLevel }}</text>
       </view>
 
+      <view v-if="task?.assessment.results.interpretation" class="card interpretation-card">
+        <view class="row">
+          <view class="section-title">AI 综合解读</view>
+          <text class="interpretation-source">
+            {{
+              task.assessment.results.interpretation.source === 'DEEPSEEK'
+                ? 'AI 辅助生成'
+                : '规则辅助生成'
+            }}
+          </text>
+        </view>
+        <view class="interpretation-summary">
+          {{ displayInterpretation(task.assessment.results.interpretation.summary) }}
+        </view>
+        <view class="missing">
+          不确定性：{{ displayInterpretation(task.assessment.results.interpretation.uncertainty) }}
+        </view>
+      </view>
+
       <view v-for="(model, index) in editableModels" :key="model.modelCode" class="card model-card">
         <view class="model-head">
           <view>
-            <view class="model-name">{{ model.modelName }}</view>
-            <view class="muted">{{ model.modelCode }} · AI 得分 {{ model.score }}</view>
+            <view class="model-name">评估维度 {{ String(index + 1).padStart(2, '0') }}</view>
+            <view class="muted"
+              >AI 得分 {{ model.score ?? '暂无评分' }} · 数据完整度 {{ model.dataCompleteness
+              }}%</view
+            >
           </view>
           <picker
             v-if="canEdit"
@@ -104,12 +126,16 @@ import StatusTag from '@/components/StatusTag.vue'
 
 interface EditableModel {
   modelCode: string
-  modelName: string
-  score: number
+  score: number | null
   riskLevel: string
+  dataCompleteness: number
   evidenceText: string
   recommendationsText: string
   missingIndicators: string[]
+}
+
+function displayInterpretation(value: string) {
+  return value.split('模型').join('评估维度')
 }
 
 const id = ref('')
@@ -119,7 +145,7 @@ const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const opinion = ref('')
-const riskOptions = ['LOW', 'ATTENTION', 'HIGH']
+const riskOptions = ['INSUFFICIENT_DATA', 'LOW', 'ATTENTION', 'HIGH']
 const canEdit = computed(() => task.value?.status === 'WAITING_REVIEW')
 
 const listValue = (value: unknown) =>
@@ -130,9 +156,9 @@ function syncTask(value: ReviewTask) {
   opinion.value = value.reviewOpinion || ''
   editableModels.value = (value.assessment.results.results || []).map((model) => ({
     modelCode: model.modelCode,
-    modelName: model.modelName,
     score: model.score,
     riskLevel: model.riskLevel,
+    dataCompleteness: model.dataCompleteness ?? 0,
     evidenceText: listValue(model.evidence).join('\n'),
     recommendationsText: listValue(model.recommendations).join('\n'),
     missingIndicators: model.missingIndicators || [],
@@ -169,6 +195,7 @@ function lines(value: string) {
 }
 
 function riskText(value: string) {
+  if (value === 'INSUFFICIENT_DATA') return '数据不足'
   return value === 'LOW' ? '低风险' : value === 'HIGH' ? '高风险' : '需关注'
 }
 
@@ -285,6 +312,21 @@ function publish() {
   color: #b97816;
   font-size: 22rpx;
   font-weight: 700;
+}
+.interpretation-card {
+  margin-top: 20rpx;
+  border: 1px solid #d8eee7;
+  background: linear-gradient(145deg, #edf8f5, #ffffff 72%);
+}
+.interpretation-source {
+  color: #08745d;
+  font-size: 21rpx;
+  font-weight: 650;
+}
+.interpretation-summary {
+  margin: 18rpx 0 12rpx;
+  color: #254c42;
+  line-height: 1.75;
 }
 .model-card {
   margin-top: 20rpx;

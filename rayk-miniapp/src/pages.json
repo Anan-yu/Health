@@ -8,6 +8,7 @@
     { "path": "pages/workbench/index", "style": { "navigationBarTitleText": "工作台" } },
     { "path": "pages/message/index", "style": { "navigationBarTitleText": "消息" } },
     { "path": "pages/mine/index", "style": { "navigationBarTitleText": "我的" } },
+    { "path": "pages/support/index", "style": { "navigationBarTitleText": "帮助与反馈" } },
     { "path": "pages/switch-workbench/index", "style": { "navigationBarTitleText": "切换工作台" } },
     { "path": "pages/no-permission/index", "style": { "navigationBarTitleText": "无权限" } },
     { "path": "pages/error/index", "style": { "navigationBarTitleText": "网络错误" } }

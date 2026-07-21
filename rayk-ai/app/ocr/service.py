@@ -26,25 +26,86 @@ class OcrService(ABC):
 class IndicatorRowParser:
     INDICATORS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
         ("fasting_glucose", "空腹血糖", "mmol/L", ("空腹血糖", "葡萄糖", "GLU")),
+        ("fasting_insulin", "空腹胰岛素", "μIU/mL", ("空腹胰岛素", "FINS")),
         ("hba1c", "糖化血红蛋白", "%", ("糖化血红蛋白", "糖化血色素", "HbA1c")),
-        ("crp", "C反应蛋白", "mg/L", ("超敏C反应蛋白", "C反应蛋白", "hs-CRP", "CRP")),
+        ("hs_crp", "高敏C反应蛋白", "mg/L", ("超敏C反应蛋白", "高敏C反应蛋白", "hs-CRP")),
+        ("crp", "C反应蛋白", "mg/L", ("C反应蛋白", "CRP")),
+        ("esr", "红细胞沉降率", "mm/h", ("红细胞沉降率", "血沉", "ESR")),
+        ("homocysteine", "同型半胱氨酸", "μmol/L", ("同型半胱氨酸", "HCY")),
+        ("ferritin", "铁蛋白", "ng/mL", ("铁蛋白", "FER")),
+        ("wbc", "白细胞计数", "10^9/L", ("白细胞计数", "白细胞", "WBC")),
         ("total_cholesterol", "总胆固醇", "mmol/L", ("总胆固醇", "胆固醇", "TC")),
         ("triglyceride", "甘油三酯", "mmol/L", ("甘油三酯", "TG")),
         ("hdl", "高密度脂蛋白胆固醇", "mmol/L", ("高密度脂蛋白胆固醇", "HDL-C", "HDL")),
         ("ldl", "低密度脂蛋白胆固醇", "mmol/L", ("低密度脂蛋白胆固醇", "LDL-C", "LDL")),
+        ("apob", "载脂蛋白B", "g/L", ("载脂蛋白B", "ApoB")),
+        ("lpa", "脂蛋白(a)", "nmol/L", ("脂蛋白(a)", "Lp(a)")),
         ("alt", "丙氨酸氨基转移酶", "U/L", ("丙氨酸氨基转移酶", "谷丙转氨酶", "ALT")),
         ("ast", "天门冬氨酸氨基转移酶", "U/L", ("天门冬氨酸氨基转移酶", "谷草转氨酶", "AST")),
+        ("ggt", "γ-谷氨酰转移酶", "U/L", ("γ-谷氨酰转移酶", "谷氨酰转肽酶", "GGT")),
+        ("total_bilirubin", "总胆红素", "μmol/L", ("总胆红素", "TBIL")),
+        ("albumin", "白蛋白", "g/L", ("白蛋白", "ALB")),
         ("creatinine", "肌酐", "μmol/L", ("血肌酐", "肌酐", "CREA", "Cr")),
+        ("egfr", "估算肾小球滤过率", "mL/min/1.73m2", ("估算肾小球滤过率", "eGFR")),
+        ("urea", "尿素", "mmol/L", ("尿素氮", "尿素", "UREA", "BUN")),
         ("uric_acid", "尿酸", "μmol/L", ("尿酸", "UA")),
+        ("sodium", "钠", "mmol/L", ("血清钠", "血钠", "Na+")),
+        ("potassium", "钾", "mmol/L", ("血清钾", "血钾", "K+")),
+        ("hemoglobin", "血红蛋白", "g/L", ("血红蛋白", "HGB")),
+        ("rbc", "红细胞计数", "10^12/L", ("红细胞计数", "红细胞", "RBC")),
+        ("mcv", "平均红细胞体积", "fL", ("平均红细胞体积", "MCV")),
+        ("mch", "平均红细胞血红蛋白量", "pg", ("平均红细胞血红蛋白量", "MCH")),
         ("tsh", "促甲状腺激素", "mIU/L", ("促甲状腺激素", "TSH")),
+        ("ft3", "游离三碘甲状腺原氨酸", "pmol/L", ("游离三碘甲状腺原氨酸", "游离T3", "FT3")),
+        ("ft4", "游离甲状腺素", "pmol/L", ("游离甲状腺素", "游离T4", "FT4")),
+        ("tpo_ab", "甲状腺过氧化物酶抗体", "IU/mL", ("甲状腺过氧化物酶抗体", "TPOAb")),
+        ("tg_ab", "甲状腺球蛋白抗体", "IU/mL", ("甲状腺球蛋白抗体", "TGAb")),
+        ("estradiol", "雌二醇", "pg/mL", ("雌二醇", "E2")),
+        ("progesterone", "孕酮", "ng/mL", ("孕酮",)),
+        ("testosterone", "睾酮", "ng/mL", ("睾酮", "TESTO")),
+        ("shbg", "性激素结合球蛋白", "nmol/L", ("性激素结合球蛋白", "SHBG")),
+        ("lh", "黄体生成素", "IU/L", ("黄体生成素", "LH")),
+        ("fsh", "卵泡刺激素", "IU/L", ("卵泡刺激素", "FSH")),
+        ("cortisol_am", "晨间皮质醇", "μg/dL", ("晨间皮质醇", "上午皮质醇")),
+        ("cortisol_pm", "晚间皮质醇", "μg/dL", ("晚间皮质醇", "下午皮质醇")),
+        ("dhea_s", "脱氢表雄酮硫酸酯", "μg/dL", ("脱氢表雄酮硫酸酯", "DHEA-S")),
+        ("sleep_hours", "平均睡眠时长", "h", ("平均睡眠时长", "Sleep hours")),
+        ("hrv", "心率变异性", "ms", ("心率变异性", "HRV")),
         ("vitamin_d", "25羟维生素D", "ng/mL", ("25羟维生素D", "25-OH-D", "维生素D")),
+        ("vitamin_b12", "维生素B12", "pg/mL", ("维生素B12", "VB12")),
+        ("folate", "叶酸", "ng/mL", ("叶酸", "FOL")),
+        ("zinc", "锌", "μg/dL", ("血清锌", "锌")),
+        ("magnesium", "镁", "mmol/L", ("血清镁", "镁")),
+        ("calcium", "钙", "mmol/L", ("血清钙", "钙")),
+        ("zonulin", "连蛋白", "ng/mL", ("连蛋白", "Zonulin")),
+        ("calprotectin", "粪便钙卫蛋白", "μg/g", ("粪便钙卫蛋白", "钙卫蛋白")),
+        ("occult_blood", "便潜血", "index", ("便潜血", "潜血", "OB")),
+        ("stool_ph", "粪便pH", "index", ("粪便pH", "Stool pH")),
+        (
+            "digestive_symptom_score",
+            "消化症状评分",
+            "index",
+            ("消化症状评分", "Digestive symptom score"),
+        ),
+        ("blood_lead", "血铅", "μg/L", ("血铅", "Pb")),
+        ("blood_mercury", "血汞", "μg/L", ("血汞", "Hg")),
+        ("cadmium", "镉", "μg/L", ("血镉", "镉")),
+        ("arsenic", "砷", "μg/L", ("血砷", "砷")),
+        (
+            "heavy_metal_panel",
+            "重金属组合异常指数",
+            "index",
+            ("重金属组合异常指数", "Heavy metal panel"),
+        ),
     )
 
     def parse(self, lines: Iterable[str]) -> list[IndicatorInput]:
         parsed: dict[str, IndicatorInput] = {}
         normalized_lines = [self._normalize(line) for line in lines if line.strip()]
-        for line in normalized_lines:
+        for index, line in enumerate(normalized_lines):
             known = self._parse_known(line)
+            if known is None:
+                known = self._parse_known_cells(normalized_lines, index)
             if known is not None:
                 parsed[known.code or known.name] = known
                 continue
@@ -53,17 +114,46 @@ class IndicatorRowParser:
                 parsed[generic.code or generic.name] = generic
         return list(parsed.values())
 
+    def _parse_known_cells(
+        self, lines: list[str], index: int
+    ) -> IndicatorInput | None:
+        """Parse OCR tables that emit name, value, unit and range as separate cells."""
+        if index + 3 >= len(lines):
+            return None
+        value_text = lines[index + 1].strip()
+        range_text = lines[index + 3].strip()
+        if NUMBER_PATTERN.fullmatch(value_text) is None:
+            return None
+        range_numbers = [self._decimal(value) for value in NUMBER_PATTERN.findall(range_text)]
+        reference_low, reference_high = self._reference_values(
+            range_text, range_numbers, value_included=False
+        )
+        if reference_low is None or reference_high is None:
+            return None
+
+        matched = self._matched_indicator(lines[index])
+        if matched is not None:
+            code, standard_name, standard_unit, _ = matched
+            return IndicatorInput(
+                code=code,
+                name=standard_name,
+                value=self._decimal(value_text),
+                unit=standard_unit,
+                referenceLow=reference_low,
+                referenceHigh=reference_high,
+            )
+        return None
+
     def _parse_known(self, line: str) -> IndicatorInput | None:
         lowered = line.casefold()
-        for code, standard_name, standard_unit, aliases in self.INDICATORS:
-            alias = next((item for item in aliases if item.casefold() in lowered), None)
-            if alias is None:
-                continue
+        matched = self._matched_indicator(line)
+        if matched is not None:
+            code, standard_name, standard_unit, alias = matched
             alias_index = lowered.index(alias.casefold())
             tail = line[alias_index + len(alias) :]
             numbers = [self._decimal(value) for value in NUMBER_PATTERN.findall(tail)]
             if not numbers:
-                continue
+                return None
             reference_low, reference_high = self._reference_values(tail, numbers)
             return IndicatorInput(
                 code=code,
@@ -74,6 +164,19 @@ class IndicatorRowParser:
                 referenceHigh=reference_high,
             )
         return None
+
+    def _matched_indicator(
+        self, line: str
+    ) -> tuple[str, str, str, str] | None:
+        """Return the most specific alias so broad names cannot steal table rows."""
+        lowered = line.casefold()
+        matches = (
+            (code, standard_name, standard_unit, alias)
+            for code, standard_name, standard_unit, aliases in self.INDICATORS
+            for alias in aliases
+            if alias.casefold() in lowered
+        )
+        return max(matches, key=lambda item: len(item[3]), default=None)
 
     def _parse_generic(self, line: str) -> IndicatorInput | None:
         match = re.match(

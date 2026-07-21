@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from pydantic import Field
 
-from app.schemas.assessment import ModelResult
+from app.schemas.assessment import ComprehensiveInterpretation, ModelResult
 from app.schemas.common import RaykModel
 
 
@@ -23,6 +23,7 @@ class ReportGenerateRequest(RaykModel):
     doctor_opinion: str | None = Field(default=None, alias="doctorOpinion")
     indicators: list[ReportIndicator] = Field(default_factory=list)
     results: list[ModelResult]
+    interpretation: ComprehensiveInterpretation | None = None
 
 
 class ReportGenerateData(RaykModel):

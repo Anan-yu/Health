@@ -25,3 +25,32 @@ def test_parser_keeps_generic_numeric_rows_for_manual_review() -> None:
     assert len(indicators) == 1
     assert indicators[0].code is not None
     assert indicators[0].code.startswith("unrecognized_")
+
+
+def test_parser_prefers_specific_alias_over_broad_alias() -> None:
+    indicators = IndicatorRowParser().parse(
+        [
+            "低密度脂蛋白胆固醇 3.6 mmol/L 0.0-3.4",
+            "平均红细胞血红蛋白量 26 pg 27-34",
+            "粪便钙卫蛋白 62 μg/g 0-50",
+        ]
+    )
+
+    assert [item.code for item in indicators] == ["ldl", "mch", "calprotectin"]
+
+
+def test_parser_prefers_specific_alias_for_separate_table_cells() -> None:
+    indicators = IndicatorRowParser().parse(
+        [
+            "高密度脂蛋白胆固醇",
+            "1.2",
+            "mmol/L",
+            "1.0-2.0",
+            "平均红细胞体积",
+            "82",
+            "fL",
+            "80-100",
+        ]
+    )
+
+    assert [item.code for item in indicators] == ["hdl", "mcv"]

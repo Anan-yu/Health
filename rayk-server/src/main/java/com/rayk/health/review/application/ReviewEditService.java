@@ -142,6 +142,7 @@ public class ReviewEditService {
         try {
             JsonNode results = objectMapper.readTree(resultSnapshot).path("results");
             boolean hasAttention = false;
+            boolean hasLow = false;
             for (JsonNode item : results) {
                 String riskLevel = item.path("riskLevel").asText();
                 if ("HIGH".equals(riskLevel)) {
@@ -150,8 +151,14 @@ public class ReviewEditService {
                 if ("ATTENTION".equals(riskLevel)) {
                     hasAttention = true;
                 }
+                if ("LOW".equals(riskLevel)) {
+                    hasLow = true;
+                }
             }
-            return hasAttention ? "ATTENTION" : "LOW";
+            if (hasAttention) {
+                return "ATTENTION";
+            }
+            return hasLow ? "LOW" : "INSUFFICIENT_DATA";
         } catch (JsonProcessingException exception) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR);
         }

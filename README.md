@@ -95,6 +95,8 @@ Copy-Item .env.example .env
 
 至少更换 MySQL、Redis、MinIO 密码与长度不少于 32 字节的 `JWT_SECRET`。`.env` 已被 Git 忽略，不应提交生产密钥。Compose 内的默认值只用于本机框架演示。
 
+如需启用综合 AI 解读，在本地 `.env` 设置 `DEEPSEEK_ENABLED=true`、`DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL=deepseek-v4-flash`。密钥不得写入源码、迁移、日志或前端；关闭或调用失败时系统自动回退到规则摘要，不影响十二模型评分和医生审核主链路。
+
 微信开发联调默认启用固定 openid 并自动绑定 `customer` 测试用户。生产覆盖文件会强制关闭模拟模式；正式部署需在本地 `.env` 配置 `WECHAT_APP_ID`、`WECHAT_APP_SECRET`，并把 `MINIO_PUBLIC_ENDPOINT` 设置为客户端可访问的 HTTPS 对象存储域名。后端只使用微信 `code2Session` 返回的身份，不保存 `session_key`。
 
 ## 启动
@@ -177,11 +179,12 @@ npm run build:mp-weixin
 2. 客户或健康管理师选择真实 PDF/JPG/PNG 报告上传；Java 校验文件、写入 MinIO 私有 Bucket，并在 MySQL 保存大小、MIME 与 SHA-256 元数据。
 3. Java 创建异步 OCR 任务，Python 从短时预签名地址读取文件并使用 PaddleOCR 识别；小程序轮询展示进度、置信度和失败重试入口。
 4. 用户核对、增删或修正指标后人工确认，Java 才允许进入后续 AI 健康评估。
-5. Java 建立评估任务并通过 HTTP 调用 Python DemoRuleEngine。
-6. Python 返回带免责声明的结构化结果，Java 保存快照并创建待审核任务。
-7. 医生查看证据、缺失指标和建议，审核通过或退回。
-8. 医生二次确认后发布，客户只可查看已发布报告。
-9. 机构人员创建/处理随访，客户提交反馈。
+5. Java 建立评估任务并通过 HTTP 调用 Python 十二模型规则引擎。规则引擎优先采用报告自带参考区间，数据不足时明确标记为“数据不足”，不伪装成低风险。
+6. Python 调用 DeepSeek 生成跨模型结构化综合解读；仅传年龄、性别、指标值/单位/参考区间及规则结果，不传姓名、手机号、OpenID、原始报告或业务标识。调用失败会自动回退到规则摘要。
+7. Java 保存规则结果与综合解读快照并创建待审核任务。
+8. 医生查看证据、缺失指标、DeepSeek 解读和建议，审核通过或退回；AI 结果不能跳过医生审核。
+9. 医生二次确认后发布，客户只可查看已发布报告。
+10. 机构人员创建/处理随访，客户提交反馈。
 
 种子数据中已有一个客户、八项指标、一份发布报告和一个待完成随访，全部标记为开发测试数据。
 

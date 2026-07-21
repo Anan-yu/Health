@@ -88,6 +88,17 @@ export interface HealthProfile {
   updatedAt?: string
 }
 
+export interface SupportTicket {
+  id: string
+  category: 'USAGE' | 'BUG' | 'SUGGESTION' | 'OTHER'
+  content: string
+  contact?: string
+  status: 'OPEN' | 'PROCESSING' | 'RESOLVED' | 'CLOSED'
+  reply?: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface PrivacyConsent {
   id: string
   consentType: string
@@ -167,13 +178,36 @@ export interface Assessment {
     results?: Array<{
       modelCode: string
       modelName: string
-      score: number
+      modelVersion?: string
+      status?: 'EVALUATED' | 'INSUFFICIENT_DATA'
+      score: number | null
       riskLevel: string
+      dataCompleteness?: number
+      confidence?: 'HIGH' | 'MEDIUM' | 'LOW'
       evidence: string[]
+      supportingIndicators?: string[]
       missingIndicators: string[]
       recommendations: string[]
       doctorEdited?: boolean
     }>
+    interpretation?: {
+      status: 'SUCCESS' | 'DISABLED' | 'FALLBACK'
+      source: 'DEEPSEEK' | 'RULE_FALLBACK'
+      model?: string
+      summary: string
+      priorityConcerns: string[]
+      crossModelFindings: Array<{
+        title: string
+        indicatorCodes: string[]
+        explanation: string
+      }>
+      recommendations: string[]
+      missingDataAdvice: string[]
+      followupQuestions: string[]
+      redFlags: string[]
+      uncertainty: string
+      disclaimer: string
+    }
   }
   disclaimer: string
   createdAt: string

@@ -64,7 +64,7 @@ public class ReportTemplateBuilder {
 
         // Model results
         html.append("<div class=\"section\">\n");
-        html.append("<h2>二、评估模型结果</h2>\n");
+        html.append("<h2>二、综合评估结果</h2>\n");
         html.append(buildModelResults(assessment.getResultSnapshot()));
         html.append("</div>\n");
 
@@ -114,17 +114,21 @@ public class ReportTemplateBuilder {
                 return "<p>暂无评估模型结果数据。</p>\n";
             }
             sb.append("<table class=\"data-table\">\n");
-            sb.append("<thead><tr><th>评估模型</th><th>分数</th><th>风险等级</th><th>证据摘要</th><th>建议</th></tr></thead>\n");
+            sb.append("<thead><tr><th>评估维度</th><th>分数</th><th>风险等级</th><th>证据摘要</th><th>建议</th></tr></thead>\n");
             sb.append("<tbody>\n");
+            int dimension = 1;
             for (JsonNode item : results) {
-                String modelCode = textOrDash(item, "modelCode");
-                String modelName = textOrDash(item, "modelName");
-                String score = item.has("score") ? item.get("score").asText() : "-";
+                String score =
+                        item.has("score") && !item.get("score").isNull()
+                                ? item.get("score").asText()
+                                : "-";
                 String riskLevel = textOrDash(item, "riskLevel");
                 String evidence = textOrDash(item, "evidence");
                 String recommendations = textOrDash(item, "recommendations");
                 sb.append("<tr>");
-                sb.append("<td>").append(escapeHtml(modelName.equals("-") ? modelCode : modelName)).append("</td>");
+                sb.append("<td>")
+                        .append(String.format("评估维度 %02d", dimension++))
+                        .append("</td>");
                 sb.append("<td>").append(escapeHtml(score)).append("</td>");
                 sb.append("<td class=\"risk-").append(riskClass(riskLevel)).append("\">")
                   .append(escapeHtml(riskText(riskLevel))).append("</td>");
@@ -182,6 +186,7 @@ public class ReportTemplateBuilder {
                 .risk-MODERATE { color: #f57c00; font-weight: bold; }
                 .risk-HIGH { color: #d32f2f; font-weight: bold; }
                 .risk-ATTENTION { color: #f57c00; font-weight: bold; }
+                .risk-INSUFFICIENT { color: #607d8b; font-weight: bold; }
                 .flag-NORMAL { color: #2e7d32; }
                 .flag-HIGH { color: #d32f2f; font-weight: bold; }
                 .flag-LOW { color: #1565c0; font-weight: bold; }
@@ -221,6 +226,7 @@ public class ReportTemplateBuilder {
         return switch (riskLevel.toUpperCase()) {
             case "HIGH" -> "HIGH";
             case "MODERATE", "ATTENTION" -> "MODERATE";
+            case "INSUFFICIENT_DATA" -> "INSUFFICIENT";
             default -> "LOW";
         };
     }
@@ -232,6 +238,7 @@ public class ReportTemplateBuilder {
             case "MODERATE" -> "中风险";
             case "ATTENTION" -> "需关注";
             case "LOW" -> "低风险";
+            case "INSUFFICIENT_DATA" -> "数据不足";
             default -> riskLevel;
         };
     }

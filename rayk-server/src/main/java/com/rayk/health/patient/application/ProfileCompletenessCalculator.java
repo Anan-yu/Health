@@ -15,17 +15,21 @@ public final class ProfileCompletenessCalculator {
         int nonNull = 0;
         if (entity.getHeightCm() != null) nonNull++;
         if (entity.getWeightKg() != null) nonNull++;
-        if (entity.getBloodType() != null) nonNull++;
-        if (entity.getLifestyleSummary() != null) nonNull++;
-        if (entity.getMedicalHistory() != null) nonNull++;
-        if (entity.getAllergyHistory() != null) nonNull++;
-        if (entity.getCurrentMedications() != null) nonNull++;
-        if (entity.getSmokingStatus() != null) nonNull++;
-        if (entity.getAlcoholStatus() != null) nonNull++;
-        if (entity.getExerciseFrequency() != null) nonNull++;
-        if (entity.getSleepQuality() != null) nonNull++;
-        if (entity.getStressLevel() != null) nonNull++;
-        if (entity.getDietaryPreference() != null) nonNull++;
+        if (hasText(entity.getBloodType())) nonNull++;
+        if (hasText(entity.getLifestyleSummary())) nonNull++;
+        if (hasText(entity.getMedicalHistory())) nonNull++;
+        if (hasText(entity.getAllergyHistory())) nonNull++;
+        if (hasText(entity.getCurrentMedications())) nonNull++;
+        if (hasText(entity.getSmokingStatus())) nonNull++;
+        if (hasText(entity.getAlcoholStatus())) nonNull++;
+        if (hasText(entity.getExerciseFrequency())) nonNull++;
+        if (hasText(entity.getSleepQuality())) nonNull++;
+        if (hasText(entity.getStressLevel())) nonNull++;
+        if (hasText(entity.getDietaryPreference())) nonNull++;
         return (int) Math.round((double) nonNull / TOTAL_FIELDS * 100);
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

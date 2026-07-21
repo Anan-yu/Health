@@ -68,7 +68,9 @@
         <view class="insight-content">
           <view class="insight-label">{{ isCustomer ? '健康管理进度' : '团队工作提醒' }}</view>
           <view class="insight-title">{{ insightTitle }}</view>
-          <view class="progress-track"><view class="progress-value" /></view>
+          <view v-if="isCustomer" class="progress-track"
+            ><view class="progress-value" :style="{ width: `${insightProgress}%` }"
+          /></view>
         </view>
         <view class="insight-arrow">›</view>
       </view>
@@ -113,9 +115,24 @@ const quickMenus = computed(() =>
 const heroCaption = computed(() =>
   isCustomer.value ? '关注趋势，完成今天的健康管理任务' : '关键任务已为你整理，及时处理更高效',
 )
+const profileCompleteness = computed(() => {
+  const value = summary.value?.metrics.find((item) => item.code === 'PROFILE')?.value ?? 0
+  return Math.min(100, Math.max(0, Number(value) || 0))
+})
+const pendingTaskCount = computed(() => {
+  const pendingCodes = new Set(['OCR', 'REVIEW', 'FOLLOWUP'])
+  return (summary.value?.metrics || [])
+    .filter((item) => pendingCodes.has(item.code))
+    .reduce((total, item) => total + Math.max(0, Number(item.value) || 0), 0)
+})
 const insightTitle = computed(() =>
-  isCustomer.value ? '档案与报告已完成 68%' : '优先处理待确认报告与审核任务',
+  isCustomer.value
+    ? `健康档案已完善 ${profileCompleteness.value}%`
+    : pendingTaskCount.value > 0
+      ? `当前共有 ${pendingTaskCount.value} 项待处理任务`
+      : '当前暂无待处理任务',
 )
+const insightProgress = computed(() => profileCompleteness.value)
 const insightRoute = computed(() =>
   isCustomer.value ? '/pages-customer/profile/index' : '/pages-business/lab-report/index',
 )
@@ -393,10 +410,10 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   background: #f2dfb1;
 }
 .progress-value {
-  width: 68%;
   height: 100%;
   border-radius: 999rpx;
   background: linear-gradient(90deg, #efb33a, #d78b13);
+  transition: width 0.25s ease;
 }
 .insight-arrow {
   color: #b58d42;

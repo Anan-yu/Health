@@ -7,18 +7,25 @@ public final class AiDtos {
     private AiDtos() {}
 
     public record EvaluateRequest(
-            String taskId, String patientId, List<Indicator> indicators, List<String> modelCodes) {
+      String taskId,
+      String patientId,
+      List<Indicator> indicators,
+      List<String> modelCodes,
+      PatientContext patientContext) {
         public EvaluateRequest(String taskId, String patientId, List<Indicator> indicators) {
-            this(taskId, patientId, indicators, null);
+      this(taskId, patientId, indicators, null, null);
+    }
+
+    public EvaluateRequest(
+        String taskId, String patientId, List<Indicator> indicators, List<String> modelCodes) {
+      this(taskId, patientId, indicators, modelCodes, null);
         }
     }
 
+  public record PatientContext(String gender, Integer age) {}
+
     public record OcrRecognizeRequest(
-            String taskId,
-            String fileId,
-            String objectName,
-            String mimeType,
-            String downloadUrl) {}
+      String taskId, String fileId, String objectName, String mimeType, String downloadUrl) {}
 
     public record Indicator(
             String code,
@@ -43,30 +50,73 @@ public final class AiDtos {
             String publishedAt,
             String doctorOpinion,
             List<Indicator> indicators,
-            List<ModelResult> results) {}
+      List<ModelResult> results,
+      ComprehensiveInterpretation interpretation) {}
 
     public record ReportGenerateData(
-            String title,
-            String summary,
-            List<String> sections,
-            String disclaimer,
-            String pdfBase64) {}
+      String title, String summary, List<String> sections, String disclaimer, String pdfBase64) {}
 
-    public record ApiEnvelope<T>(int code, String message, String requestId, long timestamp, T data) {}
+  public record ApiEnvelope<T>(
+      int code, String message, String requestId, long timestamp, T data) {}
 
     public record AssessmentData(
             String taskId,
             String modelVersion,
             String status,
             String disclaimer,
-            List<ModelResult> results) {}
+      List<ModelResult> results,
+      ComprehensiveInterpretation interpretation) {}
 
     public record ModelResult(
             String modelCode,
             String modelName,
-            int score,
+      String modelVersion,
+      String status,
+      Integer score,
             String riskLevel,
+      int dataCompleteness,
+      String confidence,
             List<String> evidence,
+      List<String> supportingIndicators,
             List<String> missingIndicators,
-            List<String> recommendations) {}
+      List<String> recommendations) {
+    public ModelResult(
+        String modelCode,
+        String modelName,
+        Integer score,
+        String riskLevel,
+        List<String> evidence,
+        List<String> missingIndicators,
+        List<String> recommendations) {
+      this(
+          modelCode,
+          modelName,
+          "3.0.0",
+          "EVALUATED",
+          score,
+          riskLevel,
+          100,
+          "MEDIUM",
+          evidence,
+          List.of(),
+          missingIndicators,
+          recommendations);
+    }
+  }
+
+  public record CrossModelFinding(String title, List<String> indicatorCodes, String explanation) {}
+
+  public record ComprehensiveInterpretation(
+      String status,
+      String source,
+      String model,
+      String summary,
+      List<String> priorityConcerns,
+      List<CrossModelFinding> crossModelFindings,
+      List<String> recommendations,
+      List<String> missingDataAdvice,
+      List<String> followupQuestions,
+      List<String> redFlags,
+      String uncertainty,
+      String disclaimer) {}
 }

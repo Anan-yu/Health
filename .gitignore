@@ -47,6 +47,7 @@ tmp/
 **/.vite/
 **/.cache/
 .npm/
+.npm-cache/
 .pnpm-store/
 .yarn/cache/
 npm-debug.log*
@@ -86,6 +87,7 @@ application-local.properties
 data/
 logs/
 uploads/
+output/
 docker-data/
 mysql-data/
 redis-data/
@@ -103,6 +105,7 @@ ehthumbs_vista.db
 Desktop.ini
 $RECYCLE.BIN/
 *.lnk
+~$*.docx
 
 # macOS
 .DS_Store

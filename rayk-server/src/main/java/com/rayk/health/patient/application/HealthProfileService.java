@@ -45,19 +45,21 @@ public class HealthProfileService {
         CurrentPrincipal current = CurrentUser.require();
         HealthProfileEntity entity = findOrCreate(patientId);
 
-        if (request.heightCm() != null) entity.setHeightCm(request.heightCm());
-        if (request.weightKg() != null) entity.setWeightKg(request.weightKg());
-        if (request.bloodType() != null) entity.setBloodType(request.bloodType());
-        if (request.lifestyleSummary() != null) entity.setLifestyleSummary(request.lifestyleSummary());
-        if (request.medicalHistory() != null) entity.setMedicalHistory(request.medicalHistory());
-        if (request.allergyHistory() != null) entity.setAllergyHistory(request.allergyHistory());
-        if (request.currentMedications() != null) entity.setCurrentMedications(request.currentMedications());
-        if (request.smokingStatus() != null) entity.setSmokingStatus(request.smokingStatus());
-        if (request.alcoholStatus() != null) entity.setAlcoholStatus(request.alcoholStatus());
-        if (request.exerciseFrequency() != null) entity.setExerciseFrequency(request.exerciseFrequency());
-        if (request.sleepQuality() != null) entity.setSleepQuality(request.sleepQuality());
-        if (request.stressLevel() != null) entity.setStressLevel(request.stressLevel());
-        if (request.dietaryPreference() != null) entity.setDietaryPreference(request.dietaryPreference());
+        // PUT replaces the complete profile. Null or blank values must clear old data so the
+        // completeness percentage can decrease after a user removes a field.
+        entity.setHeightCm(request.heightCm());
+        entity.setWeightKg(request.weightKg());
+        entity.setBloodType(normalize(request.bloodType()));
+        entity.setLifestyleSummary(normalize(request.lifestyleSummary()));
+        entity.setMedicalHistory(normalize(request.medicalHistory()));
+        entity.setAllergyHistory(normalize(request.allergyHistory()));
+        entity.setCurrentMedications(normalize(request.currentMedications()));
+        entity.setSmokingStatus(normalize(request.smokingStatus()));
+        entity.setAlcoholStatus(normalize(request.alcoholStatus()));
+        entity.setExerciseFrequency(normalize(request.exerciseFrequency()));
+        entity.setSleepQuality(normalize(request.sleepQuality()));
+        entity.setStressLevel(normalize(request.stressLevel()));
+        entity.setDietaryPreference(normalize(request.dietaryPreference()));
 
         entity.recalculateBmi();
         entity.setProfileCompleteness(ProfileCompletenessCalculator.calculate(entity));
@@ -66,6 +68,11 @@ public class HealthProfileService {
         profileMapper.updateById(entity);
 
         return toVo(entity);
+    }
+
+    private static String normalize(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.trim();
     }
 
     private HealthProfileEntity findOrCreate(long patientId) {

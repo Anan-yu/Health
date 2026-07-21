@@ -46,10 +46,10 @@ import com.rayk.health.system.application.PrivacyConsentService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -225,6 +225,15 @@ public class WorkflowApplicationService {
             if (activeModelCodes.isEmpty()) {
                 throw new BusinessException(ErrorCode.MODEL_CONFIG_NOT_FOUND);
             }
+            PatientEntity patient = dataScopeService.requirePatient(report.getPatientId());
+            Integer age =
+                    patient.getBirthDate() == null
+                            ? null
+                            : Period.between(patient.getBirthDate(), LocalDate.now()).getYears();
+            String gender =
+                    Set.of("MALE", "FEMALE").contains(patient.getGender())
+                            ? patient.getGender()
+                            : "UNKNOWN";
             AiDtos.EvaluateRequest aiRequest =
                     new AiDtos.EvaluateRequest(
                             task.getTaskCode(),
@@ -240,7 +249,8 @@ public class WorkflowApplicationService {
                                                             item.getReferenceLow(),
                                                             item.getReferenceHigh()))
                                     .toList(),
-                            activeModelCodes);
+                            activeModelCodes,
+                            new AiDtos.PatientContext(gender, age));
             AiDtos.AssessmentData aiResult = aiServiceClient.evaluate(aiRequest);
             task.setStatus("SUCCESS");
             task.setFinishedAt(LocalDateTime.now());
@@ -254,10 +264,7 @@ public class WorkflowApplicationService {
             assessment.setPatientId(report.getPatientId());
             assessment.setModelVersion(aiResult.modelVersion());
             assessment.setStatus("SUCCESS");
-            assessment.setOverallRiskLevel(
-                    aiResult.results().stream().anyMatch(item -> !"LOW".equals(item.riskLevel()))
-                            ? "ATTENTION"
-                            : "LOW");
+            assessment.setOverallRiskLevel(overallRiskLevel(aiResult.results()));
             assessment.setResultSnapshot(objectMapper.writeValueAsString(aiResult));
             assessment.setDisclaimer(aiResult.disclaimer());
             auditNew(assessment, current.userId());
@@ -545,6 +552,19 @@ public class WorkflowApplicationService {
         } catch (BusinessException ignored) {
             return false;
         }
+    }
+
+    private String overallRiskLevel(List<AiDtos.ModelResult> results) {
+        if (results.stream().anyMatch(item -> "HIGH".equals(item.riskLevel()))) {
+            return "HIGH";
+        }
+        if (results.stream().anyMatch(item -> "ATTENTION".equals(item.riskLevel()))) {
+            return "ATTENTION";
+        }
+        if (results.stream().anyMatch(item -> "LOW".equals(item.riskLevel()))) {
+            return "LOW";
+        }
+        return "INSUFFICIENT_DATA";
     }
 
     private List<IndicatorValueEntity> indicators(long reportId) {

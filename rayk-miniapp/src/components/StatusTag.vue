@@ -26,6 +26,7 @@ const labels: Record<string, string> = {
   HIGH: '偏高',
   LOW: '偏低',
   ATTENTION: '需关注',
+  INSUFFICIENT_DATA: '数据不足',
   REVIEWING: '审核中',
   WAITING_REVIEW: '待审核',
   PENDING: '待处理',
@@ -73,6 +74,7 @@ const label = computed(() => labels[props.status] || props.status)
   color: #b42318;
 }
 .attention,
+.insufficient_data,
 .reviewing,
 .waiting_review,
 .waiting_confirmation,

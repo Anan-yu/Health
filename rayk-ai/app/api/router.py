@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from app.core.constants import DISCLAIMER
 from app.core.request_context import get_request_id
+from app.interpretation.service import InterpretationService
 from app.normalization.service import IndicatorNormalizationService
 from app.ocr.service import build_ocr_service
 from app.report.service import DemoReportService
@@ -18,6 +19,7 @@ router = APIRouter(prefix="/api/v1")
 ocr_service = build_ocr_service()
 normalization_service = IndicatorNormalizationService()
 rule_engine = DemoRuleEngine()
+interpretation_service = InterpretationService()
 report_service = DemoReportService()
 
 
@@ -40,12 +42,14 @@ def normalize(request: NormalizationRequest) -> ApiResponse[object]:
 
 @router.post("/assessments/evaluate", response_model=ApiResponse[AssessmentData])
 def evaluate(request: AssessmentRequest) -> ApiResponse[object]:
+    results = rule_engine.evaluate(request, model_codes=request.model_codes)
     data = AssessmentData(
         task_id=request.task_id,
         model_version=MODEL_VERSION,
         status="SUCCESS",
         disclaimer=DISCLAIMER,
-        results=rule_engine.evaluate(request, model_codes=request.model_codes),
+        results=results,
+        interpretation=interpretation_service.interpret(request, results),
     )
     return ok(data)
 

@@ -14,7 +14,7 @@ public record ReviewEditRequest(
 
     public record ReviewItemEdit(
             @NotBlank String modelCode,
-            @NotBlank @Pattern(regexp = "LOW|ATTENTION|HIGH") String riskLevel,
+            @NotBlank @Pattern(regexp = "INSUFFICIENT_DATA|LOW|ATTENTION|HIGH") String riskLevel,
             @NotNull @Size(max = 20) List<@NotBlank @Size(max = 500) String> evidence,
             @NotNull @Size(max = 20) List<@NotBlank @Size(max = 500) String> recommendations) {}
 }

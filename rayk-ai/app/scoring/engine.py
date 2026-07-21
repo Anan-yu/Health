@@ -1,320 +1,428 @@
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 from app.schemas.assessment import AssessmentRequest, ModelResult
+from app.schemas.indicator import IndicatorInput
 
-MODEL_VERSION = "DEMO_2.0.0"
-
-DISCLAIMER = (
-    "本评估结果由演示规则引擎生成，仅供健康管理参考，不构成任何医学诊断或治疗建议。"
-    "如有健康疑问，请咨询专业医疗机构。"
-)
+MODEL_VERSION = "RULE_3.0.0"
+MODEL_ITEM_VERSION = "3.0.0"
 
 
-class RuleDefinition(TypedDict):
+class RuleDefinition(TypedDict, total=False):
     code: str
-    condition: str
+    condition: Literal["HIGH", "LOW"]
     threshold: Decimal
+    unit: str
     evidence: str
     penalty: int
 
 
-class ModelDefinition(TypedDict):
+class ModelDefinition(TypedDict, total=False):
     model_code: str
     model_name: str
     indicators: list[str]
+    minimum_indicators: int
     rules: list[RuleDefinition]
     base_score: int
     recommendations: list[str]
+    requires_gender: bool
+    requires_age: bool
 
 
 class RuleEngine(ABC):
     @abstractmethod
-    def evaluate(self, request: AssessmentRequest) -> list[ModelResult]: ...
+    def evaluate(
+        self, request: AssessmentRequest, model_codes: list[str] | None = None
+    ) -> list[ModelResult]: ...
 
 
-# ---------------------------------------------------------------------------
-# Model definitions: each model specifies its applicable indicators and rules.
-# A rule fires when the indicator value exceeds (GT) or is below (LT) threshold.
-# ---------------------------------------------------------------------------
+def _rule(
+    code: str,
+    condition: Literal["HIGH", "LOW"],
+    threshold: str,
+    evidence: str,
+    penalty: int,
+    unit: str = "",
+) -> RuleDefinition:
+    return {
+        "code": code,
+        "condition": condition,
+        "threshold": Decimal(threshold),
+        "unit": unit,
+        "evidence": evidence,
+        "penalty": penalty,
+    }
 
+
+# These health-management rules are conservative, explainable defaults. Laboratory-provided
+# reference intervals take precedence over fallback thresholds. They are not diagnostic rules.
 MODEL_DEFINITIONS: list[ModelDefinition] = [
     {
         "model_code": "GLUCOSE_METABOLISM",
-        "model_name": "糖代谢失衡评估",
-        "indicators": ["fasting_glucose", "fasting_insulin", "hba1c", "triglyceride", "hdl"],
+        "model_name": "糖代谢与胰岛素抵抗",
+        "indicators": [
+            "fasting_glucose",
+            "fasting_insulin",
+            "hba1c",
+            "triglyceride",
+            "hdl",
+        ],
+        "minimum_indicators": 2,
         "rules": [
-            {
-                "code": "fasting_glucose",
-                "condition": "GT",
-                "threshold": Decimal("6.1"),
-                "evidence": "空腹血糖高于参考上限",
-                "penalty": 15,
-            },
-            {
-                "code": "fasting_insulin",
-                "condition": "GT",
-                "threshold": Decimal("25.0"),
-                "evidence": "空腹胰岛素偏高，提示胰岛素抵抗",
-                "penalty": 12,
-            },
-            {
-                "code": "hba1c",
-                "condition": "GT",
-                "threshold": Decimal("6.0"),
-                "evidence": "糖化血红蛋白偏高",
-                "penalty": 14,
-            },
-            {
-                "code": "triglyceride",
-                "condition": "GT",
-                "threshold": Decimal("1.7"),
-                "evidence": "甘油三酯高于参考上限",
-                "penalty": 8,
-            },
-            {
-                "code": "hdl",
-                "condition": "LT",
-                "threshold": Decimal("1.0"),
-                "evidence": "高密度脂蛋白偏低",
-                "penalty": 8,
-            },
+            _rule("fasting_glucose", "HIGH", "6.1", "空腹血糖高于关注范围", 15, "mmol/L"),
+            _rule("fasting_insulin", "HIGH", "25", "空腹胰岛素偏高", 12, "mIU/L"),
+            _rule("hba1c", "HIGH", "6.0", "糖化血红蛋白偏高", 14, "%"),
+            _rule("triglyceride", "HIGH", "1.7", "甘油三酯偏高", 8, "mmol/L"),
+            _rule("hdl", "LOW", "1.0", "高密度脂蛋白偏低", 8, "mmol/L"),
         ],
         "base_score": 90,
         "recommendations": [
-            "建议控制精制碳水化合物摄入，增加膳食纤维",
-            "保持规律有氧运动，每周至少150分钟",
-            "建议由专业人员结合完整健康信息进行审核",
+            "优先核对糖代谢相关指标并结合饮食、运动和体重变化综合评估",
+            "建议在专业人员指导下制定可持续的饮食和运动计划",
+            "按审核意见安排复查并观察指标趋势",
+        ],
+    },
+    {
+        "model_code": "LIPID_CARDIOVASCULAR",
+        "model_name": "血脂与心血管代谢",
+        "indicators": ["total_cholesterol", "ldl", "hdl", "triglyceride", "apob", "lpa"],
+        "minimum_indicators": 2,
+        "rules": [
+            _rule("total_cholesterol", "HIGH", "5.2", "总胆固醇偏高", 10, "mmol/L"),
+            _rule("ldl", "HIGH", "3.4", "低密度脂蛋白偏高", 14, "mmol/L"),
+            _rule("hdl", "LOW", "1.0", "高密度脂蛋白偏低", 10, "mmol/L"),
+            _rule("triglyceride", "HIGH", "1.7", "甘油三酯偏高", 10, "mmol/L"),
+            _rule("apob", "HIGH", "1.1", "载脂蛋白B偏高", 12, "g/L"),
+            _rule("lpa", "HIGH", "75", "脂蛋白(a)高于关注范围", 12, "nmol/L"),
+        ],
+        "base_score": 90,
+        "recommendations": [
+            "结合血压、吸烟史、家族史和既往心血管情况进行专业复核",
+            "关注膳食脂肪结构、体重管理和规律运动",
+            "按医生建议复查血脂相关指标",
         ],
     },
     {
         "model_code": "CHRONIC_INFLAMMATION",
-        "model_name": "慢性炎症与血管老化",
-        "indicators": ["crp", "homocysteine", "ferritin"],
+        "model_name": "慢性炎症与免疫负荷",
+        "indicators": ["crp", "hs_crp", "esr", "homocysteine", "ferritin", "wbc"],
+        "minimum_indicators": 2,
         "rules": [
-            {
-                "code": "crp",
-                "condition": "GT",
-                "threshold": Decimal("3.0"),
-                "evidence": "C反应蛋白高于关注阈值",
-                "penalty": 18,
-            },
-            {
-                "code": "homocysteine",
-                "condition": "GT",
-                "threshold": Decimal("15.0"),
-                "evidence": "同型半胱氨酸偏高，提示血管损伤风险",
-                "penalty": 12,
-            },
-            {
-                "code": "ferritin",
-                "condition": "GT",
-                "threshold": Decimal("300.0"),
-                "evidence": "铁蛋白偏高，可能与慢性炎症相关",
-                "penalty": 10,
-            },
+            _rule("crp", "HIGH", "3.0", "C反应蛋白高于关注范围", 16, "mg/L"),
+            _rule("hs_crp", "HIGH", "3.0", "高敏C反应蛋白高于关注范围", 16, "mg/L"),
+            _rule("esr", "HIGH", "20", "红细胞沉降率偏高", 8, "mm/h"),
+            _rule("homocysteine", "HIGH", "15", "同型半胱氨酸偏高", 12, "umol/L"),
+            _rule("ferritin", "HIGH", "300", "铁蛋白偏高，需结合炎症和铁代谢复核", 8, "ng/mL"),
+            _rule("wbc", "HIGH", "10", "白细胞计数偏高", 8, "10^9/L"),
         ],
         "base_score": 90,
         "recommendations": [
-            "建议增加富含Omega-3脂肪酸的食物摄入",
-            "保持规律作息，减少慢性压力",
-            "保持规律作息，并由健康管理人员复核完整指标",
+            "炎症指标受感染、运动和采样状态等因素影响，建议结合近期情况复核",
+            "保持规律睡眠、适量运动和均衡饮食",
+            "持续异常时由医生判断是否需要进一步检查",
         ],
     },
     {
-        "model_code": "HPA_ADRENAL",
-        "model_name": "HPA肾上腺压力轴",
-        "indicators": ["cortisol_am", "cortisol_pm", "dhea_s"],
+        "model_code": "LIVER_METABOLIC",
+        "model_name": "肝脏与代谢负担",
+        "indicators": ["alt", "ast", "ggt", "total_bilirubin", "albumin"],
+        "minimum_indicators": 2,
         "rules": [
-            {
-                "code": "cortisol_am",
-                "condition": "GT",
-                "threshold": Decimal("25.0"),
-                "evidence": "晨起皮质醇偏高，提示HPA轴过度激活",
-                "penalty": 15,
-            },
-            {
-                "code": "cortisol_pm",
-                "condition": "GT",
-                "threshold": Decimal("10.0"),
-                "evidence": "晚间皮质醇偏高，昼夜节律可能紊乱",
-                "penalty": 12,
-            },
-            {
-                "code": "dhea_s",
-                "condition": "LT",
-                "threshold": Decimal("50.0"),
-                "evidence": "DHEA-S偏低，提示肾上腺储备不足",
-                "penalty": 10,
-            },
+            _rule("alt", "HIGH", "40", "丙氨酸氨基转移酶偏高", 14, "U/L"),
+            _rule("ast", "HIGH", "40", "天门冬氨酸氨基转移酶偏高", 12, "U/L"),
+            _rule("ggt", "HIGH", "60", "γ-谷氨酰转移酶偏高", 12, "U/L"),
+            _rule("total_bilirubin", "HIGH", "21", "总胆红素偏高", 10, "umol/L"),
+            _rule("albumin", "LOW", "35", "白蛋白偏低", 12, "g/L"),
         ],
-        "base_score": 88,
+        "base_score": 90,
         "recommendations": [
-            "建议进行规律的压力管理练习（冥想、深呼吸）",
-            "保证充足睡眠，维持规律昼夜节律",
-            "建议由专业人员结合完整健康信息进行审核",
+            "结合饮酒、用药、体重及影像资料由医生复核肝脏相关风险",
+            "避免自行使用可能增加肝脏负担的药物或补充剂",
+            "按专业意见安排复查",
+        ],
+    },
+    {
+        "model_code": "KIDNEY_ELECTROLYTE",
+        "model_name": "肾功能与电解质",
+        "indicators": ["creatinine", "egfr", "urea", "uric_acid", "sodium", "potassium"],
+        "minimum_indicators": 2,
+        "rules": [
+            _rule("creatinine", "HIGH", "115", "肌酐偏高", 14, "umol/L"),
+            _rule("egfr", "LOW", "60", "估算肾小球滤过率偏低", 18, "mL/min/1.73m2"),
+            _rule("urea", "HIGH", "8.2", "尿素偏高", 8, "mmol/L"),
+            _rule("uric_acid", "HIGH", "420", "尿酸偏高", 10, "umol/L"),
+            _rule("sodium", "HIGH", "145", "血钠高于参考范围", 10, "mmol/L"),
+            _rule("sodium", "LOW", "135", "血钠低于参考范围", 10, "mmol/L"),
+            _rule("potassium", "HIGH", "5.5", "血钾高于参考范围", 14, "mmol/L"),
+            _rule("potassium", "LOW", "3.5", "血钾低于参考范围", 14, "mmol/L"),
+        ],
+        "base_score": 90,
+        "recommendations": [
+            "肾功能和电解质异常需结合年龄、饮水、用药及基础疾病由医生复核",
+            "不要根据单次结果自行调整处方药或大量补充电解质",
+            "按医生建议进行复查或进一步检查",
+        ],
+    },
+    {
+        "model_code": "HEMATOLOGY_ANEMIA",
+        "model_name": "血液与贫血相关风险",
+        "indicators": ["hemoglobin", "rbc", "mcv", "mch", "ferritin", "vitamin_b12", "folate"],
+        "minimum_indicators": 3,
+        "rules": [
+            _rule("hemoglobin", "LOW", "120", "血红蛋白偏低", 16, "g/L"),
+            _rule("rbc", "LOW", "3.8", "红细胞计数偏低", 10, "10^12/L"),
+            _rule("mcv", "LOW", "80", "平均红细胞体积偏低", 8, "fL"),
+            _rule("mcv", "HIGH", "100", "平均红细胞体积偏高", 8, "fL"),
+            _rule("mch", "LOW", "27", "平均红细胞血红蛋白量偏低", 8, "pg"),
+            _rule("ferritin", "LOW", "15", "铁蛋白偏低", 12, "ng/mL"),
+            _rule("vitamin_b12", "LOW", "200", "维生素B12偏低", 10, "pg/mL"),
+            _rule("folate", "LOW", "4", "叶酸偏低", 10, "ng/mL"),
+        ],
+        "base_score": 90,
+        "recommendations": [
+            "结合血常规、铁代谢、维生素B12和叶酸结果综合判断",
+            "不建议在原因不明时自行长期补铁或使用大剂量补充剂",
+            "由医生结合症状和既往史复核",
         ],
     },
     {
         "model_code": "THYROID_HORMONE",
-        "model_name": "甲状腺与性激素内分泌",
-        "indicators": ["tsh", "ft3", "ft4", "estradiol", "testosterone"],
+        "model_name": "甲状腺功能",
+        "indicators": ["tsh", "ft3", "ft4", "tpo_ab", "tg_ab"],
+        "minimum_indicators": 2,
         "rules": [
-            {
-                "code": "tsh",
-                "condition": "GT",
-                "threshold": Decimal("4.2"),
-                "evidence": "TSH高于参考上限，提示甲状腺功能减退倾向",
-                "penalty": 15,
-            },
-            {
-                "code": "ft3",
-                "condition": "LT",
-                "threshold": Decimal("3.1"),
-                "evidence": "游离T3偏低",
-                "penalty": 10,
-            },
-            {
-                "code": "ft4",
-                "condition": "LT",
-                "threshold": Decimal("12.0"),
-                "evidence": "游离T4偏低",
-                "penalty": 10,
-            },
-            {
-                "code": "estradiol",
-                "condition": "LT",
-                "threshold": Decimal("20.0"),
-                "evidence": "雌二醇偏低，提示性激素水平不足",
-                "penalty": 8,
-            },
-            {
-                "code": "testosterone",
-                "condition": "LT",
-                "threshold": Decimal("3.0"),
-                "evidence": "睾酮偏低",
-                "penalty": 8,
-            },
+            _rule("tsh", "HIGH", "4.2", "促甲状腺激素偏高", 15, "mIU/L"),
+            _rule("tsh", "LOW", "0.27", "促甲状腺激素偏低", 15, "mIU/L"),
+            _rule("ft3", "LOW", "3.1", "游离T3偏低", 10, "pmol/L"),
+            _rule("ft4", "LOW", "12", "游离T4偏低", 10, "pmol/L"),
+            _rule("tpo_ab", "HIGH", "34", "甲状腺过氧化物酶抗体偏高", 10, "IU/mL"),
+            _rule("tg_ab", "HIGH", "115", "甲状腺球蛋白抗体偏高", 10, "IU/mL"),
         ],
-        "base_score": 88,
+        "base_score": 90,
         "recommendations": [
-            "建议定期复查甲状腺功能全套",
-            "保证充足的碘、硒等微量元素摄入",
-            "建议由内分泌专科医师结合临床表现综合判断",
+            "结合年龄、症状、用药和甲状腺影像资料由医生综合判断",
+            "不要根据本评估自行调整甲状腺相关处方药",
+            "按专业意见复查甲状腺功能",
         ],
     },
     {
-        "model_code": "DETOX_GUT",
-        "model_name": "重金属/肝脏解毒/肠道屏障",
-        "indicators": ["alt", "ast", "ggt", "zonulin", "heavy_metal_panel"],
+        "model_code": "SEX_HORMONE",
+        "model_name": "性激素与生殖内分泌",
+        "indicators": ["estradiol", "progesterone", "testosterone", "shbg", "lh", "fsh"],
+        "minimum_indicators": 3,
+        "requires_gender": True,
+        "requires_age": True,
         "rules": [
-            {
-                "code": "alt",
-                "condition": "GT",
-                "threshold": Decimal("40.0"),
-                "evidence": "ALT高于参考上限，提示肝细胞损伤",
-                "penalty": 14,
-            },
-            {
-                "code": "ast",
-                "condition": "GT",
-                "threshold": Decimal("40.0"),
-                "evidence": "AST高于参考上限",
-                "penalty": 10,
-            },
-            {
-                "code": "ggt",
-                "condition": "GT",
-                "threshold": Decimal("60.0"),
-                "evidence": "GGT偏高，提示肝脏解毒负担增加",
-                "penalty": 10,
-            },
-            {
-                "code": "zonulin",
-                "condition": "GT",
-                "threshold": Decimal("100.0"),
-                "evidence": "连蛋白偏高，提示肠道屏障通透性增加",
-                "penalty": 12,
-            },
-            {
-                "code": "heavy_metal_panel",
-                "condition": "GT",
-                "threshold": Decimal("1.0"),
-                "evidence": "重金属检测值偏高",
-                "penalty": 15,
-            },
+            _rule("estradiol", "LOW", "20", "雌二醇低于检验参考范围", 8, "pg/mL"),
+            _rule("progesterone", "LOW", "0.2", "孕酮低于检验参考范围", 8, "ng/mL"),
+            _rule("testosterone", "LOW", "3", "睾酮低于检验参考范围", 10, "ng/mL"),
+            _rule("shbg", "HIGH", "80", "性激素结合球蛋白偏高", 8, "nmol/L"),
+            _rule("lh", "HIGH", "12", "黄体生成素高于检验参考范围", 8, "IU/L"),
+            _rule("fsh", "HIGH", "12", "卵泡刺激素高于检验参考范围", 8, "IU/L"),
         ],
         "base_score": 88,
         "recommendations": [
-            "建议减少酒精摄入，避免肝毒性药物",
-            "增加十字花科蔬菜摄入，支持肝脏解毒通路",
-            "建议由专业人员结合完整健康信息进行审核",
+            "性激素结果必须结合性别、年龄、生理阶段、采样时间和用药情况解释",
+            "当前结果仅用于提示需要专业复核，不用于诊断",
+            "如需干预，应由具备相应资质的医生决定",
+        ],
+    },
+    {
+        "model_code": "HPA_ADRENAL",
+        "model_name": "HPA压力、睡眠与恢复",
+        "indicators": ["cortisol_am", "cortisol_pm", "dhea_s", "sleep_hours", "hrv"],
+        "minimum_indicators": 2,
+        "rules": [
+            _rule("cortisol_am", "HIGH", "25", "晨间皮质醇偏高", 14, "ug/dL"),
+            _rule("cortisol_am", "LOW", "5", "晨间皮质醇偏低", 12, "ug/dL"),
+            _rule("cortisol_pm", "HIGH", "10", "晚间皮质醇偏高", 12, "ug/dL"),
+            _rule("dhea_s", "LOW", "50", "DHEA-S偏低", 10, "ug/dL"),
+            _rule("sleep_hours", "LOW", "6", "近期平均睡眠时间偏短", 8, "h"),
+        ],
+        "base_score": 88,
+        "recommendations": [
+            "优先改善规律作息、睡眠环境和可持续的压力管理方式",
+            "皮质醇结果需结合采样时间、药物和近期应激状态解释",
+            "持续不适时由专业人员进一步评估",
+        ],
+    },
+    {
+        "model_code": "NUTRITION_MICRONUTRIENT",
+        "model_name": "营养与微量元素",
+        "indicators": ["vitamin_d", "vitamin_b12", "folate", "ferritin", "zinc", "magnesium", "calcium"],
+        "minimum_indicators": 2,
+        "rules": [
+            _rule("vitamin_d", "LOW", "20", "维生素D偏低", 12, "ng/mL"),
+            _rule("vitamin_b12", "LOW", "200", "维生素B12偏低", 10, "pg/mL"),
+            _rule("folate", "LOW", "4", "叶酸偏低", 10, "ng/mL"),
+            _rule("ferritin", "LOW", "15", "铁蛋白偏低", 10, "ng/mL"),
+            _rule("zinc", "LOW", "70", "锌低于参考范围", 8, "ug/dL"),
+            _rule("magnesium", "LOW", "0.75", "镁低于参考范围", 8, "mmol/L"),
+            _rule("calcium", "LOW", "2.1", "钙低于参考范围", 8, "mmol/L"),
+        ],
+        "base_score": 90,
+        "recommendations": [
+            "优先通过膳食评估和确认后的检验结果识别营养缺口",
+            "补充剂剂量和周期应结合饮食、用药及医生意见确定",
+            "避免多个复合产品造成重复或过量摄入",
+        ],
+    },
+    {
+        "model_code": "GUT_BARRIER",
+        "model_name": "消化与肠道屏障",
+        "indicators": ["zonulin", "calprotectin", "occult_blood", "stool_ph", "digestive_symptom_score"],
+        "minimum_indicators": 2,
+        "rules": [
+            _rule("zonulin", "HIGH", "100", "连蛋白高于检验参考范围", 12, "ng/mL"),
+            _rule("calprotectin", "HIGH", "50", "粪便钙卫蛋白偏高", 16, "ug/g"),
+            _rule("occult_blood", "HIGH", "0", "便潜血结果需要关注", 18),
+            _rule("stool_ph", "HIGH", "7.5", "粪便pH高于参考范围", 6),
+            _rule("digestive_symptom_score", "HIGH", "6", "消化道症状评分较高", 10),
+        ],
+        "base_score": 88,
+        "recommendations": [
+            "结合消化道症状、饮食和正规检验结果综合评估",
+            "出现便潜血等需要关注的结果时应由医生判断下一步检查",
+            "不根据单一肠道指标自行进行所谓排毒或极端饮食",
+        ],
+    },
+    {
+        "model_code": "HEAVY_METAL_EXPOSURE",
+        "model_name": "重金属与环境暴露",
+        "indicators": ["blood_lead", "blood_mercury", "cadmium", "arsenic", "heavy_metal_panel"],
+        "minimum_indicators": 1,
+        "rules": [
+            _rule("blood_lead", "HIGH", "100", "血铅高于检验参考范围", 18, "ug/L"),
+            _rule("blood_mercury", "HIGH", "10", "血汞高于检验参考范围", 18, "ug/L"),
+            _rule("cadmium", "HIGH", "5", "镉检测值高于检验参考范围", 18, "ug/L"),
+            _rule("arsenic", "HIGH", "10", "砷检测值高于检验参考范围", 18, "ug/L"),
+            _rule("heavy_metal_panel", "HIGH", "1", "重金属组合检测存在异常标识", 18),
+        ],
+        "base_score": 88,
+        "recommendations": [
+            "结合职业、居住环境、饮食和采样方式核对可能的暴露来源",
+            "异常结果应由医生结合规范检测方法确认",
+            "不得依据本评估自行采用螯合或所谓排毒治疗",
         ],
     },
 ]
 
 
-def _check_rule(value: Decimal, condition: str, threshold: Decimal) -> bool:
-    if condition == "GT":
-        return value > threshold
-    if condition == "LT":
-        return value < threshold
-    return False
+def _normalized_unit(value: str) -> str:
+    return value.strip().lower().replace("μ", "u").replace("µ", "u").replace(" ", "")
 
 
-class DemoRuleEngine(RuleEngine):
+def _rule_threshold(indicator: IndicatorInput, rule: RuleDefinition) -> Decimal | None:
+    if rule["condition"] == "HIGH" and indicator.reference_high is not None:
+        return indicator.reference_high
+    if rule["condition"] == "LOW" and indicator.reference_low is not None:
+        return indicator.reference_low
+    expected_unit = rule.get("unit", "")
+    if expected_unit and _normalized_unit(indicator.unit) != _normalized_unit(expected_unit):
+        return None
+    return rule["threshold"]
+
+
+def _fires(value: Decimal, condition: str, threshold: Decimal) -> bool:
+    return value > threshold if condition == "HIGH" else value < threshold
+
+
+class HealthRuleEngine(RuleEngine):
     def evaluate(
         self,
         request: AssessmentRequest,
         model_codes: list[str] | None = None,
     ) -> list[ModelResult]:
-        values: dict[str, Decimal] = {
-            (item.code or item.name): item.value for item in request.indicators
+        values: dict[str, IndicatorInput] = {
+            item.code: item for item in request.indicators if item.code
         }
-
-        results: list[ModelResult] = []
         definitions = MODEL_DEFINITIONS
         if model_codes:
-            code_set = set(model_codes)
-            definitions = [d for d in definitions if d["model_code"] in code_set]
+            selected = set(model_codes)
+            definitions = [item for item in definitions if item["model_code"] in selected]
 
-        for model_def in definitions:
-            evidence: list[str] = []
-            missing: list[str] = []
-            total_penalty = 0
+        return [self._evaluate_model(request, values, model) for model in definitions]
 
-            for rule in model_def["rules"]:
-                code = rule["code"]
-                value = values.get(code)
-                if value is None:
-                    missing.append(code)
-                    continue
-                if _check_rule(value, rule["condition"], rule["threshold"]):
-                    evidence.append(rule["evidence"])
-                    total_penalty += rule["penalty"]
+    def _evaluate_model(
+        self,
+        request: AssessmentRequest,
+        values: dict[str, IndicatorInput],
+        model: ModelDefinition,
+    ) -> ModelResult:
+        expected = model["indicators"]
+        present = [code for code in expected if code in values]
+        missing = [code for code in expected if code not in values]
+        completeness = round(len(present) * 100 / len(expected)) if expected else 0
 
-            score = max(0, min(100, model_def["base_score"] - total_penalty))
-            if score >= 80:
-                risk_level = "LOW"
-            elif score >= 60:
-                risk_level = "ATTENTION"
-            else:
-                risk_level = "HIGH"
+        context = request.patient_context
+        missing_context: list[str] = []
+        if model.get("requires_gender") and (context is None or context.gender == "UNKNOWN"):
+            missing_context.append("gender")
+        if model.get("requires_age") and (context is None or context.age is None):
+            missing_context.append("age")
 
-            if not evidence:
-                evidence = [f"现有{model_def['model_name']}相关指标未触发演示关注规则"]
-
-            results.append(
-                ModelResult(
-                    model_code=model_def["model_code"],
-                    model_name=model_def["model_name"],
-                    score=score,
-                    risk_level=risk_level,
-                    evidence=evidence,
-                    missing_indicators=missing,
-                    recommendations=model_def["recommendations"],
+        if len(present) < model["minimum_indicators"] or missing_context:
+            reasons = []
+            if len(present) < model["minimum_indicators"]:
+                reasons.append(
+                    f"至少需要{model['minimum_indicators']}项相关指标，当前仅有{len(present)}项"
                 )
+            if missing_context:
+                reasons.append(f"缺少必要个体信息：{'、'.join(missing_context)}")
+            return ModelResult(
+                model_code=model["model_code"],
+                model_name=model["model_name"],
+                model_version=MODEL_ITEM_VERSION,
+                status="INSUFFICIENT_DATA",
+                score=None,
+                risk_level="INSUFFICIENT_DATA",
+                data_completeness=completeness,
+                confidence="LOW",
+                evidence=["；".join(reasons)],
+                supporting_indicators=present,
+                missing_indicators=[*missing, *missing_context],
+                recommendations=["补充必要数据后再完成该评估维度"],
             )
 
-        return results
+        evidence: list[str] = []
+        total_penalty = 0
+        for rule in model["rules"]:
+            indicator = values.get(rule["code"])
+            if indicator is None:
+                continue
+            threshold = _rule_threshold(indicator, rule)
+            if threshold is None:
+                continue
+            if _fires(indicator.value, rule["condition"], threshold):
+                evidence.append(
+                    f"{rule['evidence']}（{rule['code']}={indicator.value} {indicator.unit}）"
+                )
+                total_penalty += rule["penalty"]
+
+        score = max(0, min(100, model["base_score"] - total_penalty))
+        risk_level = "LOW" if score >= 80 else "ATTENTION" if score >= 60 else "HIGH"
+        confidence: Literal["HIGH", "MEDIUM", "LOW"] = (
+            "HIGH" if completeness >= 80 else "MEDIUM"
+        )
+        if not evidence:
+            evidence = ["已提供指标未触发该评估维度关注规则"]
+
+        return ModelResult(
+            model_code=model["model_code"],
+            model_name=model["model_name"],
+            model_version=MODEL_ITEM_VERSION,
+            status="EVALUATED",
+            score=score,
+            risk_level=risk_level,
+            data_completeness=completeness,
+            confidence=confidence,
+            evidence=evidence,
+            supporting_indicators=present,
+            missing_indicators=missing,
+            recommendations=model["recommendations"],
+        )
+
+
+# Kept as a compatibility alias for existing imports.
+DemoRuleEngine = HealthRuleEngine

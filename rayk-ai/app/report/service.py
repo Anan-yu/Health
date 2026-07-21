@@ -28,17 +28,23 @@ class DemoReportService:
     """Produces a real, downloadable PDF health-management report artifact."""
 
     def generate(self, request: ReportGenerateRequest) -> ReportGenerateData:
-        attention = [result.model_name for result in request.results if result.risk_level != "LOW"]
+        attention_count = sum(
+            result.risk_level in {"ATTENTION", "HIGH"} for result in request.results
+        )
         summary = (
-            f"本次评估建议重点关注：{'、'.join(attention)}。结果须由医生或健康管理师审核。"
-            if attention
-            else "本次评估未发现需重点关注的模型，仍建议由专业人员审核。"
+            request.interpretation.summary
+            if request.interpretation is not None
+            else (
+                f"本次评估有{attention_count}个健康维度建议重点关注，结果须由医生审核。"
+                if attention_count
+                else "本次评估未发现需重点关注的健康维度，仍建议由医生审核。"
+            )
         )
         title = f"{request.patient_display_name}的健康管理评估报告（演示）"
         return ReportGenerateData(
             title=title,
             summary=summary,
-            sections=["指标概览", "模型结果", "生活方式建议", "人工审核意见"],
+            sections=["指标概览", "评估结果", "生活方式建议", "人工审核意见"],
             disclaimer=DISCLAIMER,
             pdf_base64=base64.b64encode(self._build_pdf(request, title, summary)).decode("ascii"),
         )
@@ -92,14 +98,16 @@ class DemoReportService:
             Spacer(1, 5 * mm),
             Paragraph("一、评估摘要", heading),
             Paragraph(summary, normal),
-            Spacer(1, 3 * mm),
-            Paragraph("二、模型结果", heading),
         ]
+        if request.interpretation is not None:
+            story.append(Paragraph(f"不确定性：{request.interpretation.uncertainty}", small))
+        story.extend([Spacer(1, 3 * mm), Paragraph("二、评估结果", heading)])
 
-        result_rows = [["评估模型", "评分", "风险等级", "主要依据"]]
-        for result in request.results:
+        result_rows = [["评估维度", "评分", "风险等级", "主要依据"]]
+        for index, result in enumerate(request.results, start=1):
             evidence = "；".join(result.evidence) or "未触发关注规则"
-            result_rows.append([result.model_name, str(result.score), result.risk_level, evidence])
+            score = "-" if result.score is None else str(result.score)
+            result_rows.append([f"维度 {index:02d}", score, result.risk_level, evidence])
         story.append(self._table(result_rows, [39 * mm, 16 * mm, 23 * mm, 82 * mm], normal))
 
         story.extend([Spacer(1, 3 * mm), Paragraph("三、指标概览", heading)])

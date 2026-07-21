@@ -40,12 +40,13 @@
       </view>
     </view>
 
-    <view class="help-card">
+    <view class="help-card" @click="goSupport">
       <view class="help-icon">?</view>
       <view class="help-content">
         <view class="help-title">找不到需要的功能？</view>
-        <view class="muted">功能入口根据当前角色与权限动态展示</view>
+        <view class="muted">查看使用指南或提交问题反馈</view>
       </view>
+      <view class="help-arrow">›</view>
     </view>
   </view>
 </template>
@@ -86,6 +87,7 @@ const visibleMenus = computed(() =>
 )
 const open = (url: string) => uni.navigateTo({ url })
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
+const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
 </script>
 
 <style scoped>
@@ -245,5 +247,12 @@ const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
   margin-bottom: 4rpx;
   font-size: 25rpx;
   font-weight: 650;
+}
+.help-content {
+  flex: 1;
+}
+.help-arrow {
+  color: #7f918b;
+  font-size: 38rpx;
 }
 </style>
