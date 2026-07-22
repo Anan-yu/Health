@@ -231,7 +231,8 @@ class InterpretationService:
             for index, item in enumerate(insufficient, start=1)
         ][:8]
         uncertainty = (
-            f"共有{len(insufficient)}个评估维度因数据不足未形成风险结论。"
+            f"本次检验报告未覆盖{len(insufficient)}个专项评估维度；这些维度不代表低风险，"
+            "如有症状或医生判断需要，应补充相应的专项检查。"
             if insufficient
             else "规则结果仅反映本次已确认指标，不包含症状、完整病史和全部临床信息。"
         )

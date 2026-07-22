@@ -12,8 +12,11 @@
             item.results.interpretation.source === 'DEEPSEEK' ? 'AI综合解读' : '规则辅助解读'
           }}</text
           ><view>{{ displayInterpretation(item.results.interpretation.summary) }}</view></view
+        ><view v-if="unassessedModelCount(item)" class="coverage-note"
+          >本次报告已覆盖 {{ evaluatedModels(item).length }} 个可评估维度；另有
+          {{ unassessedModelCount(item) }} 个专项维度未覆盖。</view
         ><view
-          v-for="(model, index) in item.results.results"
+          v-for="(model, index) in evaluatedModels(item)"
           :key="model.modelCode"
           class="row model"
           ><text>评估维度 {{ String(index + 1).padStart(2, '0') }}</text
@@ -33,6 +36,12 @@ const items = ref<Assessment[]>([]),
   loading = ref(true)
 function displayInterpretation(value: string) {
   return value.split('模型').join('评估维度')
+}
+function evaluatedModels(assessment: Assessment) {
+  return (assessment.results?.results || []).filter((model) => model.status !== 'INSUFFICIENT_DATA')
+}
+function unassessedModelCount(assessment: Assessment) {
+  return (assessment.results?.results || []).length - evaluatedModels(assessment).length
 }
 onShow(async () => {
   try {
@@ -66,5 +75,13 @@ onShow(async () => {
   display: flex;
   align-items: center;
   gap: 12rpx;
+}
+.coverage-note {
+  margin: 16rpx 0;
+  padding: 16rpx;
+  border-radius: 14rpx;
+  background: #f2f8f6;
+  color: #547069;
+  font-size: 22rpx;
 }
 </style>

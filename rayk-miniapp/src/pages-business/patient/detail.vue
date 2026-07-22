@@ -78,9 +78,7 @@ const followup = () =>
   uni.navigateTo({ url: `/pages-business/followup/index?patientId=${item.value?.id || ''}` })
 const canUploadReport = computed(() => auth.permissions.includes('lab-report:manage'))
 const canManageFollowup = computed(() =>
-  auth.permissions.some((permission) =>
-    ['followup:manage', 'followup:create'].includes(permission),
-  ),
+  auth.permissions.includes('followup:manage'),
 )
 </script>
 

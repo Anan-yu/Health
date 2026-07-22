@@ -362,12 +362,19 @@ async function previewSource() {
     if (!files.length) throw new Error('没有可预览的报告文件')
     const file = await getFileDownloadUrl(props.reportId, files[0].id)
     if (!file.downloadUrl) throw new Error('报告预览地址生成失败')
+    // #ifdef H5
+    const previewWindow = window.open(file.downloadUrl, '_blank')
+    if (!previewWindow) throw new Error('浏览器拦截了预览窗口，请允许弹窗后重试')
+    previewWindow.opener = null
+    // #endif
+    // #ifndef H5
     uni.downloadFile({
       url: file.downloadUrl,
       success: (result) =>
         uni.openDocument({ filePath: result.tempFilePath, showMenu: true, fail: () => undefined }),
       fail: () => (error.value = '报告文件下载失败'),
     })
+    // #endif
   } catch (e) {
     error.value = e instanceof Error ? e.message : '原报告预览失败'
   }

@@ -47,10 +47,14 @@
 
     <view class="summary-strip">
       <view
+        :class="{ active: activeTaskFilter === 'PENDING' }"
+        @click="activeTaskFilter = 'PENDING'"
         ><text>{{ pendingCount }}</text
         ><text>待处理</text></view
       >
       <view
+        :class="{ active: activeTaskFilter === 'COMPLETED' }"
+        @click="activeTaskFilter = 'COMPLETED'"
         ><text>{{ completedCount }}</text
         ><text>已完成</text></view
       >
@@ -85,9 +89,10 @@
 
     <view class="section-head">
       <view><view class="eyebrow">TASKS</view><view class="section-title">执行任务</view></view>
+      <view class="task-filter-all" @click="activeTaskFilter = 'ALL'">全部任务</view>
     </view>
-    <PageState :loading="loading" :error="error" :empty="visibleItems.length === 0">
-      <view v-for="item in visibleItems" :key="item.id" class="card task-card">
+    <PageState :loading="loading" :error="error" :empty="filteredItems.length === 0">
+      <view v-for="item in filteredItems" :key="item.id" class="card task-card">
         <view class="row">
           <view class="section-title">{{ item.title }}</view>
           <StatusTag :status="item.status" />
@@ -130,6 +135,7 @@ const items = ref<Followup[]>([])
 const plans = ref<FollowupPlan[]>([])
 const patients = ref<Patient[]>([])
 const selectedPatientId = ref('')
+const activeTaskFilter = ref<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
 const loading = ref(true)
 const submitting = ref(false)
 const error = ref('')
@@ -171,6 +177,11 @@ const completedCount = computed(
   () => visibleItems.value.filter((item) => item.status === 'COMPLETED').length,
 )
 const feedbackCount = computed(() => visibleItems.value.filter((item) => item.feedback).length)
+const filteredItems = computed(() =>
+  activeTaskFilter.value === 'ALL'
+    ? visibleItems.value
+    : visibleItems.value.filter((item) => item.status === activeTaskFilter.value),
+)
 
 onLoad((query) => {
   selectedPatientId.value = String(query?.patientId || '')
@@ -369,6 +380,11 @@ async function finishPlan(id: string) {
   flex-direction: column;
   align-items: center;
 }
+.summary-strip view.active {
+  border-radius: 18rpx;
+  background: #fff;
+  box-shadow: 0 4rpx 14rpx rgba(24, 86, 69, 0.1);
+}
 .summary-strip text:first-child {
   color: #0e735b;
   font-size: 32rpx;
@@ -381,6 +397,10 @@ async function finishPlan(id: string) {
 .plan-card,
 .task-card {
   margin-top: 18rpx;
+}
+.task-filter-all {
+  color: #0f765f;
+  font-size: 23rpx;
 }
 .plan-actions {
   display: flex;

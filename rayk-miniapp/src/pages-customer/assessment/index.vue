@@ -40,8 +40,12 @@
 
         <view class="card">
           <view class="section-title">健康维度评估</view>
+          <view v-if="unassessedModelCount(assessment)" class="coverage-note">
+            本次报告已覆盖 {{ evaluatedModels(assessment).length }} 个可评估维度；其余
+            {{ unassessedModelCount(assessment) }} 个专项维度需要相应检验项目覆盖后才能评估。
+          </view>
           <view
-            v-for="(model, index) in assessment.results?.results || []"
+            v-for="(model, index) in evaluatedModels(assessment)"
             :key="model.modelCode"
             class="model"
           >
@@ -62,7 +66,7 @@
               • {{ evidence }}
             </view>
             <view v-if="model.missingIndicators.length" class="missing">
-              待补充：{{ model.missingIndicators.join('、') }}
+              当前报告尚缺 {{ model.missingIndicators.length }} 项相关指标；可结合专项检查进一步完善。
             </view>
           </view>
         </view>
@@ -94,6 +98,14 @@ function interpretationSource(value: string) {
 
 function displayInterpretation(value: string) {
   return value.split('模型').join('评估维度')
+}
+
+function evaluatedModels(assessment: Assessment) {
+  return (assessment.results?.results || []).filter((model) => model.status !== 'INSUFFICIENT_DATA')
+}
+
+function unassessedModelCount(assessment: Assessment) {
+  return (assessment.results?.results || []).length - evaluatedModels(assessment).length
 }
 
 onShow(async () => {
@@ -171,6 +183,15 @@ onShow(async () => {
 .model {
   padding: 24rpx 0;
   border-top: 1px solid #edf1ef;
+}
+.coverage-note {
+  margin-top: 18rpx;
+  padding: 18rpx;
+  border-radius: 16rpx;
+  background: #f2f8f6;
+  color: #547069;
+  font-size: 23rpx;
+  line-height: 1.65;
 }
 .model:first-of-type {
   margin-top: 12rpx;

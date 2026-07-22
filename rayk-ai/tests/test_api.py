@@ -33,6 +33,40 @@ def test_demo_assessment_contains_disclaimer() -> None:
     assert body["data"]["results"][0]["riskLevel"] == "ATTENTION"
 
 
+def test_assessment_flags_confirmed_bilirubin_and_electrolyte_abnormalities() -> None:
+    response = client.post(
+        "/api/v1/assessments/evaluate",
+        json={
+            "taskId": "TASK_BIOCHEMISTRY_001",
+            "patientId": "10001",
+            "modelCodes": ["LIVER_METABOLIC", "KIDNEY_ELECTROLYTE"],
+            "indicators": [
+                {"code": "alt", "name": "丙氨酸氨基转移酶", "value": 14.4, "unit": "U/L"},
+                {"code": "ast", "name": "天门冬氨酸氨基转移酶", "value": 19.5, "unit": "U/L"},
+                {"code": "ggt", "name": "谷酰转肽酶", "value": 16, "unit": "U/L"},
+                {"code": "total_bilirubin", "name": "总胆红素", "value": 22.7, "unit": "μmol/L", "referenceHigh": 22},
+                {"code": "direct_bilirubin", "name": "直接胆红素", "value": 8.8, "unit": "μmol/L", "referenceHigh": 6},
+                {"code": "albumin", "name": "白蛋白", "value": 48.9, "unit": "g/L"},
+                {"code": "creatinine", "name": "肌酐", "value": 75.4, "unit": "μmol/L"},
+                {"code": "urea", "name": "尿素", "value": 2.84, "unit": "mmol/L"},
+                {"code": "uric_acid", "name": "尿酸", "value": 301.6, "unit": "μmol/L"},
+                {"code": "sodium", "name": "钠离子", "value": 140, "unit": "mmol/L"},
+                {"code": "potassium", "name": "钾离子", "value": 4.6, "unit": "mmol/L"},
+                {"code": "chloride", "name": "氯离子", "value": 108, "unit": "mmol/L"},
+                {"code": "bicarbonate", "name": "碳酸氢根", "value": 31.4, "unit": "mmol/L", "referenceHigh": 30},
+                {"code": "calcium", "name": "钙离子", "value": 2.39, "unit": "mmol/L"},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    results = {item["modelCode"]: item for item in response.json()["data"]["results"]}
+    assert results["LIVER_METABOLIC"]["riskLevel"] == "ATTENTION"
+    assert results["KIDNEY_ELECTROLYTE"]["riskLevel"] == "ATTENTION"
+    assert results["LIVER_METABOLIC"]["dataCompleteness"] == 100
+    assert results["KIDNEY_ELECTROLYTE"]["dataCompleteness"] >= 85
+
+
 def test_mock_ocr_returns_confirmation_state() -> None:
     response = client.post(
         "/api/v1/ocr/recognize",

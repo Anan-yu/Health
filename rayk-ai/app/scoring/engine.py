@@ -126,13 +126,21 @@ MODEL_DEFINITIONS: list[ModelDefinition] = [
     {
         "model_code": "LIVER_METABOLIC",
         "model_name": "肝脏与代谢负担",
-        "indicators": ["alt", "ast", "ggt", "total_bilirubin", "albumin"],
+        "indicators": [
+            "alt",
+            "ast",
+            "ggt",
+            "total_bilirubin",
+            "direct_bilirubin",
+            "albumin",
+        ],
         "minimum_indicators": 2,
         "rules": [
             _rule("alt", "HIGH", "40", "丙氨酸氨基转移酶偏高", 14, "U/L"),
             _rule("ast", "HIGH", "40", "天门冬氨酸氨基转移酶偏高", 12, "U/L"),
             _rule("ggt", "HIGH", "60", "γ-谷氨酰转移酶偏高", 12, "U/L"),
             _rule("total_bilirubin", "HIGH", "21", "总胆红素偏高", 10, "umol/L"),
+            _rule("direct_bilirubin", "HIGH", "7", "直接胆红素偏高", 8, "umol/L"),
             _rule("albumin", "LOW", "35", "白蛋白偏低", 12, "g/L"),
         ],
         "base_score": 90,
@@ -145,7 +153,17 @@ MODEL_DEFINITIONS: list[ModelDefinition] = [
     {
         "model_code": "KIDNEY_ELECTROLYTE",
         "model_name": "肾功能与电解质",
-        "indicators": ["creatinine", "egfr", "urea", "uric_acid", "sodium", "potassium"],
+        "indicators": [
+            "creatinine",
+            "egfr",
+            "urea",
+            "uric_acid",
+            "sodium",
+            "potassium",
+            "chloride",
+            "bicarbonate",
+            "calcium",
+        ],
         "minimum_indicators": 2,
         "rules": [
             _rule("creatinine", "HIGH", "115", "肌酐偏高", 14, "umol/L"),
@@ -156,6 +174,12 @@ MODEL_DEFINITIONS: list[ModelDefinition] = [
             _rule("sodium", "LOW", "135", "血钠低于参考范围", 10, "mmol/L"),
             _rule("potassium", "HIGH", "5.5", "血钾高于参考范围", 14, "mmol/L"),
             _rule("potassium", "LOW", "3.5", "血钾低于参考范围", 14, "mmol/L"),
+            _rule("chloride", "HIGH", "110", "血氯高于参考范围", 8, "mmol/L"),
+            _rule("chloride", "LOW", "99", "血氯低于参考范围", 8, "mmol/L"),
+            _rule("bicarbonate", "HIGH", "30", "碳酸氢根高于参考范围", 8, "mmol/L"),
+            _rule("bicarbonate", "LOW", "22", "碳酸氢根低于参考范围", 8, "mmol/L"),
+            _rule("calcium", "HIGH", "2.6", "血钙高于参考范围", 10, "mmol/L"),
+            _rule("calcium", "LOW", "2.1", "血钙低于参考范围", 10, "mmol/L"),
         ],
         "base_score": 90,
         "recommendations": [
@@ -250,7 +274,16 @@ MODEL_DEFINITIONS: list[ModelDefinition] = [
     {
         "model_code": "NUTRITION_MICRONUTRIENT",
         "model_name": "营养与微量元素",
-        "indicators": ["vitamin_d", "vitamin_b12", "folate", "ferritin", "zinc", "magnesium", "calcium"],
+        "indicators": [
+            "vitamin_d",
+            "vitamin_b12",
+            "folate",
+            "ferritin",
+            "zinc",
+            "magnesium",
+            "calcium",
+            "prealbumin",
+        ],
         "minimum_indicators": 2,
         "rules": [
             _rule("vitamin_d", "LOW", "20", "维生素D偏低", 12, "ng/mL"),
@@ -260,6 +293,7 @@ MODEL_DEFINITIONS: list[ModelDefinition] = [
             _rule("zinc", "LOW", "70", "锌低于参考范围", 8, "ug/dL"),
             _rule("magnesium", "LOW", "0.75", "镁低于参考范围", 8, "mmol/L"),
             _rule("calcium", "LOW", "2.1", "钙低于参考范围", 8, "mmol/L"),
+            _rule("prealbumin", "LOW", "200", "前白蛋白偏低", 12, "mg/L"),
         ],
         "base_score": 90,
         "recommendations": [
@@ -401,7 +435,10 @@ class HealthRuleEngine(RuleEngine):
                 total_penalty += rule["penalty"]
 
         score = max(0, min(100, model["base_score"] - total_penalty))
-        risk_level = "LOW" if score >= 80 else "ATTENTION" if score >= 60 else "HIGH"
+        # Any laboratory value outside its confirmed reference interval deserves a visible
+        # follow-up flag.  The previous score-only cut-off marked a single confirmed
+        # abnormality (for example bilirubin above the laboratory upper limit) as LOW.
+        risk_level = "HIGH" if score < 60 else "ATTENTION" if evidence else "LOW"
         confidence: Literal["HIGH", "MEDIUM", "LOW"] = (
             "HIGH" if completeness >= 80 else "MEDIUM"
         )

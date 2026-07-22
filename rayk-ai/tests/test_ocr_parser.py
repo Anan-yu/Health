@@ -54,3 +54,25 @@ def test_parser_prefers_specific_alias_for_separate_table_cells() -> None:
     )
 
     assert [item.code for item in indicators] == ["hdl", "mcv"]
+
+
+def test_parser_recognizes_common_biochemistry_report_aliases() -> None:
+    indicators = IndicatorRowParser().parse(
+        [
+            "钾离子 4.60 mmol/L 3.5-5.5",
+            "钠离子 140 mmol/L 137-147",
+            "钙离子 2.39 mmol/L 2.08-2.60",
+            "氯离子 108 mmol/L 99-110",
+            "碳酸氢根 31.4 mmol/L 20-30",
+            "谷酰转肽酶 16 U/L 10-60",
+        ]
+    )
+
+    assert [item.code for item in indicators] == [
+        "potassium",
+        "sodium",
+        "calcium",
+        "chloride",
+        "bicarbonate",
+        "ggt",
+    ]

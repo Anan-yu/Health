@@ -104,6 +104,11 @@ public class HomeController {
                     new HomeMetric("REVIEW", "待医生审核", waitingReviews, "/pages-business/review/index"),
                     new HomeMetric("FOLLOWUP", "待随访任务", waitingFollowups, "/pages-business/followup/index"));
         }
+        if ("HEALTH_MANAGER".equals(current.workbench())) {
+            return List.of(
+                    new HomeMetric("PATIENT", "我的客户总量", patients, "/pages-business/patient/index"),
+                    new HomeMetric("FOLLOWUP", "待随访任务", waitingFollowups, "/pages-business/followup/index"));
+        }
         long assessments = workflowService.listAssessments().stream()
                 .filter(item -> "SUCCESS".equals(item.status()))
                 .count();

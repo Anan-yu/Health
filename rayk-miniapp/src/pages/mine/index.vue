@@ -42,7 +42,7 @@
         </view>
         <view class="setting-arrow">›</view>
       </view>
-      <view class="setting" @click="goPrivacy">
+      <view v-if="isCustomer" class="setting" @click="goPrivacy">
         <view class="setting-icon blue">隐</view>
         <view class="setting-content">
           <view class="setting-title">隐私授权</view>
@@ -95,6 +95,7 @@ const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goPrivacy = () => uni.navigateTo({ url: '/pages-customer/privacy/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
 const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
+const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
 async function bindCurrentWeChat() {
   // #ifdef MP-WEIXIN
   try {

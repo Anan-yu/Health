@@ -39,7 +39,11 @@
         </view>
       </view>
 
-      <view v-for="(model, index) in editableModels" :key="model.modelCode" class="card model-card">
+      <view v-if="unassessedModelCount" class="coverage-note">
+        本次报告已覆盖 {{ evaluatedModels.length }} 个可评估维度；另有 {{ unassessedModelCount }}
+        个专项维度未覆盖，需专门检验项目才可评估。
+      </view>
+      <view v-for="(model, index) in evaluatedModels" :key="model.modelCode" class="card model-card">
         <view class="model-head">
           <view>
             <view class="model-name">评估维度 {{ String(index + 1).padStart(2, '0') }}</view>
@@ -52,7 +56,7 @@
             v-if="canEdit"
             :range="riskOptions"
             :value="riskOptions.indexOf(model.riskLevel)"
-            @change="changeRisk(index, $event)"
+            @change="changeRisk(model.modelCode, $event)"
           >
             <view class="risk-picker">{{ riskText(model.riskLevel) }}⌄</view>
           </picker>
@@ -81,7 +85,7 @@
           <view v-for="item in lines(model.recommendationsText)" :key="item">• {{ item }}</view>
         </view>
         <view v-if="model.missingIndicators.length" class="missing">
-          缺失指标：{{ model.missingIndicators.join('、') }}
+          当前报告尚缺 {{ model.missingIndicators.length }} 项相关指标；可结合专项检查进一步完善。
         </view>
       </view>
 
@@ -126,6 +130,7 @@ import StatusTag from '@/components/StatusTag.vue'
 
 interface EditableModel {
   modelCode: string
+  status?: 'EVALUATED' | 'INSUFFICIENT_DATA'
   score: number | null
   riskLevel: string
   dataCompleteness: number
@@ -147,6 +152,12 @@ const error = ref('')
 const opinion = ref('')
 const riskOptions = ['INSUFFICIENT_DATA', 'LOW', 'ATTENTION', 'HIGH']
 const canEdit = computed(() => task.value?.status === 'WAITING_REVIEW')
+const evaluatedModels = computed(() =>
+  editableModels.value.filter((model) => model.status !== 'INSUFFICIENT_DATA'),
+)
+const unassessedModelCount = computed(
+  () => editableModels.value.length - evaluatedModels.value.length,
+)
 
 const listValue = (value: unknown) =>
   Array.isArray(value) ? value.map(String) : typeof value === 'string' ? [value] : []
@@ -156,6 +167,7 @@ function syncTask(value: ReviewTask) {
   opinion.value = value.reviewOpinion || ''
   editableModels.value = (value.assessment.results.results || []).map((model) => ({
     modelCode: model.modelCode,
+    status: model.status,
     score: model.score,
     riskLevel: model.riskLevel,
     dataCompleteness: model.dataCompleteness ?? 0,
@@ -199,8 +211,9 @@ function riskText(value: string) {
   return value === 'LOW' ? '低风险' : value === 'HIGH' ? '高风险' : '需关注'
 }
 
-function changeRisk(index: number, event: { detail: { value: string | number } }) {
-  editableModels.value[index].riskLevel = riskOptions[Number(event.detail.value)]
+function changeRisk(modelCode: string, event: { detail: { value: string | number } }) {
+  const target = editableModels.value.find((model) => model.modelCode === modelCode)
+  if (target) target.riskLevel = riskOptions[Number(event.detail.value)]
 }
 
 async function saveEdits(showSuccess = true) {
@@ -327,6 +340,15 @@ function publish() {
   margin: 18rpx 0 12rpx;
   color: #254c42;
   line-height: 1.75;
+}
+.coverage-note {
+  margin: 22rpx 4rpx 0;
+  padding: 20rpx 24rpx;
+  border-radius: 18rpx;
+  background: #f2f8f6;
+  color: #547069;
+  font-size: 23rpx;
+  line-height: 1.65;
 }
 .model-card {
   margin-top: 20rpx;

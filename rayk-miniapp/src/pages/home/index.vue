@@ -134,7 +134,15 @@ const insightTitle = computed(() =>
 )
 const insightProgress = computed(() => profileCompleteness.value)
 const insightRoute = computed(() =>
-  isCustomer.value ? '/pages-customer/profile/index' : '/pages-business/lab-report/index',
+  isCustomer.value
+    ? '/pages-customer/profile/index'
+    : auth.permissions.includes('assessment:review')
+      ? '/pages-business/review/index'
+      : auth.permissions.includes('followup:manage')
+        ? '/pages-business/followup/index'
+        : auth.permissions.includes('lab-report:manage')
+          ? '/pages-business/lab-report/index'
+          : '/pages-business/patient/index',
 )
 const dateText = computed(() => {
   const now = new Date()

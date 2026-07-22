@@ -12,11 +12,18 @@
       >
     </view>
     <view class="filter-row">
-      <view class="filter active">全部</view><view class="filter">待处理</view
-      ><view class="filter">已完成</view>
+      <view
+        v-for="filter in filters"
+        :key="filter.code"
+        class="filter"
+        :class="{ active: activeFilter === filter.code }"
+        @click="activeFilter = filter.code"
+      >
+        {{ filter.label }}
+      </view>
     </view>
-    <PageState :loading="loading" :empty="items.length === 0">
-      <view v-for="item in items" :key="item.id" class="card task-card" @click="open(item.id)">
+    <PageState :loading="loading" :empty="filteredItems.length === 0">
+      <view v-for="item in filteredItems" :key="item.id" class="card task-card" @click="open(item.id)">
         <view class="task-index">{{ item.reportDate.slice(8, 10) }}</view>
         <view class="task-content">
           <view class="task-head"
@@ -34,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getLabReports } from '@/api/lab-report'
 import type { LabReport } from '@/types/api'
@@ -42,6 +49,21 @@ import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 const items = ref<LabReport[]>([]),
   loading = ref(true)
+const filters = [
+  { code: 'ALL' as const, label: '全部' },
+  { code: 'PENDING' as const, label: '待处理' },
+  { code: 'COMPLETED' as const, label: '已完成' },
+]
+const activeFilter = ref<(typeof filters)[number]['code']>('ALL')
+const completedStatuses = new Set(['PUBLISHED'])
+const filteredItems = computed(() => {
+  if (activeFilter.value === 'ALL') return items.value
+  return items.value.filter((item) =>
+    activeFilter.value === 'COMPLETED'
+      ? completedStatuses.has(item.status)
+      : !completedStatuses.has(item.status),
+  )
+})
 onShow(async () => {
   loading.value = true
   try {
