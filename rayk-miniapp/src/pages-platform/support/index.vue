@@ -59,7 +59,7 @@
         </view>
 
         <view v-if="ticket.reply && activeReplyId !== ticket.id" class="reply-preview">
-          <view class="reply-label">平台已回复</view>
+          <view class="reply-label">{{ ticket.status === 'PROCESSING' ? '平台处理中' : '平台已回复' }}</view>
           <view class="reply-text">{{ ticket.reply }}</view>
         </view>
 
@@ -82,7 +82,9 @@
         </view>
 
         <view v-else class="ticket-footer">
-          <view class="ticket-time">工单 {{ ticket.reply ? '已处理，可继续跟进' : '等待平台受理' }}</view>
+          <view class="ticket-time">
+            工单 {{ ticket.status === 'PROCESSING' ? '平台处理中，可继续跟进' : ticket.reply ? '已处理，可继续跟进' : '等待平台受理' }}
+          </view>
           <view class="reply-trigger" @click="openEditor(ticket.id)">
             {{ ticket.reply ? '更新回复' : '开始处理' }} <text>›</text>
           </view>
