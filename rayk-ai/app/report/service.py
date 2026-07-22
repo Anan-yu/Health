@@ -88,7 +88,7 @@ class DemoReportService:
             topMargin=14 * mm,
             bottomMargin=16 * mm,
             title=title,
-            author="RayK A1",
+            author="Rayk AI",
         )
         story = [
             Paragraph(title, title_style),

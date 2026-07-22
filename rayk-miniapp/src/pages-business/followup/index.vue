@@ -31,17 +31,28 @@
       />
       <input v-model="form.title" class="input" placeholder="随访主题" />
       <textarea v-model="form.content" class="textarea" placeholder="随访内容与执行要求" />
-      <input
-        v-model="form.startDate"
-        class="input"
-        :placeholder="createMode === 'PLAN' ? '开始日期 YYYY-MM-DD' : '截止日期 YYYY-MM-DD'"
-      />
+      <view class="field-block">
+        <view class="field-label">{{ createMode === 'PLAN' ? '计划开始日期' : '任务截止日期' }}</view>
+        <picker mode="date" :value="form.startDate" :start="localToday()" @change="selectDate">
+          <view class="input date-picker-value">
+            {{ form.startDate || '请选择日期' }} <text>选择日期 ›</text>
+          </view>
+        </picker>
+      </view>
       <view v-if="createMode === 'PLAN'" class="number-grid">
-        <input v-model="form.intervalDays" class="input" type="number" placeholder="间隔天数" />
-        <input v-model="form.totalOccurrences" class="input" type="number" placeholder="随访次数" />
+        <view class="field-block compact">
+          <view class="field-label">间隔天数</view>
+          <input v-model="form.intervalDays" class="input" type="number" placeholder="例如：7 天" />
+          <view class="field-hint">每隔几天执行一次</view>
+        </view>
+        <view class="field-block compact">
+          <view class="field-label">执行次数</view>
+          <input v-model="form.totalOccurrences" class="input" type="number" placeholder="例如：4 次" />
+          <view class="field-hint">本计划共生成几次随访</view>
+        </view>
       </view>
       <button class="primary" :loading="submitting" @click="submit">
-        {{ createMode === 'PLAN' ? '创建草稿计划' : '创建随访任务' }}
+        {{ createMode === 'PLAN' ? '创建周期计划' : '创建随访任务' }}
       </button>
     </view>
 
@@ -216,6 +227,10 @@ function selectPatient(event: { detail: { value: string | number } }) {
   void loadPlans()
 }
 
+function selectDate(event: { detail: { value: string } }) {
+  form.startDate = event.detail.value
+}
+
 function patientName(id: string) {
   return patients.value.find((item) => item.id === id)?.name || `#${id}`
 }
@@ -362,10 +377,39 @@ async function finishPlan(id: string) {
 .creator-card .textarea {
   margin-top: 16rpx;
 }
+.field-block {
+  margin-top: 16rpx;
+}
+.field-block .input {
+  margin-top: 8rpx;
+}
+.field-label {
+  color: #406259;
+  font-size: 23rpx;
+  font-weight: 650;
+}
+.field-hint {
+  margin-top: 8rpx;
+  color: #84958f;
+  font-size: 19rpx;
+  line-height: 1.4;
+}
+.date-picker-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.date-picker-value text {
+  color: #82948d;
+  font-size: 22rpx;
+}
 .number-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16rpx;
+}
+.number-grid .field-block {
+  margin-top: 0;
 }
 .summary-strip {
   display: grid;

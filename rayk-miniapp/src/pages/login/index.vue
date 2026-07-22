@@ -4,9 +4,9 @@
       <view class="orb orb-one" />
       <view class="orb orb-two" />
       <view class="brand-row">
-        <view class="logo">A1</view>
+        <view class="logo">AI</view>
         <view>
-          <view class="brand-name">RayK A1</view>
+          <view class="brand-name">Rayk AI</view>
           <view class="brand-tag">FUNCTIONAL HEALTH</view>
         </view>
       </view>
@@ -84,11 +84,10 @@
       </view>
       <input v-model="password" class="input password" password placeholder="测试密码" />
       <button class="primary enter-button" :loading="loading" @click="handleLogin">
-        进入 RayK A1
+        进入 Rayk AI
       </button>
       <view v-if="error" class="error">{{ error }}</view>
     </view>
-    <view class="security-note">健康数据加密传输 · 关键操作全程留痕</view>
   </view>
 </template>
 
@@ -448,11 +447,5 @@ async function handleLogin() {
   border: 1rpx solid #f6cbc6;
   border-radius: 18rpx;
   background: #fff0ee;
-}
-.security-note {
-  padding: 20rpx 0;
-  color: #91a09b;
-  text-align: center;
-  font-size: 21rpx;
 }
 </style>

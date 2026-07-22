@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 
 app = FastAPI(
-    title="RayK A1 AI Service",
+    title="Rayk AI Service",
     version="0.1.0",
     description="模拟OCR、指标标准化与演示健康评估服务，不构成医学诊断。",
 )

@@ -69,7 +69,7 @@
     </view>
 
     <button class="logout" @click="signOut">退出当前账号</button>
-    <view class="version">RayK A1 · Version 0.1.0</view>
+    <view class="version">Rayk AI · Version 0.1.0</view>
   </view>
 </template>
 

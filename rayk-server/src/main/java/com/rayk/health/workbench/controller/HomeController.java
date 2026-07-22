@@ -47,7 +47,7 @@ public class HomeController {
                     default -> businessMetrics(current);
                 };
         return ApiResponse.success(
-                new HomeSummaryData(current.workbench(), "欢迎使用 RayK A1", metrics, DISCLAIMER));
+                new HomeSummaryData(current.workbench(), "欢迎使用 Rayk AI", metrics, DISCLAIMER));
     }
 
     private List<HomeMetric> platformMetrics() {
