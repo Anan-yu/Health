@@ -101,8 +101,7 @@ public class HomeController {
                     .count();
             return List.of(
                     new HomeMetric("PATIENT", "机构客户总量", patients, "/pages-business/patient/index"),
-                    new HomeMetric("REVIEW", "待医生审核", waitingReviews, "/pages-business/review/index"),
-                    new HomeMetric("FOLLOWUP", "待随访任务", waitingFollowups, "/pages-business/followup/index"));
+                    new HomeMetric("REVIEW", "待医生审核", waitingReviews, "/pages-business/review/index"));
         }
         if ("HEALTH_MANAGER".equals(current.workbench())) {
             return List.of(
