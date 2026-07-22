@@ -151,12 +151,17 @@ function chooseFromCamera() {
     count: 1,
     sourceType: ['camera'],
     success: (result) => {
-      const selected = result.tempFiles[0]
+      const selected = Array.isArray(result.tempFiles) ? result.tempFiles[0] : undefined
+      const path = Array.isArray(result.tempFilePaths)
+        ? result.tempFilePaths[0]
+        : result.tempFilePaths
+      if (!selected || typeof path !== 'string') return
+      const selectedPath = 'path' in selected ? selected.path : undefined
       acceptFile(
         {
-          name: selected?.path?.split('/').pop(),
-          path: result.tempFilePaths[0],
-          size: selected?.size,
+          name: selectedPath?.split('/').pop(),
+          path,
+          size: selected.size,
         },
         'camera-report.jpg',
       )

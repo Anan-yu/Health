@@ -6,7 +6,10 @@
         <view class="title">平台运营概览</view>
         <view class="subtitle">跨机构聚合数据，不展示客户敏感明细</view>
       </view>
-      <view class="refresh" @click="load">刷新</view>
+      <view class="heading-actions">
+        <view class="create-tenant" @click="createTenant">新建机构</view>
+        <view class="refresh" @click="load">刷新</view>
+      </view>
     </view>
     <PageState :loading="loading" :error="error" :empty="!overview">
       <template v-if="overview">
@@ -22,7 +25,12 @@
             >正常 {{ overview.activeTenantCount }} / {{ overview.tenantCount }}</view
           >
         </view>
-        <view v-for="tenant in overview.tenants" :key="tenant.id" class="card tenant-card">
+        <view
+          v-for="tenant in overview.tenants"
+          :key="tenant.id"
+          class="card tenant-card"
+          @click="editTenant(tenant.id)"
+        >
           <view class="tenant-icon">机</view>
           <view class="tenant-main">
             <view class="section-title">{{ tenant.name }}</view>
@@ -31,6 +39,7 @@
             >
           </view>
           <StatusTag :status="tenant.status" />
+          <view class="edit-arrow">管理 ›</view>
         </view>
       </template>
     </PageState>
@@ -53,7 +62,7 @@ const metrics = computed(() => {
   if (!value) return []
   return [
     { label: '入驻机构', value: value.tenantCount },
-    { label: '机构用户', value: value.userCount },
+    { label: '机构工作人员', value: value.userCount },
     { label: '健康客户', value: value.patientCount },
     { label: '待医生审核', value: value.pendingReviewCount },
     { label: '待完成随访', value: value.pendingFollowupCount },
@@ -72,6 +81,10 @@ const load = async () => {
   }
 }
 onShow(load)
+
+const createTenant = () => uni.navigateTo({ url: '/pages-tenant/dashboard/tenant-create' })
+const editTenant = (tenantId: string) =>
+  uni.navigateTo({ url: `/pages-tenant/dashboard/tenant-edit?id=${tenantId}` })
 </script>
 
 <style scoped>
@@ -87,12 +100,22 @@ onShow(load)
 .page-heading .title {
   margin-top: 8rpx;
 }
+.heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.create-tenant,
 .refresh {
   padding: 12rpx 20rpx;
   border-radius: 999rpx;
   background: #e4f6f0;
   color: #0d765e;
   font-size: 22rpx;
+}
+.create-tenant {
+  background: #0d765e;
+  color: #fff;
 }
 .metric-grid {
   display: grid;
@@ -125,6 +148,12 @@ onShow(load)
   align-items: center;
   margin-bottom: 18rpx;
   padding: 25rpx;
+}
+.edit-arrow {
+  margin-left: 14rpx;
+  color: #0d765e;
+  font-size: 21rpx;
+  white-space: nowrap;
 }
 .tenant-icon {
   display: flex;

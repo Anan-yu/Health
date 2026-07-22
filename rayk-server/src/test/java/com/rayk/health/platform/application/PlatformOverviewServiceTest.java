@@ -7,6 +7,12 @@ import static org.mockito.Mockito.when;
 import com.rayk.health.platform.mapper.PlatformOverviewMapper;
 import com.rayk.health.platform.vo.PlatformOverviewVo;
 import com.rayk.health.platform.vo.TenantSummaryVo;
+import com.rayk.health.system.mapper.SysRoleMapper;
+import com.rayk.health.system.mapper.SysRolePermissionMapper;
+import com.rayk.health.system.mapper.SysTenantMapper;
+import com.rayk.health.system.mapper.SysUserMapper;
+import com.rayk.health.system.mapper.SysUserRoleMapper;
+import com.rayk.health.system.mapper.SysUserWorkbenchMapper;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -14,6 +20,12 @@ class PlatformOverviewServiceTest {
     @Test
     void aggregatesCrossTenantMetricsWithoutSensitiveDetails() {
         PlatformOverviewMapper mapper = mock(PlatformOverviewMapper.class);
+        SysTenantMapper tenantMapper = mock(SysTenantMapper.class);
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        SysRolePermissionMapper rolePermissionMapper = mock(SysRolePermissionMapper.class);
+        SysUserRoleMapper userRoleMapper = mock(SysUserRoleMapper.class);
+        SysUserWorkbenchMapper workbenchMapper = mock(SysUserWorkbenchMapper.class);
         when(mapper.countTenants()).thenReturn(2L);
         when(mapper.countActiveTenants()).thenReturn(2L);
         when(mapper.countUsers()).thenReturn(7L);
@@ -31,7 +43,17 @@ class PlatformOverviewServiceTest {
                                         "DEVELOPMENT",
                                         4L)));
 
-        PlatformOverviewVo result = new PlatformOverviewService(mapper).overview();
+        PlatformOverviewVo result =
+                new PlatformOverviewService(
+                                mapper,
+                                tenantMapper,
+                                userMapper,
+                                roleMapper,
+                                rolePermissionMapper,
+                                userRoleMapper,
+                                workbenchMapper,
+                                mock(org.springframework.security.crypto.password.PasswordEncoder.class))
+                        .overview();
 
         assertThat(result.tenantCount()).isEqualTo(2L);
         assertThat(result.activeTenantCount()).isEqualTo(2L);

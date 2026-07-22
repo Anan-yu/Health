@@ -1,4 +1,10 @@
-import type { PlatformOverview, TenantProfile, TenantStaff } from '@/types/api'
+import type {
+  CreatePlatformTenantPayload,
+  PlatformOverview,
+  TenantProfile,
+  TenantStaff,
+  UpdatePlatformTenantPayload,
+} from '@/types/api'
 import { request } from '@/utils/request'
 
 export const getTenantProfile = () =>
@@ -15,3 +21,12 @@ export const createTenantStaff = (data: {
 
 export const getPlatformOverview = () =>
   request<PlatformOverview>({ url: '/api/v1/platform/overview', method: 'GET' })
+
+export const getPlatformTenant = (tenantId: string) =>
+  request<TenantProfile>({ url: `/api/v1/platform/tenants/${tenantId}`, method: 'GET' })
+
+export const createPlatformTenant = (data: CreatePlatformTenantPayload) =>
+  request<TenantProfile>({ url: '/api/v1/platform/tenants', method: 'POST', data })
+
+export const updatePlatformTenant = (tenantId: string, data: UpdatePlatformTenantPayload) =>
+  request<TenantProfile>({ url: `/api/v1/platform/tenants/${tenantId}`, method: 'PUT', data })

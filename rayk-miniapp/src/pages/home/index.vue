@@ -63,10 +63,10 @@
         </view>
       </view>
 
-      <view class="insight-card" @click="open(insightRoute)">
+      <view v-if="showInsight" class="insight-card" @click="open(insightRoute)">
         <view class="insight-icon">{{ isCustomer ? '✓' : '效' }}</view>
         <view class="insight-content">
-          <view class="insight-label">{{ isCustomer ? '健康管理进度' : '团队工作提醒' }}</view>
+          <view class="insight-label">{{ insightLabel }}</view>
           <view class="insight-title">{{ insightTitle }}</view>
           <view v-if="isCustomer" class="progress-track"
             ><view class="progress-value" :style="{ width: `${insightProgress}%` }"
@@ -103,6 +103,8 @@ const roleNames: Record<Role, string> = {
 }
 
 const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
+const isPlatformAdmin = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
+const showInsight = computed(() => !isPlatformAdmin.value)
 const roleLabel = computed(() =>
   auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '工作台',
 )
@@ -132,6 +134,7 @@ const insightTitle = computed(() =>
       ? `当前共有 ${pendingTaskCount.value} 项待处理任务`
       : '当前暂无待处理任务',
 )
+const insightLabel = computed(() => (isCustomer.value ? '健康管理进度' : '团队工作提醒'))
 const insightProgress = computed(() => profileCompleteness.value)
 const insightRoute = computed(() =>
   isCustomer.value

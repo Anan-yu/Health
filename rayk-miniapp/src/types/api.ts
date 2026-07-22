@@ -296,6 +296,20 @@ export interface TenantProfile {
   servicePlan: string
 }
 
+export interface UpdatePlatformTenantPayload {
+  tenantName: string
+  servicePlan: string
+  status: 'ACTIVE' | 'DISABLED'
+}
+
+export interface CreatePlatformTenantPayload {
+  tenantCode: string
+  tenantName: string
+  servicePlan: string
+  adminName: string
+  adminPhone: string
+}
+
 export interface TenantStaff {
   id: string
   username: string

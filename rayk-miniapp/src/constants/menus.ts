@@ -121,13 +121,6 @@ const platform: MenuItem[] = [
     permission: 'platform:tenant:list',
   },
   {
-    title: '跨租户审计',
-    description: '受控查看审计记录',
-    icon: '迹',
-    route: '/pages-tenant/audit/index',
-    permission: 'platform:audit:list',
-  },
-  {
     title: '反馈中心',
     description: '统一查看、回复与关闭用户反馈',
     icon: '答',

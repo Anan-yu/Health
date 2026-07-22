@@ -55,6 +55,8 @@
         { "path": "profile/index", "style": { "navigationBarTitleText": "机构信息" } },
         { "path": "staff/index", "style": { "navigationBarTitleText": "机构员工" } },
         { "path": "dashboard/index", "style": { "navigationBarTitleText": "数据概览" } },
+        { "path": "dashboard/tenant-edit", "style": { "navigationBarTitleText": "编辑机构" } },
+        { "path": "dashboard/tenant-create", "style": { "navigationBarTitleText": "新建机构" } },
         { "path": "audit/index", "style": { "navigationBarTitleText": "审计记录" } }
       ]
     },
