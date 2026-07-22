@@ -27,6 +27,7 @@
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getHealthReport, getHealthReportDownloadUrl } from '@/api/health-report'
+import { getApiBaseUrl, getRequestHeaders } from '@/utils/request'
 import type { HealthReport } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -69,8 +70,15 @@ const download = async () => {
     // #endif
     // #ifdef MP-WEIXIN
     uni.downloadFile({
-      url: downloadUrl,
-      success: ({ tempFilePath }) => uni.openDocument({ filePath: tempFilePath, showMenu: true }),
+      url: `${getApiBaseUrl()}/api/v1/health-reports/${id.value}/content`,
+      header: getRequestHeaders(),
+      success: ({ tempFilePath, statusCode }) => {
+        if (statusCode !== 200) {
+          uni.showToast({ title: '下载失败，请稍后重试', icon: 'none' })
+          return
+        }
+        uni.openDocument({ filePath: tempFilePath, fileType: 'pdf', showMenu: true })
+      },
       fail: () => uni.showToast({ title: '下载失败，请稍后重试', icon: 'none' }),
     })
     // #endif

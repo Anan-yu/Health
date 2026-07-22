@@ -13,9 +13,15 @@ import com.rayk.health.laboratory.vo.LabReportFileVo;
 import com.rayk.health.laboratory.vo.LabReportUploadVo;
 import com.rayk.health.laboratory.vo.OcrTaskVo;
 import jakarta.validation.Valid;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -106,5 +112,30 @@ public class LabReportController {
     public ApiResponse<LabReportFileVo> downloadUrl(
             @PathVariable long id, @PathVariable long fileId) {
         return ApiResponse.success(fileService.createDownloadUrl(id, fileId));
+    }
+
+    @GetMapping("/{id}/files/{fileId}/content")
+    public ResponseEntity<InputStreamResource> content(
+            @PathVariable long id, @PathVariable long fileId) {
+        LabReportFileService.DownloadedFile file = fileService.openContent(id, fileId);
+        return ResponseEntity.ok()
+                .contentType(safeMediaType(file.mimeType()))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(file.originalName(), StandardCharsets.UTF_8)
+                                .build()
+                                .toString())
+                .body(new InputStreamResource(file.inputStream()));
+    }
+
+    private MediaType safeMediaType(String mimeType) {
+        try {
+            return mimeType == null || mimeType.isBlank()
+                    ? MediaType.APPLICATION_OCTET_STREAM
+                    : MediaType.parseMediaType(mimeType);
+        } catch (IllegalArgumentException ignored) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
     }
 }

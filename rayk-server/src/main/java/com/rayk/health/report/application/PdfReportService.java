@@ -21,6 +21,7 @@ import com.rayk.health.report.mapper.HealthReportVersionMapper;
 import com.rayk.health.storage.MinioProperties;
 import io.minio.BucketExistsArgs;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -29,6 +30,7 @@ import io.minio.StatObjectArgs;
 import io.minio.errors.ErrorResponseException;
 import io.minio.http.Method;
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -233,6 +235,38 @@ public class PdfReportService {
     private String buildObjectPath(long tenantId, long patientId, long reportId) {
         return "%d/%d/%d/report.pdf".formatted(tenantId, patientId, reportId);
     }
+
+    /** Opens the latest PDF through the authenticated application gateway for mobile clients. */
+    public DownloadedPdf openDownload(long reportId) {
+        HealthReportEntity report = healthReportMapper.selectById(reportId);
+        if (report == null || !"PUBLISHED".equals(report.getStatus())) {
+            throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
+        }
+        dataScopeService.requirePatient(report.getPatientId());
+        HealthReportVersionEntity versionEntity =
+                versionMapper.selectOne(
+                        new LambdaQueryWrapper<HealthReportVersionEntity>()
+                                .eq(HealthReportVersionEntity::getHealthReportId, reportId)
+                                .eq(HealthReportVersionEntity::getDeleted, 0)
+                                .orderByDesc(HealthReportVersionEntity::getVersionNo)
+                                .last("LIMIT 1"));
+        if (versionEntity == null || versionEntity.getObjectPath() == null) {
+            throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
+        }
+        try {
+            return new DownloadedPdf(
+                    minioClient.getObject(
+                            GetObjectArgs.builder()
+                                    .bucket(minioProperties.bucketReports())
+                                    .object(versionEntity.getObjectPath())
+                                    .build()),
+                    report.getTitle() + ".pdf");
+        } catch (Exception exception) {
+            throw new BusinessException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+        }
+    }
+
+    public record DownloadedPdf(InputStream inputStream, String filename) {}
 
     private String buildRecoveryObjectPath(
             long tenantId, long patientId, long reportId, int versionNo) {

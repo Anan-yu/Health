@@ -5,7 +5,13 @@ import com.rayk.health.common.api.ApiResponse;
 import com.rayk.health.common.api.PageResponse;
 import com.rayk.health.report.application.PdfReportService;
 import com.rayk.health.report.vo.HealthReportVo;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,6 +42,20 @@ public class HealthReportController {
     public ApiResponse<Map<String, String>> download(@PathVariable long id) {
         String url = pdfReportService.getDownloadUrl(id);
         return ApiResponse.success(Map.of("downloadUrl", url));
+    }
+
+    @GetMapping("/{id}/content")
+    public ResponseEntity<InputStreamResource> content(@PathVariable long id) {
+        PdfReportService.DownloadedPdf pdf = pdfReportService.openDownload(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(pdf.filename(), StandardCharsets.UTF_8)
+                                .build()
+                                .toString())
+                .body(new InputStreamResource(pdf.inputStream()));
     }
 }
 

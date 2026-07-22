@@ -150,6 +150,7 @@ import {
   saveIndicators,
   submitAi,
 } from '@/api/lab-report'
+import { getApiBaseUrl, getRequestHeaders } from '@/utils/request'
 import type { Indicator, LabReport, OcrTask } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -360,19 +361,30 @@ async function previewSource() {
   try {
     const files = await getReportFiles(props.reportId)
     if (!files.length) throw new Error('没有可预览的报告文件')
-    const file = await getFileDownloadUrl(props.reportId, files[0].id)
-    if (!file.downloadUrl) throw new Error('报告预览地址生成失败')
+    const file = files[0]
     // #ifdef H5
-    const previewWindow = window.open(file.downloadUrl, '_blank')
+    const downloadFile = await getFileDownloadUrl(props.reportId, file.id)
+    if (!downloadFile.downloadUrl) throw new Error('报告预览地址生成失败')
+    const previewWindow = window.open(downloadFile.downloadUrl, '_blank')
     if (!previewWindow) throw new Error('浏览器拦截了预览窗口，请允许弹窗后重试')
     previewWindow.opener = null
     // #endif
     // #ifndef H5
     uni.downloadFile({
-      url: file.downloadUrl,
-      success: (result) =>
-        uni.openDocument({ filePath: result.tempFilePath, showMenu: true, fail: () => undefined }),
-      fail: () => (error.value = '报告文件下载失败'),
+      url: `${getApiBaseUrl()}/api/v1/lab-reports/${props.reportId}/files/${file.id}/content`,
+      header: getRequestHeaders(),
+      success: (result) => {
+        if (result.statusCode !== 200) {
+          error.value = '报告文件下载失败'
+          return
+        }
+        if (file.mimeType.startsWith('image/')) {
+          uni.previewImage({ urls: [result.tempFilePath] })
+          return
+        }
+        uni.openDocument({ filePath: result.tempFilePath, showMenu: true, fail: () => undefined })
+      },
+      fail: () => (error.value = '报告文件下载失败，请检查网络后重试'),
     })
     // #endif
   } catch (e) {

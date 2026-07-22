@@ -17,12 +17,14 @@ import com.rayk.health.security.service.CurrentUser;
 import com.rayk.health.storage.MinioProperties;
 import io.minio.BucketExistsArgs;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.http.Method;
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDate;
@@ -153,6 +155,29 @@ public class LabReportFileService {
         }
         return toVo(entity, true);
     }
+
+    /** Opens the protected file through the application gateway for physical mobile devices. */
+    public DownloadedFile openContent(long reportId, long fileId) {
+        workflowService.getLabReport(reportId);
+        LabReportFileEntity entity = fileMapper.selectById(fileId);
+        if (entity == null || entity.getReportId() != reportId || !"STORED".equals(entity.getStatus())) {
+            throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
+        }
+        try {
+            return new DownloadedFile(
+                    minioClient.getObject(
+                            GetObjectArgs.builder()
+                                    .bucket(entity.getBucketName())
+                                    .object(entity.getObjectPath())
+                                    .build()),
+                    entity.getOriginalName(),
+                    entity.getMimeType());
+        } catch (Exception exception) {
+            throw new BusinessException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+        }
+    }
+
+    public record DownloadedFile(InputStream inputStream, String originalName, String mimeType) {}
 
     private LabReportFileVo toVo(LabReportFileEntity entity, boolean includeDownloadUrl) {
         String url = null;
