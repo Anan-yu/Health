@@ -39,7 +39,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class LabReportFileService {
-    private static final long MAX_FILE_SIZE = 20L * 1024 * 1024;
     private final MinioClient minioClient;
     private final MinioClient minioPublicClient;
     private final MinioProperties properties;
@@ -188,14 +187,14 @@ public class LabReportFileService {
 
     private ValidatedFile validate(MultipartFile file) {
         try {
-            if (file == null || file.isEmpty() || file.getSize() > MAX_FILE_SIZE) {
+            if (file == null || file.isEmpty()) {
                 throw new BusinessException(ErrorCode.FILE_INVALID);
             }
             String originalName = sanitizeName(file.getOriginalFilename());
-            String extension = extension(originalName);
+            extension(originalName);
             byte[] bytes = file.getBytes();
-            String mimeType = detectMime(extension, bytes);
-            return new ValidatedFile(originalName, extension, mimeType, bytes);
+            DetectedFileType detected = detectFileType(bytes);
+            return new ValidatedFile(originalName, detected.extension(), detected.mimeType(), bytes);
         } catch (BusinessException exception) {
             throw exception;
         } catch (Exception exception) {
@@ -203,31 +202,22 @@ public class LabReportFileService {
         }
     }
 
-    private String detectMime(String extension, byte[] bytes) {
-        boolean valid =
-                switch (extension) {
-                    case "pdf" -> startsWith(bytes, "%PDF-".getBytes(StandardCharsets.US_ASCII));
-                    case "jpg", "jpeg" ->
-                            bytes.length >= 3
-                                    && (bytes[0] & 0xff) == 0xff
-                                    && (bytes[1] & 0xff) == 0xd8
-                                    && (bytes[2] & 0xff) == 0xff;
-                    case "png" ->
-                            startsWith(
-                                    bytes,
-                                    new byte[] {
-                                        (byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a
-                                    });
-                    default -> false;
-                };
-        if (!valid) {
-            throw new BusinessException(ErrorCode.FILE_INVALID);
+    private DetectedFileType detectFileType(byte[] bytes) {
+        if (startsWith(bytes, "%PDF-".getBytes(StandardCharsets.US_ASCII))) {
+            return new DetectedFileType("pdf", "application/pdf");
         }
-        return switch (extension) {
-            case "pdf" -> "application/pdf";
-            case "png" -> "image/png";
-            default -> "image/jpeg";
-        };
+        if (bytes.length >= 3
+                && (bytes[0] & 0xff) == 0xff
+                && (bytes[1] & 0xff) == 0xd8
+                && (bytes[2] & 0xff) == 0xff) {
+            return new DetectedFileType("jpg", "image/jpeg");
+        }
+        if (startsWith(
+                bytes,
+                new byte[] {(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a})) {
+            return new DetectedFileType("png", "image/png");
+        }
+        throw new BusinessException(ErrorCode.FILE_INVALID);
     }
 
     private boolean startsWith(byte[] value, byte[] prefix) {
@@ -323,4 +313,6 @@ public class LabReportFileService {
 
     private record ValidatedFile(
             String originalName, String extension, String mimeType, byte[] bytes) {}
+
+    private record DetectedFileType(String extension, String mimeType) {}
 }

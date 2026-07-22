@@ -16,7 +16,7 @@ public enum ErrorCode {
     PATIENT_NOT_FOUND(20101, "客户不存在或无权访问"),
     LAB_REPORT_NOT_FOUND(30101, "检验报告不存在或无权访问"),
     LAB_REPORT_INVALID_STATUS(30102, "检验报告当前状态不允许此操作"),
-    FILE_INVALID(30201, "仅支持20MB以内的真实PDF、JPG或PNG文件"),
+    FILE_INVALID(30201, "仅支持真实PDF、JPG或PNG文件"),
     FILE_NOT_FOUND(30202, "报告文件不存在或无权访问"),
     FILE_STORAGE_UNAVAILABLE(30203, "文件存储服务暂时不可用"),
     OCR_TASK_NOT_FOUND(40101, "报告识别任务不存在"),

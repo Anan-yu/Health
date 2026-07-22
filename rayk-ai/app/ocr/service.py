@@ -14,7 +14,6 @@ import httpx
 from app.schemas.indicator import IndicatorInput
 from app.schemas.ocr import OcrRecognizeData, OcrRecognizeRequest
 
-MAX_FILE_SIZE = 20 * 1024 * 1024
 NUMBER_PATTERN = re.compile(r"[-+]?\d+(?:[.,]\d+)?")
 
 
@@ -279,8 +278,8 @@ class PaddleOcrService(OcrService):
             response = client.get(request.download_url or "")
             response.raise_for_status()
             content = response.content
-        if not content or len(content) > MAX_FILE_SIZE:
-            raise ValueError("OCR input file is empty or exceeds 20MB")
+        if not content:
+            raise ValueError("OCR input file is empty")
         suffix = ".pdf" if request.mime_type == "application/pdf" else ".png"
         if request.mime_type == "image/jpeg":
             suffix = ".jpg"

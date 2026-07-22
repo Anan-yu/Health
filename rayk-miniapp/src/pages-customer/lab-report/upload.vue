@@ -44,7 +44,7 @@
         <view class="file-icon" :class="{ selected: fileName }">{{ fileName ? '✓' : '+' }}</view>
         <view class="file-title">{{ fileName || '选择检验报告文件' }}</view>
         <view class="file-copy">
-          {{ fileName ? '文件已准备好，可重新选择' : '支持 PDF、JPG、PNG 格式，最大 20MB' }}
+          {{ fileName ? '文件已准备好，可重新选择' : '支持 PDF、JPG、PNG 格式' }}
         </view>
         <view v-if="fileSize" class="file-chip">{{ formatSize(fileSize) }}</view>
       </view>
@@ -136,10 +136,6 @@ const acceptFile = (
     const extension = name.split('.').pop()?.toLowerCase()
     if (!extension || !['pdf', 'jpg', 'jpeg', 'png'].includes(extension)) {
       error.value = '仅支持 PDF、JPG、PNG 文件'
-      return
-    }
-    if ((file.size || 0) > 20 * 1024 * 1024) {
-      error.value = '文件不能超过 20MB'
       return
     }
     fileName.value = name
