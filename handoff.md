@@ -1,5 +1,13 @@
 # RayK A1 项目交接说明（Handoff）
 
+## 0.4 前端构建产物保留与同步约定
+
+- 仅保留三份当前可用产物：`rayk-miniapp/dist/release/mp-weixin-dev`、`rayk-miniapp/dist/release/mp-weixin-prod-lan` 与浏览器 H5 `rayk-miniapp/dist/build/h5`。
+- 不再保留 `dist/dev/mp-weixin`、`dist/build/mp-weixin` 或历史构建回退目录，避免微信开发者工具导入旧包。
+- 此后每次小程序代码变更，交付前必须同步重建并替换上述三份产物；不可只更新 H5 或其中一个微信包。
+- 微信开发者工具应导入 `dist/release/mp-weixin-dev`；生产局域网验收时导入 `dist/release/mp-weixin-prod-lan`。
+
+
 ## 0.3 2026-07-21 反馈工单受理规则更新
 
 - 可提交反馈：机构管理员、医生、健康管理师、普通客户；每位提交人只能查看自己的工单与平台回复。
