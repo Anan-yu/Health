@@ -24,17 +24,18 @@
     <!-- #ifdef MP-WEIXIN -->
     <view class="card login-card">
       <view class="card-kicker">欢迎使用</view>
-      <view class="card-title">微信身份快捷登录</view>
-      <view class="subtitle">识别已绑定账号的角色与服务范围，再进入对应工作台</view>
+      <view class="card-title">微信授权手机号登录</view>
+      <view class="subtitle">授权手机号后自动识别机构身份；未预录入的号码将创建个人健康账户</view>
       <button
         class="wechat"
         :loading="wechatLoading"
         :disabled="Boolean(identified)"
-        @click="handleWeChatLogin"
+        open-type="getPhoneNumber"
+        @getphonenumber="handleWeChatLogin"
       >
         <text class="wechat-mark">微</text> 微信一键登录
       </button>
-      <view v-if="wechatLoading" class="recognizing">正在安全识别你的微信账号…</view>
+      <view v-if="wechatLoading" class="recognizing">正在安全识别微信身份与授权手机号…</view>
       <view v-if="identified" class="identified">
         <view class="identified-mark">✓</view>
         <view
@@ -128,13 +129,17 @@ onLoad((query) => {
   expired.value = query?.expired === '1'
 })
 
-async function handleWeChatLogin() {
+async function handleWeChatLogin(event: { detail?: { code?: string; errMsg?: string } }) {
   wechatLoading.value = true
   wechatError.value = ''
   try {
+    const phoneCode = event?.detail?.code
+    if (!phoneCode) {
+      throw new Error('需要授权手机号以识别您的服务身份')
+    }
     const result = await uni.login({ provider: 'weixin' })
     if (!result.code) throw new Error('微信未返回登录凭证')
-    const data: AuthData = await auth.loginWithWeChat(result.code)
+    const data: AuthData = await auth.loginWithWeChat(result.code, phoneCode)
     identified.value = {
       displayName: data.displayName,
       workbench: workbenchNames[data.defaultWorkbench],

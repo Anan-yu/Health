@@ -128,6 +128,11 @@ public class MockUserCatalog implements UserCatalog {
     }
 
     @Override
+    public UserAccount findByPhoneHash(String phoneHash) {
+        return null;
+    }
+
+    @Override
     public List<UserAccount> all() {
         return accounts.values().stream().map(MockUserCatalog::toUserAccount).toList();
     }

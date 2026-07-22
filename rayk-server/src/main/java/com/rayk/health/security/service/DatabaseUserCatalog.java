@@ -56,6 +56,12 @@ public class DatabaseUserCatalog implements UserCatalog {
     }
 
     @Override
+    public UserAccount findByPhoneHash(String phoneHash) {
+        SysUserEntity user = userMapper.selectByPhoneHashIgnoringTenant(phoneHash);
+        return user == null ? null : assemble(user);
+    }
+
+    @Override
     public List<UserAccount> all() {
         return userMapper.selectAllIgnoringTenant().stream().map(this::assemble).toList();
     }

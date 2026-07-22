@@ -21,6 +21,8 @@ import org.springframework.util.StringUtils;
 @Service
 public class WeChatAuthService {
     private final WeChatCode2SessionClient code2SessionClient;
+    private final WeChatPhoneNumberClient phoneNumberClient;
+    private final WeChatCustomerProvisioningService customerProvisioningService;
     private final WeChatProperties properties;
     private final WeChatUserBindingMapper bindingMapper;
     private final UserCatalog catalog;
@@ -28,11 +30,15 @@ public class WeChatAuthService {
 
     public WeChatAuthService(
             WeChatCode2SessionClient code2SessionClient,
+            WeChatPhoneNumberClient phoneNumberClient,
+            WeChatCustomerProvisioningService customerProvisioningService,
             WeChatProperties properties,
             WeChatUserBindingMapper bindingMapper,
             UserCatalog catalog,
             AuthService authService) {
         this.code2SessionClient = code2SessionClient;
+        this.phoneNumberClient = phoneNumberClient;
+        this.customerProvisioningService = customerProvisioningService;
         this.properties = properties;
         this.bindingMapper = bindingMapper;
         this.catalog = catalog;
@@ -40,14 +46,22 @@ public class WeChatAuthService {
     }
 
     @Transactional
-    public AuthData login(String code) {
+    public AuthData login(String code, String phoneCode) {
         WeChatSessionIdentity identity = code2SessionClient.exchange(code);
         WeChatUserBindingEntity binding = findByIdentity(identity);
-        if (binding == null && StringUtils.hasText(properties.autoBindUsername())) {
-            UserAccount account = catalog.findByUsername(properties.autoBindUsername());
-            if (account != null) {
-                binding = createBinding(identity, account);
+        if (binding == null) {
+            UserAccount account = null;
+            if (properties.mockEnabled() && StringUtils.hasText(properties.autoBindUsername())) {
+                account = catalog.findByUsername(properties.autoBindUsername());
             }
+            if (account == null) {
+                String phone = phoneNumberClient.resolve(phoneCode);
+                account = catalog.findByPhoneHash(PhoneIdentity.hash(phone));
+                if (account == null) {
+                    account = customerProvisioningService.provision(phone);
+                }
+            }
+            binding = createBinding(identity, account);
         }
         if (binding == null || !"ACTIVE".equals(binding.getStatus())) {
             throw new BusinessException(ErrorCode.WECHAT_ACCOUNT_NOT_BOUND);

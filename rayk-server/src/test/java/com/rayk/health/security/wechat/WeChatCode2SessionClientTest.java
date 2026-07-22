@@ -13,7 +13,16 @@ class WeChatCode2SessionClientTest {
     void returnsConfiguredDevelopmentIdentityWhenMockIsEnabled() {
         WeChatProperties properties =
                 new WeChatProperties(
-                        "dev-appid", "", "https://example.invalid", true, "dev-openid", "customer");
+                        "dev-appid",
+                        "",
+                        "https://example.invalid",
+                        "https://example.invalid/token",
+                        "https://example.invalid/phone",
+                        true,
+                        "dev-openid",
+                        "13800000005",
+                        20001L,
+                        "customer");
         WeChatCode2SessionClient client =
                 new WeChatCode2SessionClient(properties, WebClient.builder());
 
@@ -27,7 +36,17 @@ class WeChatCode2SessionClientTest {
     @Test
     void rejectsRealExchangeWhenCredentialsAreMissing() {
         WeChatProperties properties =
-                new WeChatProperties("", "", "https://example.invalid", false, "", "");
+                new WeChatProperties(
+                        "",
+                        "",
+                        "https://example.invalid",
+                        "https://example.invalid/token",
+                        "https://example.invalid/phone",
+                        false,
+                        "",
+                        "",
+                        20001L,
+                        "");
         WeChatCode2SessionClient client =
                 new WeChatCode2SessionClient(properties, WebClient.builder());
 

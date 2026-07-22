@@ -8,6 +8,8 @@ public enum ErrorCode {
     WECHAT_NOT_CONFIGURED(10202, "微信小程序身份服务尚未配置"),
     WECHAT_ACCOUNT_NOT_BOUND(10203, "该微信账号尚未绑定系统用户"),
     WECHAT_ALREADY_BOUND(10204, "该微信账号已绑定其他系统用户"),
+    WECHAT_PHONE_AUTH_FAILED(10205, "微信手机号授权校验失败，请重试"),
+    PHONE_ALREADY_REGISTERED(10206, "该手机号已被系统账户使用"),
     WORKBENCH_NOT_ALLOWED(10301, "当前账号无权切换到该工作台"),
     TENANT_NOT_FOUND(10401, "机构不存在或无权访问"),
     DATA_COLLECTION_CONSENT_REQUIRED(10501, "请先授权健康数据采集后再继续"),

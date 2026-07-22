@@ -2,5 +2,6 @@ package com.rayk.health.security.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
-public record WeChatLoginRequest(@NotBlank String code) {}
+/** phoneCode is returned by WeChat getPhoneNumber and is required for automatic account matching. */
+public record WeChatLoginRequest(@NotBlank String code, String phoneCode) {}
 

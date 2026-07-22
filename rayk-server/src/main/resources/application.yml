@@ -70,8 +70,12 @@ rayk:
     app-id: ${WECHAT_APP_ID:}
     secret: ${WECHAT_APP_SECRET:}
     code2-session-url: ${WECHAT_CODE2SESSION_URL:https://api.weixin.qq.com/sns/jscode2session}
+    access-token-url: ${WECHAT_ACCESS_TOKEN_URL:https://api.weixin.qq.com/cgi-bin/token}
+    phone-number-url: ${WECHAT_PHONE_NUMBER_URL:https://api.weixin.qq.com/wxa/business/getuserphonenumber}
     mock-enabled: ${WECHAT_MOCK_ENABLED:false}
     mock-openid: ${WECHAT_MOCK_OPENID:rayk-dev-openid}
+    mock-phone-number: ${WECHAT_MOCK_PHONE_NUMBER:13800000005}
+    default-customer-tenant-id: ${WECHAT_DEFAULT_CUSTOMER_TENANT_ID:20001}
     auto-bind-username: ${WECHAT_AUTO_BIND_USERNAME:}
   ai:
     base-url: ${RAYK_AI_BASE_URL:http://localhost:8000}

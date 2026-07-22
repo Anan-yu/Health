@@ -16,8 +16,8 @@ export const useAuthStore = defineStore('auth', {
       const data = await mockLogin(username, password)
       this.saveSession(data)
     },
-    async loginWithWeChat(code: string) {
-      const data = await weChatLogin(code)
+    async loginWithWeChat(code: string, phoneCode?: string) {
+      const data = await weChatLogin(code, phoneCode)
       this.saveSession(data)
       return data
     },

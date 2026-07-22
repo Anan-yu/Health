@@ -24,6 +24,10 @@ public interface SysUserMapper extends BaseMapper<SysUserEntity> {
     @Select("SELECT * FROM sys_user WHERE id = #{userId} AND deleted = 0")
     SysUserEntity selectByIdIgnoringTenant(@Param("userId") long userId);
 
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM sys_user WHERE phone_hash = #{phoneHash} AND deleted = 0 LIMIT 1")
+    SysUserEntity selectByPhoneHashIgnoringTenant(@Param("phoneHash") String phoneHash);
+
     /**
      * 跨租户列出全部有效用户（测试与健康检查场景）。
      */

@@ -18,6 +18,9 @@ public interface UserCatalog {
     /** 按用户主键查找账号，找不到返回 null。 */
     UserAccount findByUserId(long userId);
 
+    /** Finds an account by the irreversible hash of its verified mobile number. */
+    UserAccount findByPhoneHash(String phoneHash);
+
     /** 列出全部账号（主要用于测试与健康检查）。 */
     List<UserAccount> all();
 }

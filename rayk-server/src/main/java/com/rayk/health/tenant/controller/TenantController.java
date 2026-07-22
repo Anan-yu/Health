@@ -2,13 +2,17 @@ package com.rayk.health.tenant.controller;
 
 import com.rayk.health.common.api.ApiResponse;
 import com.rayk.health.tenant.application.TenantAdminService;
+import com.rayk.health.tenant.dto.CreateStaffRequest;
 import com.rayk.health.tenant.vo.StaffVo;
 import com.rayk.health.tenant.vo.TenantProfileVo;
 import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/tenant")
@@ -29,5 +33,11 @@ public class TenantController {
     @PreAuthorize("hasAuthority('tenant:staff:manage')")
     public ApiResponse<List<StaffVo>> staff() {
         return ApiResponse.success(tenantAdminService.staff());
+    }
+
+    @PostMapping("/staff")
+    @PreAuthorize("hasAuthority('tenant:staff:manage')")
+    public ApiResponse<StaffVo> createStaff(@Valid @RequestBody CreateStaffRequest request) {
+        return ApiResponse.success(tenantAdminService.createStaff(request));
     }
 }

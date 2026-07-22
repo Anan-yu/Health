@@ -18,6 +18,7 @@ public class SysUserEntity {
     private String passwordHash;
     private String displayName;
     private String phoneMasked;
+    private String phoneHash;
     private String status;
     private Long createdBy;
     private LocalDateTime createdAt;

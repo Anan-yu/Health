@@ -8,6 +8,17 @@
       </view>
       <view class="count-badge">{{ staff.length }} 人</view>
     </view>
+    <view class="card invitation-card">
+      <view class="section-title">预录入专业人员</view>
+      <view class="subtitle">填写手机号后，对方微信授权手机号登录将自动进入对应工作台</view>
+      <input v-model="form.displayName" class="input" placeholder="姓名" />
+      <input v-model="form.phone" class="input" type="number" maxlength="11" placeholder="手机号" />
+      <picker :range="roleOptions" range-key="label" @change="changeRole">
+        <view class="role-picker">{{ selectedRole.label }} <text>⌄</text></view>
+      </picker>
+      <button class="primary invite-button" :loading="submitting" @click="submitStaff">保存并预录入</button>
+      <view v-if="formError" class="form-error">{{ formError }}</view>
+    </view>
     <PageState :loading="loading" :error="error" :empty="staff.length === 0">
       <view v-for="item in staff" :key="item.id" class="card staff-card">
         <view class="staff-avatar">{{ item.displayName.slice(0, 1) }}</view>
@@ -29,9 +40,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getTenantStaff } from '@/api/admin'
+import { createTenantStaff, getTenantStaff } from '@/api/admin'
 import type { Role, TenantStaff } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -39,6 +50,14 @@ import StatusTag from '@/components/StatusTag.vue'
 const staff = ref<TenantStaff[]>([])
 const loading = ref(true)
 const error = ref('')
+const submitting = ref(false)
+const formError = ref('')
+const form = ref({ displayName: '', phone: '', roleCode: 'DOCTOR' as 'DOCTOR' | 'HEALTH_MANAGER' })
+const roleOptions = [
+  { label: '医生', value: 'DOCTOR' as const },
+  { label: '健康管理师', value: 'HEALTH_MANAGER' as const },
+]
+const selectedRole = computed(() => roleOptions.find((item) => item.value === form.value.roleCode) || roleOptions[0])
 const roleName = (role: Role) =>
   ({
     PLATFORM_ADMIN: '平台管理员',
@@ -48,7 +67,7 @@ const roleName = (role: Role) =>
     CUSTOMER: '普通客户',
   })[role]
 
-onShow(async () => {
+async function loadStaff() {
   loading.value = true
   error.value = ''
   try {
@@ -58,7 +77,33 @@ onShow(async () => {
   } finally {
     loading.value = false
   }
-})
+}
+
+function changeRole(event: { detail: { value: number | string } }) {
+  form.value.roleCode = roleOptions[Number(event.detail.value)].value
+}
+
+async function submitStaff() {
+  const phone = form.value.phone.trim()
+  if (!form.value.displayName.trim() || !/^1[3-9]\d{9}$/.test(phone)) {
+    formError.value = '请填写姓名和有效的 11 位手机号'
+    return
+  }
+  submitting.value = true
+  formError.value = ''
+  try {
+    await createTenantStaff({ ...form.value, displayName: form.value.displayName.trim(), phone })
+    form.value = { displayName: '', phone: '', roleCode: 'DOCTOR' }
+    uni.showToast({ title: '已预录入，等待微信授权登录', icon: 'success' })
+    await loadStaff()
+  } catch (cause) {
+    formError.value = cause instanceof Error ? cause.message : '预录入失败'
+  } finally {
+    submitting.value = false
+  }
+}
+
+onShow(loadStaff)
 </script>
 
 <style scoped>
@@ -86,6 +131,32 @@ onShow(async () => {
   align-items: center;
   margin-bottom: 18rpx;
   padding: 26rpx 24rpx;
+}
+.invitation-card {
+  margin-bottom: 22rpx;
+  padding: 28rpx;
+}
+.invitation-card .input {
+  margin-top: 16rpx;
+}
+.role-picker {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16rpx;
+  padding: 22rpx 24rpx;
+  border: 1rpx solid #dce9e4;
+  border-radius: 16rpx;
+  background: #f8fbfa;
+  color: #36564d;
+  font-size: 27rpx;
+}
+.invite-button {
+  margin-top: 18rpx;
+}
+.form-error {
+  margin-top: 14rpx;
+  color: #b42318;
+  font-size: 23rpx;
 }
 .staff-avatar {
   display: flex;

@@ -29,7 +29,7 @@ public class AuthController {
 
     @PostMapping("/wechat-login")
     public ApiResponse<AuthData> weChatLogin(@Valid @RequestBody WeChatLoginRequest request) {
-        return ApiResponse.success(weChatAuthService.login(request.code()));
+        return ApiResponse.success(weChatAuthService.login(request.code(), request.phoneCode()));
     }
 
     @PostMapping("/wechat-bind")
