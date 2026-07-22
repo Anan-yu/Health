@@ -20,7 +20,6 @@ from reportlab.platypus import (  # type: ignore[import-untyped]
     TableStyle,
 )
 
-from app.core.constants import DISCLAIMER
 from app.schemas.report import ReportGenerateData, ReportGenerateRequest
 
 
@@ -44,8 +43,8 @@ class DemoReportService:
         return ReportGenerateData(
             title=title,
             summary=summary,
-            sections=["指标概览", "评估结果", "生活方式建议", "人工审核意见"],
-            disclaimer=DISCLAIMER,
+            sections=["指标概览", "评估结果", "生活方式建议", "医生审核意见"],
+            disclaimer="",
             pdf_base64=base64.b64encode(self._build_pdf(request, title, summary)).decode("ascii"),
         )
 
@@ -134,10 +133,8 @@ class DemoReportService:
         story.extend(
             [
                 Spacer(1, 3 * mm),
-                Paragraph("五、专业人员审核意见", heading),
+                Paragraph("五、医生审核意见", heading),
                 Paragraph(request.doctor_opinion or "暂未填写。", normal),
-                Spacer(1, 5 * mm),
-                Paragraph(DISCLAIMER, small),
             ]
         )
         document.build(story)

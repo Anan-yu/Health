@@ -86,12 +86,6 @@ public class ReportTemplateBuilder {
         html.append("<p>").append(escapeHtml(report.getSummary())).append("</p>\n");
         html.append("</div>\n");
 
-        // Disclaimer
-        html.append("<div class=\"disclaimer\">\n");
-        html.append("<h3>重要声明</h3>\n");
-        html.append("<p>").append(escapeHtml(report.getDisclaimer())).append("</p>\n");
-        html.append("</div>\n");
-
         html.append("<div class=\"footer\">\n");
         html.append("<p>本报告由AI辅助生成，经医生人工审核。仅供健康管理参考，不构成医学诊断。</p>\n");
         html.append("<p>生成时间：");

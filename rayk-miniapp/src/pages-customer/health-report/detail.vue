@@ -9,13 +9,12 @@
         /></view>
         <view class="subtitle">{{ report?.summary }}</view>
         <view class="report-row"
-          ><text>医生意见</text><text>{{ report?.doctorOpinion || '暂无补充意见' }}</text></view
+          ><text>医生审核意见</text><text>{{ report?.doctorOpinion || '暂无补充意见' }}</text></view
         >
         <view class="report-row"
           ><text>发布时间</text><text>{{ report?.publishedAt || '-' }}</text></view
         >
       </view>
-      <view class="card disclaimer">{{ report?.disclaimer }}</view>
       <button class="download-button" :loading="downloading" @click="download">
         下载 PDF 健康报告
       </button>
@@ -102,11 +101,6 @@ const download = async () => {
 .report-row text:last-child {
   color: #334b43;
   text-align: right;
-}
-.disclaimer {
-  color: #8a7a53;
-  font-size: 22rpx;
-  line-height: 1.65;
 }
 .download-button {
   margin-top: 28rpx;
