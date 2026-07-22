@@ -115,8 +115,24 @@ onShow(async () => {
 })
 
 function choose() {
-  const acceptFile = (file: { name?: string; path: string; size?: number }) => {
-    const name = file.name || file.path.split('/').pop() || 'report.pdf'
+  uni.showActionSheet({
+    itemList: ['拍照上传', '从手机文件选择'],
+    success: ({ tapIndex }) => {
+      if (tapIndex === 0) {
+        chooseFromCamera()
+        return
+      }
+      chooseFromFiles()
+    },
+  })
+}
+
+const acceptFile = (
+  file: { name?: string; path: string; size?: number },
+  fallbackName = 'report.pdf',
+) => {
+    const pathName = file.path.split('/').pop() || ''
+    const name = file.name || (pathName.includes('.') ? pathName : fallbackName)
     const extension = name.split('.').pop()?.toLowerCase()
     if (!extension || !['pdf', 'jpg', 'jpeg', 'png'].includes(extension)) {
       error.value = '仅支持 PDF、JPG、PNG 文件'
@@ -133,10 +149,30 @@ function choose() {
     state.value = 'SELECTED'
     error.value = ''
   }
+
+function chooseFromCamera() {
+  uni.chooseImage({
+    count: 1,
+    sourceType: ['camera'],
+    success: (result) => {
+      const selected = result.tempFiles[0]
+      acceptFile(
+        {
+          name: selected?.path?.split('/').pop(),
+          path: result.tempFilePaths[0],
+          size: selected?.size,
+        },
+        'camera-report.jpg',
+      )
+    },
+  })
+}
+
+function chooseFromFiles() {
   // #ifdef MP-WEIXIN
   uni.chooseMessageFile({
     count: 1,
-    type: 'file',
+    type: 'all',
     extension: ['pdf', 'jpg', 'jpeg', 'png'],
     success: (result) => acceptFile(result.tempFiles[0]),
   })
