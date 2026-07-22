@@ -23,7 +23,10 @@
     <view class="card form-card">
       <view class="form-heading"><text class="form-index">01</text><text>报告信息</text></view>
       <view class="field-label">报告所属人</view>
-      <view class="input owner-field">{{ patient?.name || '正在识别当前账号…' }}</view>
+      <view class="input owner-field owner-selector" @click="editOwner">
+        <text>{{ patient?.name || '正在识别当前账号…' }}</text>
+        <text class="owner-edit">修改 ›</text>
+      </view>
       <view class="field-label">报告名称</view>
       <input v-model="reportName" class="input" placeholder="例如：生化检验报告" />
       <view class="field-label">报告日期</view>
@@ -60,7 +63,7 @@
         ><text>{{ collectionAuthorized ? '隐私安全保护' : '需要健康数据采集授权' }}</text
         ><text>{{
           collectionAuthorized
-            ? '文件将加密传输并保存至私有存储空间'
+            ? '文件将加密传输'
             : '授权后才能上传并保存检验报告'
         }}</text></view
       ><button v-if="!collectionAuthorized" size="mini" @click="openPrivacy">去授权</button></view
@@ -197,6 +200,8 @@ async function submit() {
 
 const openPrivacy = () => uni.navigateTo({ url: '/pages-customer/privacy/index' })
 
+const editOwner = () => uni.navigateTo({ url: '/pages-customer/profile/edit' })
+
 function changeDate(event: { detail: { value: string } }) {
   reportDate.value = event.detail.value
 }
@@ -324,6 +329,16 @@ function formatSize(size: number) {
 .owner-field {
   color: #33463f;
   background: #f4f8f6;
+}
+.owner-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.owner-edit {
+  color: #0f7a62;
+  font-size: 22rpx;
+  font-weight: 650;
 }
 .date-input text:last-child {
   color: #91a09b;
