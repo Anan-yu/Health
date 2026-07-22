@@ -5,9 +5,10 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.api.router import router
+from app.api.router import ocr_service, router
 from app.core.middleware import RequestIdMiddleware
 from app.core.request_context import get_request_id
+from app.ocr.service import PaddleOcrService
 from app.schemas.common import ApiResponse, HealthData
 
 logging.basicConfig(
@@ -22,6 +23,12 @@ app = FastAPI(
 )
 app.add_middleware(RequestIdMiddleware)
 app.include_router(router)
+
+
+@app.on_event("startup")
+def warm_up_ocr() -> None:
+    if isinstance(ocr_service, PaddleOcrService):
+        ocr_service.warm_up()
 
 
 @app.get("/health", response_model=ApiResponse[HealthData])

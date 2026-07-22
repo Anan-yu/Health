@@ -22,7 +22,7 @@
         <view class="scan-icon"><view class="scan-line" /></view>
         <view>
           <view class="processing-title">正在识别报告内容</view>
-          <view class="processing-copy">首次使用需要加载本地 OCR 模型，请稍候</view>
+          <view class="processing-copy">请耐心等待</view>
         </view>
       </view>
       <view v-else-if="task?.status === 'FAILED'" class="failed-box">
@@ -104,6 +104,14 @@
           </view>
         </view>
       </view>
+      <button
+        v-if="task?.status === 'SUCCESS' && !confirmed"
+        class="soft-button retry-button retry-success-button"
+        :loading="retrying"
+        @click="retry"
+      >
+        重新识别
+      </button>
     </PageState>
 
     <button v-if="!isProcessing" class="add-button" @click="add">＋ 新增未识别指标</button>
@@ -476,6 +484,13 @@ async function previewSource() {
   width: auto;
   margin: 0;
   padding: 0 22rpx;
+}
+.retry-success-button {
+  display: block;
+  margin: 18rpx auto 0;
+  color: #d9f7ed;
+  border: 1rpx solid rgba(217, 247, 237, 0.45);
+  background: rgba(255, 255, 255, 0.1);
 }
 .result-summary > view {
   flex: 1;

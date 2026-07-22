@@ -4,17 +4,46 @@ import re
 import tempfile
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
+from dataclasses import dataclass
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
+from statistics import median
 from typing import Any
 
 import httpx
+from PIL import Image, ImageOps
 
 from app.schemas.indicator import IndicatorInput
 from app.schemas.ocr import OcrRecognizeData, OcrRecognizeRequest
 
 NUMBER_PATTERN = re.compile(r"[-+]?\d+(?:[.,]\d+)?")
+
+
+@dataclass(frozen=True)
+class LayoutToken:
+    text: str
+    box: tuple[float, float, float, float]
+
+    @property
+    def left(self) -> float:
+        return self.box[0]
+
+    @property
+    def right(self) -> float:
+        return self.box[2]
+
+    @property
+    def center_x(self) -> float:
+        return (self.left + self.right) / 2
+
+    @property
+    def center_y(self) -> float:
+        return (self.box[1] + self.box[3]) / 2
+
+    @property
+    def height(self) -> float:
+        return self.box[3] - self.box[1]
 
 
 class OcrService(ABC):
@@ -37,13 +66,18 @@ class IndicatorRowParser:
         ("triglyceride", "甘油三酯", "mmol/L", ("甘油三酯", "TG")),
         ("hdl", "高密度脂蛋白胆固醇", "mmol/L", ("高密度脂蛋白胆固醇", "HDL-C", "HDL")),
         ("ldl", "低密度脂蛋白胆固醇", "mmol/L", ("低密度脂蛋白胆固醇", "LDL-C", "LDL")),
-        ("apob", "载脂蛋白B", "g/L", ("载脂蛋白B", "ApoB")),
+        ("apob", "载脂蛋白B", "g/L", ("载脂蛋白B", "载酯蛋白-B", "ApoB")),
+        ("apoa1", "载脂蛋白A1", "g/L", ("载脂蛋白A1", "载酯蛋白A1", "ApoA1")),
         ("lpa", "脂蛋白(a)", "nmol/L", ("脂蛋白(a)", "Lp(a)")),
         ("alt", "丙氨酸氨基转移酶", "U/L", ("丙氨酸氨基转移酶", "谷丙转氨酶", "ALT")),
         ("ast", "天门冬氨酸氨基转移酶", "U/L", ("天门冬氨酸氨基转移酶", "谷草转氨酶", "AST")),
         ("ggt", "γ-谷氨酰转移酶", "U/L", ("γ-谷氨酰转移酶", "谷氨酰转肽酶", "GGT")),
         ("total_bilirubin", "总胆红素", "μmol/L", ("总胆红素", "TBIL")),
+        ("direct_bilirubin", "直接胆红素", "μmol/L", ("直接胆红素", "DBIL")),
+        ("indirect_bilirubin", "间接胆红素", "μmol/L", ("间接胆红素", "IBIL")),
         ("albumin", "白蛋白", "g/L", ("白蛋白", "ALB")),
+        ("prealbumin", "前白蛋白", "mg/L", ("前白蛋白", "PA")),
+        ("albumin_globulin_ratio", "白球比", "ratio", ("白球比", "A/G")),
         ("creatinine", "肌酐", "μmol/L", ("血肌酐", "肌酐", "CREA", "Cr")),
         ("egfr", "估算肾小球滤过率", "mL/min/1.73m2", ("估算肾小球滤过率", "eGFR")),
         ("urea", "尿素", "mmol/L", ("尿素氮", "尿素", "UREA", "BUN")),
@@ -113,6 +147,119 @@ class IndicatorRowParser:
                 parsed[generic.code or generic.name] = generic
         return list(parsed.values())
 
+    def parse_layout(
+        self, lines: Iterable[str], boxes: Iterable[tuple[float, float, float, float]]
+    ) -> list[IndicatorInput]:
+        """Reconstruct a laboratory table from OCR text boxes.
+
+        PaddleOCR emits text in detection order, which interleaves left and right table columns.
+        Grouping the boxes into visual rows first keeps a result, unit and reference interval
+        attached to the correct analyte.
+        """
+        tokens = [
+            LayoutToken(self._normalize(str(text)), self._box(box))
+            for text, box in zip(lines, boxes)
+            if str(text).strip() and self._box(box) is not None
+        ]
+        if not tokens:
+            return []
+        table_header = [
+            token
+            for token in tokens
+            if token.text in {"检验项目", "结果", "单位", "参考范围"}
+        ]
+        if len(table_header) < 4:
+            return []
+        first_row_y = max(token.center_y for token in table_header) + 18
+        table_tokens = [token for token in tokens if token.center_y >= first_row_y]
+        if not table_tokens:
+            return []
+        page_midpoint = max(token.right for token in tokens) / 2
+        parsed: dict[str, IndicatorInput] = {}
+        for column in (
+            [token for token in table_tokens if token.center_x < page_midpoint],
+            [token for token in table_tokens if token.center_x >= page_midpoint],
+        ):
+            for row in self._group_rows(column):
+                item = self._parse_layout_row(row)
+                if item is not None:
+                    parsed[item.code or item.name] = item
+        return list(parsed.values())
+
+    def _parse_layout_row(self, row: list["LayoutToken"]) -> IndicatorInput | None:
+        ordered = sorted(row, key=lambda token: token.left)
+        if len(ordered) < 3:
+            return None
+        name_token = ordered[0].text
+        matched = self._matched_indicator(name_token, exact=True)
+        value_index = next(
+            (
+                index
+                for index, token in enumerate(ordered[1:], start=1)
+                if NUMBER_PATTERN.fullmatch(token.text)
+            ),
+            None,
+        )
+        if value_index is None:
+            return None
+        value_token = ordered[value_index].text
+        reference_text = " ".join(token.text for token in ordered[value_index + 1 :])
+        reference_low, reference_high = self._reference_values(
+            reference_text,
+            [self._decimal(value) for value in NUMBER_PATTERN.findall(reference_text)],
+            value_included=False,
+        )
+        if value_token is None or reference_low is None or reference_high is None:
+            return None
+        if matched is not None:
+            code, standard_name, standard_unit, _ = matched
+            return IndicatorInput(
+                code=code,
+                name=standard_name,
+                value=self._decimal(value_token),
+                unit=self._unit(" ".join(token.text for token in ordered), standard_unit),
+                referenceLow=reference_low,
+                referenceHigh=reference_high,
+            )
+        unit = self._unit(" ".join(token.text for token in ordered[1:]), "")
+        if not name_token or not unit:
+            return None
+        return IndicatorInput(
+            code="unrecognized_" + hashlib.sha1(name_token.encode()).hexdigest()[:10],
+            name=name_token,
+            value=self._decimal(value_token),
+            unit=unit,
+            referenceLow=reference_low,
+            referenceHigh=reference_high,
+        )
+
+    def _group_rows(self, tokens: list["LayoutToken"]) -> list[list["LayoutToken"]]:
+        if not tokens:
+            return []
+        tolerance = max(22.0, median(token.height for token in tokens) * 0.62)
+        rows: list[list[LayoutToken]] = []
+        centers: list[float] = []
+        for token in sorted(tokens, key=lambda item: item.center_y):
+            if centers and abs(token.center_y - centers[-1]) <= tolerance:
+                rows[-1].append(token)
+                centers[-1] = sum(item.center_y for item in rows[-1]) / len(rows[-1])
+            else:
+                rows.append([token])
+                centers.append(token.center_y)
+        return rows
+
+    def _box(self, value: Any) -> tuple[float, float, float, float] | None:
+        if hasattr(value, "tolist"):
+            value = value.tolist()
+        values = list(value) if isinstance(value, list | tuple) else []
+        if len(values) != 4:
+            return None
+        try:
+            left, top, right, bottom = (float(item) for item in values)
+        except (TypeError, ValueError):
+            return None
+        return left, top, right, bottom
+
     def _parse_known_cells(
         self, lines: list[str], index: int
     ) -> IndicatorInput | None:
@@ -165,7 +312,7 @@ class IndicatorRowParser:
         return None
 
     def _matched_indicator(
-        self, line: str
+        self, line: str, *, exact: bool = False
     ) -> tuple[str, str, str, str] | None:
         """Return the most specific alias so broad names cannot steal table rows."""
         lowered = line.casefold()
@@ -173,7 +320,7 @@ class IndicatorRowParser:
             (code, standard_name, standard_unit, alias)
             for code, standard_name, standard_unit, aliases in self.INDICATORS
             for alias in aliases
-            if alias.casefold() in lowered
+            if (alias.casefold() == lowered if exact else alias.casefold() in lowered)
         )
         return max(matches, key=lambda item: len(item[3]), default=None)
 
@@ -190,6 +337,8 @@ class IndicatorRowParser:
         tail = line[match.end("value") :]
         numbers = [self._decimal(value) for value in NUMBER_PATTERN.findall(tail)]
         reference_low, reference_high = self._reference_values(tail, numbers, value_included=False)
+        if reference_low is None or reference_high is None:
+            return None
         return IndicatorInput(
             code=code,
             name=name,
@@ -210,13 +359,15 @@ class IndicatorRowParser:
             return self._decimal(range_match.group(1)), self._decimal(range_match.group(2))
         candidates = numbers[1:] if value_included else numbers
         if len(candidates) >= 2:
-            return candidates[0], candidates[1]
+            return candidates[-2], candidates[-1]
         return None, None
 
     def _unit(self, tail: str, fallback: str) -> str:
         units = re.findall(r"[%A-Za-zμµ]+(?:/[A-Za-z]+)?", tail)
         ignored = {"H", "L", "N", "HIGH", "LOW"}
-        return next((unit for unit in units if unit.upper() not in ignored), fallback)
+        return next(
+            (unit for unit in reversed(units) if unit.upper() not in ignored), fallback
+        )
 
     def _normalize(self, value: str) -> str:
         return re.sub(r"\s+", " ", value.replace("：", " ").replace(":", " ")).strip()
@@ -246,6 +397,8 @@ class MockOcrService(OcrService):
 
 
 class PaddleOcrService(OcrService):
+    MAX_IMAGE_EDGE = 2400
+
     def __init__(self) -> None:
         self.parser = IndicatorRowParser()
 
@@ -253,11 +406,15 @@ class PaddleOcrService(OcrService):
         if not request.download_url:
             raise ValueError("PaddleOCR requires a signed downloadUrl")
         path = self._download(request)
+        prepared_path = path
         try:
-            lines, scores = self._recognize_file(path)
+            prepared_path = self._prepare_image(path, request.mime_type)
+            lines, scores, boxes = self._recognize_file(prepared_path)
         finally:
             path.unlink(missing_ok=True)
-        indicators = self.parser.parse(lines)
+            if prepared_path != path:
+                prepared_path.unlink(missing_ok=True)
+        indicators = self.parser.parse_layout(lines, boxes) or self.parser.parse(lines)
         confidence = Decimal(str(round(sum(scores) / len(scores), 4))) if scores else Decimal("0")
         warnings: list[str] = []
         if not indicators:
@@ -287,9 +444,24 @@ class PaddleOcrService(OcrService):
             target.write(content)
             return Path(target.name)
 
-    def _recognize_file(self, path: Path) -> tuple[list[str], list[float]]:
+    def _prepare_image(self, path: Path, mime_type: str) -> Path:
+        if not mime_type.startswith("image/"):
+            return path
+        with Image.open(path) as source:
+            image = ImageOps.exif_transpose(source)
+            image.thumbnail((self.MAX_IMAGE_EDGE, self.MAX_IMAGE_EDGE), Image.Resampling.LANCZOS)
+            if image.mode not in {"RGB", "L"}:
+                image = image.convert("RGB")
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as target:
+                image.save(target, format="JPEG", quality=92, optimize=True)
+                return Path(target.name)
+
+    def _recognize_file(
+        self, path: Path
+    ) -> tuple[list[str], list[float], list[tuple[float, float, float, float]]]:
         lines: list[str] = []
         scores: list[float] = []
+        boxes: list[tuple[float, float, float, float]] = []
         for result in self._pipeline().predict(str(path)):
             payload = getattr(result, "json", result)
             if callable(payload):
@@ -297,13 +469,20 @@ class PaddleOcrService(OcrService):
             if not isinstance(payload, dict):
                 continue
             data = payload.get("res", payload)
-            lines.extend(
+            page_lines = [
                 str(item).strip()
                 for item in self._as_list(data.get("rec_texts"))
                 if str(item).strip()
-            )
-            scores.extend(float(item) for item in self._as_list(data.get("rec_scores")))
-        return lines, scores
+            ]
+            page_scores = [float(item) for item in self._as_list(data.get("rec_scores"))]
+            page_boxes = [self.parser._box(item) for item in self._as_list(data.get("rec_boxes"))]
+            lines.extend(page_lines)
+            scores.extend(page_scores[: len(page_lines)])
+            boxes.extend(box for box in page_boxes[: len(page_lines)] if box is not None)
+        return lines, scores, boxes
+
+    def warm_up(self) -> None:
+        self._pipeline()
 
     def _as_list(self, value: Any) -> list[Any]:
         if value is None:
