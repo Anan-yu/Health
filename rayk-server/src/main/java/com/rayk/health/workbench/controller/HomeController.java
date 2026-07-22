@@ -92,9 +92,6 @@ public class HomeController {
 
     private List<HomeMetric> businessMetrics(CurrentPrincipal current) {
         long patients = patientService.list().size();
-        long waitingConfirmation = workflowService.listLabReports().stream()
-                .filter(item -> "WAITING_CONFIRMATION".equals(item.status()))
-                .count();
         long waitingFollowups = workflowService.listFollowups().stream()
                 .filter(item -> !"COMPLETED".equals(item.status()))
                 .count();
@@ -104,7 +101,6 @@ public class HomeController {
                     .count();
             return List.of(
                     new HomeMetric("PATIENT", "机构客户总量", patients, "/pages-business/patient/index"),
-                    new HomeMetric("OCR", "待OCR校对", waitingConfirmation, "/pages-business/indicator/index"),
                     new HomeMetric("REVIEW", "待医生审核", waitingReviews, "/pages-business/review/index"),
                     new HomeMetric("FOLLOWUP", "待随访任务", waitingFollowups, "/pages-business/followup/index"));
         }
@@ -115,7 +111,6 @@ public class HomeController {
                 "TENANT_ADMIN".equals(current.workbench()) ? "机构客户总量" : "我的客户总量";
         return List.of(
                 new HomeMetric("PATIENT", patientLabel, patients, "/pages-business/patient/index"),
-                new HomeMetric("OCR", "待OCR校对", waitingConfirmation, "/pages-business/indicator/index"),
                 new HomeMetric("ASSESSMENT", "已完成评估", assessments, "/pages-business/assessment/index"),
                 new HomeMetric("FOLLOWUP", "待随访任务", waitingFollowups, "/pages-business/followup/index"));
     }

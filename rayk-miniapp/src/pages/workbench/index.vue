@@ -69,7 +69,7 @@ const roleDescriptions: Record<Role, string> = {
   PLATFORM_ADMIN: '查看平台运营、机构与关键审计信息',
   TENANT_ADMIN: '统筹机构客户、员工与健康服务流程',
   DOCTOR: '集中处理评估审核与健康报告发布',
-  HEALTH_MANAGER: '高效管理客户报告、指标与随访任务',
+  HEALTH_MANAGER: '制定健康管理计划并持续跟进客户随访',
   CUSTOMER: '管理个人档案、报告、评估与随访反馈',
 }
 const workbenchName = computed(() =>

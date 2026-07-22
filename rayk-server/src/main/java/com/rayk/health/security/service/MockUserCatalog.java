@@ -56,7 +56,6 @@ public class MockUserCatalog implements UserCatalog {
                         "patient:detail",
                         "assessment:review",
                         "report:publish",
-                        "followup:create",
                         "self:health-record"),
                 List.of(
                         new WorkbenchOption("DOCTOR", "医生工作台"),
@@ -71,9 +70,6 @@ public class MockUserCatalog implements UserCatalog {
                 List.of(
                         "patient:list",
                         "patient:create",
-                        "lab-report:manage",
-                        "indicator:confirm",
-                        "assessment:create",
                         "followup:manage"),
                 List.of(new WorkbenchOption("HEALTH_MANAGER", "健康管理工作台")));
         add(

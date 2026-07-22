@@ -40,7 +40,7 @@
         { "path": "patient/detail", "style": { "navigationBarTitleText": "客户详情" } },
         { "path": "lab-report/index", "style": { "navigationBarTitleText": "报告任务" } },
         { "path": "lab-report/detail", "style": { "navigationBarTitleText": "报告详情" } },
-        { "path": "indicator/index", "style": { "navigationBarTitleText": "OCR指标校对" } },
+        { "path": "indicator/index", "style": { "navigationBarTitleText": "客户确认进度" } },
         { "path": "assessment/index", "style": { "navigationBarTitleText": "AI评估任务" } },
         { "path": "review/index", "style": { "navigationBarTitleText": "医生审核" } },
         { "path": "review/detail", "style": { "navigationBarTitleText": "审核详情" } },

@@ -98,7 +98,7 @@ public class OcrTaskService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyAuthority('lab-report:manage', 'indicator:confirm') or (hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER')")
+    @PreAuthorize("hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER'")
     public OcrTaskVo retry(long reportId) {
         AiTaskEntity active = latestEntity(reportId);
         if (active != null && ACTIVE_STATUSES.contains(active.getStatus())) {

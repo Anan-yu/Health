@@ -1,7 +1,11 @@
 <template>
   <view class="page">
     <view class="title">AI评估结果</view>
-    <PageState :loading="loading" :error="error" :empty="items.length === 0">
+    <PageState :loading="loading" :error="error" :empty="false">
+      <view v-if="!items.length" class="review-waiting">
+        <view class="section-title">医生正在审核</view>
+        <view class="subtitle">AI 初评仅供医生审核使用，审核通过后会在这里展示。</view>
+      </view>
       <view v-for="assessment in items" :key="assessment.id" class="assessment-block">
         <view class="card assessment-head">
           <view>
@@ -108,6 +112,18 @@ onShow(async () => {
 <style scoped>
 .assessment-block {
   margin-bottom: 28rpx;
+}
+.review-waiting {
+  margin-top: 28rpx;
+  padding: 38rpx 32rpx;
+  border: 1rpx solid #d7eee7;
+  border-radius: 24rpx;
+  background: #f4fbf8;
+  text-align: center;
+}
+.review-waiting .subtitle {
+  margin-top: 12rpx;
+  line-height: 1.7;
 }
 .assessment-head,
 .model-head,

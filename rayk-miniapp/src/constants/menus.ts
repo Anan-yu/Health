@@ -65,7 +65,7 @@ const business: MenuItem[] = [
   },
   {
     title: '报告任务',
-    description: '报告、OCR与指标确认',
+    description: '查看客户报告与处理进度',
     icon: '报',
     route: '/pages-business/lab-report/index',
     permission: 'lab-report:manage',

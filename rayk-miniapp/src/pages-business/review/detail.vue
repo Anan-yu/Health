@@ -91,13 +91,13 @@
           v-model="opinion"
           class="textarea opinion-input"
           :disabled="!canEdit"
-          placeholder="填写人工审核意见；退回时请说明需要校正的内容"
+          placeholder="填写医生审核意见；退回时请说明需要由客户重新确认的内容"
         />
       </view>
 
       <view v-if="canEdit" class="actions">
         <button class="secondary" :loading="saving" @click="() => saveEdits()">保存编辑</button>
-        <button class="danger" :loading="saving" @click="reject">退回校正</button>
+        <button class="danger" :loading="saving" @click="reject">退回客户确认</button>
         <button class="primary" :loading="saving" @click="approve">审核通过</button>
       </view>
       <button
@@ -253,7 +253,7 @@ async function reject() {
   saving.value = true
   try {
     syncTask(await rejectReview(id.value, opinion.value.trim()))
-    uni.showToast({ title: '已退回健康管理师校正', icon: 'none' })
+    uni.showToast({ title: '已退回客户重新确认', icon: 'none' })
   } finally {
     saving.value = false
   }

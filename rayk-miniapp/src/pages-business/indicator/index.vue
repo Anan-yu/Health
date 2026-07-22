@@ -1,23 +1,18 @@
 <template>
   <view class="page editor-page">
-    <OcrIndicatorEditor
-      v-if="reportId"
-      :report-id="reportId"
-      assessment-route="/pages-business/assessment/index"
-    />
-    <view v-else class="selector-page">
+    <view class="selector-page">
       <view class="selector-hero">
         <view class="eyebrow-light">OCR REVIEW</view>
-        <view class="hero-title">选择待校对报告</view>
-        <view class="hero-copy">只有 OCR 已完成、等待人工确认的报告会显示在这里。</view>
+        <view class="hero-title">客户确认进度</view>
+        <view class="hero-copy">OCR 数据由客户本人核对；本工作台仅查看报告处理进度。</view>
       </view>
       <PageState :loading="loading" :error="error" :empty="items.length === 0">
-        <view v-for="item in items" :key="item.id" class="card report-card" @click="open(item.id)">
+        <view v-for="item in items" :key="item.id" class="card report-card">
           <view class="report-icon">OCR</view>
           <view class="report-content">
             <view class="section-title">{{ item.reportName }}</view>
             <view class="subtitle">客户 ID {{ item.patientId }} · {{ item.reportDate }}</view>
-            <view class="muted">已识别 {{ item.indicators.length }} 项指标，点击开始人工校对</view>
+            <view class="muted">已识别 {{ item.indicators.length }} 项指标，等待客户确认</view>
           </view>
           <view class="arrow">›</view>
         </view>
@@ -29,19 +24,16 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onShow } from '@dcloudio/uni-app'
 import { getLabReports } from '@/api/lab-report'
 import type { LabReport } from '@/types/api'
-import OcrIndicatorEditor from '@/components/OcrIndicatorEditor.vue'
 import PageState from '@/components/PageState.vue'
 
-const reportId = ref('')
 const items = ref<LabReport[]>([])
 const loading = ref(true)
 const error = ref('')
 
 const load = async () => {
-  if (reportId.value) return
   loading.value = true
   error.value = ''
   try {
@@ -54,14 +46,8 @@ const load = async () => {
   }
 }
 
-onLoad((query) => {
-  reportId.value = String(query?.id || '')
-})
 onShow(load)
 
-const open = (id: string) => {
-  reportId.value = id
-}
 const goTasks = () => uni.navigateTo({ url: '/pages-business/lab-report/index' })
 </script>
 

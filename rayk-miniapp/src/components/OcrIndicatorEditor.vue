@@ -117,10 +117,23 @@
     <button v-if="!isProcessing" class="add-button" @click="add">＋ 新增未识别指标</button>
     <view v-if="error" class="error-box">{{ error }}</view>
     <view v-if="!isProcessing" class="action-bar">
-      <button class="primary" :loading="saving" @click="saveAndConfirm">保存并确认指标</button>
-      <button v-if="confirmed" class="assessment-button" :loading="evaluating" @click="evaluate">
-        发起 AI 健康评估
+      <button
+        v-if="!confirmed"
+        class="primary"
+        :loading="saving || evaluating"
+        @click="saveAndConfirm"
+      >
+        确认数据并提交 AI 初评
       </button>
+      <button
+        v-else-if="!reviewSubmitted"
+        class="primary"
+        :loading="evaluating"
+        @click="evaluate"
+      >
+        提交 AI 初评
+      </button>
+      <view v-else class="submitted-hint">AI 初评已提交，结果将在医生审核后展示</view>
     </view>
   </view>
 </template>
@@ -165,10 +178,13 @@ const displayStatus = computed(() => {
 const confidenceText = computed(() =>
   task.value?.confidence === undefined ? '--' : `${Math.round(task.value.confidence * 100)}%`,
 )
+const reviewSubmitted = computed(() => ['REVIEWING', 'PUBLISHED'].includes(report.value?.status || ''))
 const steps = computed(() => {
   const recognized =
     task.value?.status === 'SUCCESS' || report.value?.status === 'WAITING_CONFIRMATION'
-  const isConfirmed = confirmed.value || report.value?.status === 'CONFIRMED'
+  const isConfirmed =
+    confirmed.value ||
+    ['CONFIRMED', 'AI_PROCESSING', 'REVIEWING', 'PUBLISHED'].includes(report.value?.status || '')
   return [
     { label: '文件上传', done: true, active: false },
     { label: '智能识别', done: recognized, active: isProcessing.value },
@@ -191,7 +207,9 @@ async function load() {
   try {
     report.value = await getLabReport(props.reportId)
     indicators.value = report.value.indicators.map((item) => ({ ...item }))
-    confirmed.value = report.value.status === 'CONFIRMED'
+    confirmed.value = ['CONFIRMED', 'AI_PROCESSING', 'REVIEWING', 'PUBLISHED'].includes(
+      report.value.status,
+    )
     try {
       task.value = await getOcrTask(props.reportId)
     } catch {
@@ -309,7 +327,7 @@ async function saveAndConfirm() {
     report.value = await confirmIndicators(props.reportId)
     confirmed.value = true
     indicators.value = report.value.indicators.map((item) => ({ ...item }))
-    uni.showToast({ title: '指标已确认' })
+    await evaluate()
   } catch (e) {
     error.value = e instanceof Error ? e.message : '指标确认失败'
   } finally {
@@ -328,9 +346,11 @@ async function evaluate() {
   error.value = ''
   try {
     await submitAi(props.reportId)
-    uni.redirectTo({ url: props.assessmentRoute })
+    report.value = await getLabReport(props.reportId)
+    uni.showToast({ title: '已提交医生审核' })
+    uni.redirectTo({ url: '/pages-customer/lab-report/index' })
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'AI评估创建失败'
+    error.value = e instanceof Error ? e.message : 'AI 初评提交失败'
   } finally {
     evaluating.value = false
   }
@@ -593,6 +613,15 @@ async function previewSource() {
 }
 .action-bar button {
   margin: 0;
+}
+.submitted-hint {
+  flex: 1;
+  padding: 24rpx;
+  border-radius: 18rpx;
+  background: #eef8f5;
+  color: #397267;
+  font-size: 24rpx;
+  text-align: center;
 }
 .assessment-button {
   margin-top: 12rpx !important;

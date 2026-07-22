@@ -11,9 +11,9 @@
         ><view
           ><text class="metric">{{ indicator.value }}</text> {{ indicator.unit }}</view
         ></view
-      ><button v-if="canCorrect" class="primary" @click="correct">
-        进入OCR指标校对
-      </button></PageState
+      ><view v-if="awaitingCustomerConfirmation" class="card notice">
+        客户正在核对 OCR 识别数据；确认后系统将自动提交 AI 初评。
+      </view></PageState
     ></view
   >
 </template>
@@ -35,10 +35,13 @@ onLoad(async (q) => {
     loading.value = false
   }
 })
-const canCorrect = computed(() =>
-  ['UPLOADED', 'OCR_PENDING', 'OCR_PROCESSING', 'OCR_FAILED', 'WAITING_CONFIRMATION'].includes(
-    item.value?.status || '',
-  ),
-)
-const correct = () => uni.navigateTo({ url: `/pages-business/indicator/index?id=${id.value}` })
+const awaitingCustomerConfirmation = computed(() => item.value?.status === 'WAITING_CONFIRMATION')
 </script>
+
+<style scoped>
+.notice {
+  margin-top: 20rpx;
+  color: #397267;
+  line-height: 1.7;
+}
+</style>

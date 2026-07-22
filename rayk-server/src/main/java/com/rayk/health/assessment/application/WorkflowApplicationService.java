@@ -153,7 +153,7 @@ public class WorkflowApplicationService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyAuthority('lab-report:manage', 'indicator:confirm') or (hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER')")
+    @PreAuthorize("hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER'")
     @Audited(operationType = "REPLACE_INDICATORS", resourceType = "LAB_REPORT")
     public LabReportVo replaceIndicators(long reportId, ConfirmIndicatorsRequest request) {
         LabReportEntity report = requireReport(reportId);
@@ -173,7 +173,7 @@ public class WorkflowApplicationService {
         return toLabReportVo(report);
     }
 
-    @PreAuthorize("hasAnyAuthority('lab-report:manage', 'indicator:confirm') or (hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER')")
+    @PreAuthorize("hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER'")
     @Audited(operationType = "CONFIRM_INDICATORS", resourceType = "LAB_REPORT")
     public LabReportVo confirmIndicators(long reportId) {
         LabReportEntity report = requireReport(reportId);
@@ -195,7 +195,7 @@ public class WorkflowApplicationService {
         return toLabReportVo(report);
     }
 
-    @PreAuthorize("hasAnyAuthority('assessment:create', 'lab-report:manage') or (hasAuthority('self:assessment') and principal.workbench == 'CUSTOMER')")
+    @PreAuthorize("hasAuthority('self:assessment') and principal.workbench == 'CUSTOMER'")
     @Audited(operationType = "SUBMIT_ASSESSMENT", resourceType = "LAB_REPORT")
     public AssessmentVo submitAi(long reportId) {
         LabReportEntity report = requireReport(reportId);
@@ -304,12 +304,15 @@ public class WorkflowApplicationService {
         if (patientIds.isEmpty()) {
             return List.of();
         }
-        return assessmentMapper
+        List<HealthAssessmentEntity> assessments = assessmentMapper
                 .selectList(
                         new LambdaQueryWrapper<HealthAssessmentEntity>()
                                 .in(HealthAssessmentEntity::getPatientId, patientIds)
-                                .orderByDesc(HealthAssessmentEntity::getCreatedAt))
-                .stream()
+                                .orderByDesc(HealthAssessmentEntity::getCreatedAt));
+        if ("CUSTOMER".equals(CurrentUser.require().workbench())) {
+            assessments = assessments.stream().filter(this::approvedForCustomer).toList();
+        }
+        return assessments.stream()
                 .map(this::toAssessmentVo)
                 .toList();
     }
@@ -320,6 +323,9 @@ public class WorkflowApplicationService {
             throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
         }
         dataScopeService.requirePatient(entity.getPatientId());
+        if ("CUSTOMER".equals(CurrentUser.require().workbench()) && !approvedForCustomer(entity)) {
+            throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
+        }
         return toAssessmentVo(entity);
     }
 
@@ -421,7 +427,7 @@ public class WorkflowApplicationService {
         return toHealthReportVo(report);
     }
 
-    @PreAuthorize("hasAnyAuthority('followup:manage', 'followup:create')")
+    @PreAuthorize("hasAuthority('followup:manage')")
     @Audited(operationType = "CREATE_FOLLOWUP", resourceType = "FOLLOWUP_TASK")
     public FollowupTaskVo createFollowup(CreateFollowupRequest request) {
         dataScopeService.requirePatient(request.patientId());
@@ -462,7 +468,7 @@ public class WorkflowApplicationService {
         return toFollowupVo(requireFollowup(id));
     }
 
-    @PreAuthorize("hasAnyAuthority('followup:manage', 'followup:create')")
+    @PreAuthorize("hasAuthority('followup:manage')")
     public FollowupTaskVo completeFollowup(long id) {
         FollowupTaskEntity task = requireFollowup(id);
         if (!"PENDING".equals(task.getStatus())) {
@@ -647,6 +653,15 @@ public class WorkflowApplicationService {
                 results,
                 entity.getDisclaimer(),
                 entity.getCreatedAt());
+    }
+
+    /** Customer-facing assessment data is released only after a doctor approves the review. */
+    private boolean approvedForCustomer(HealthAssessmentEntity assessment) {
+        return reviewMapper.selectCount(
+                        new LambdaQueryWrapper<AssessmentReviewEntity>()
+                                .eq(AssessmentReviewEntity::getAssessmentId, assessment.getId())
+                                .in(AssessmentReviewEntity::getStatus, "APPROVED", "PUBLISHED"))
+                > 0;
     }
 
     private ReviewTaskVo toReviewVo(AssessmentReviewEntity review) {

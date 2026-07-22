@@ -36,7 +36,7 @@ public class FollowupPlanService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyAuthority('followup:manage', 'followup:create')")
+    @PreAuthorize("hasAuthority('followup:manage')")
     public FollowupPlanVo createPlan(CreateFollowupPlanRequest request) {
         dataScopeService.requirePatient(request.patientId());
         CurrentPrincipal current = CurrentUser.require();
@@ -83,7 +83,7 @@ public class FollowupPlanService {
         return toPlanVo(plan);
     }
 
-    @PreAuthorize("hasAnyAuthority('followup:manage', 'followup:create')")
+    @PreAuthorize("hasAuthority('followup:manage')")
     public List<FollowupPlanVo> listPlans(long patientId) {
         dataScopeService.requirePatient(patientId);
         return planMapper.selectList(
@@ -96,7 +96,7 @@ public class FollowupPlanService {
                 .toList();
     }
 
-    @PreAuthorize("hasAnyAuthority('followup:manage', 'followup:create')")
+    @PreAuthorize("hasAuthority('followup:manage')")
     @Transactional
     public FollowupPlanVo activatePlan(long planId) {
         FollowupPlanEntity plan = requirePlan(planId);
@@ -120,7 +120,7 @@ public class FollowupPlanService {
         return toPlanVo(plan);
     }
 
-    @PreAuthorize("hasAnyAuthority('followup:manage', 'followup:create')")
+    @PreAuthorize("hasAuthority('followup:manage')")
     public FollowupPlanVo completePlan(long planId) {
         FollowupPlanEntity plan = requirePlan(planId);
         if (!"ACTIVE".equals(plan.getStatus())) {
