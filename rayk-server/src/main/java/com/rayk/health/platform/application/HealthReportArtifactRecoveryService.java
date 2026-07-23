@@ -1,5 +1,7 @@
 package com.rayk.health.platform.application;
 
+import com.rayk.health.common.exception.BusinessException;
+import com.rayk.health.common.exception.ErrorCode;
 import com.rayk.health.platform.dto.HealthReportArtifactRecoveryData;
 import com.rayk.health.platform.mapper.HealthReportRecoveryMapper;
 import com.rayk.health.report.application.PdfReportService;
@@ -61,5 +63,29 @@ public class HealthReportArtifactRecoveryService {
                             result.objectPath()));
         }
         return new HealthReportArtifactRecoveryData(items.size(), recovered, skipped, List.copyOf(items));
+    }
+
+    @Audited(
+            operationType = "REGENERATE_HEALTH_REPORT_ARTIFACT",
+            resourceType = "HEALTH_REPORT")
+    public ArtifactRecoveryResult regenerateHealthReportArtifact(long reportId) {
+        CurrentPrincipal current = CurrentUser.require();
+        HealthReportRecoveryMapper.PublishedReportRef ref =
+                recoveryMapper.selectPublishedReports().stream()
+                        .filter(item -> item.reportId() == reportId)
+                        .findFirst()
+                        .orElseThrow(
+                                () -> new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND));
+        Long previousTenant = TenantContext.get();
+        try {
+            TenantContext.set(ref.tenantId());
+            return pdfReportService.regeneratePublishedArtifact(reportId, current.userId());
+        } finally {
+            if (previousTenant == null) {
+                TenantContext.clear();
+            } else {
+                TenantContext.set(previousTenant);
+            }
+        }
     }
 }

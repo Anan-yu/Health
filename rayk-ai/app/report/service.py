@@ -11,12 +11,9 @@ from reportlab.pdfbase import pdfmetrics  # type: ignore[import-untyped]
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont  # type: ignore[import-untyped]
 from reportlab.pdfgen.canvas import Canvas  # type: ignore[import-untyped]
 from reportlab.platypus import (  # type: ignore[import-untyped]
-    KeepTogether,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
-    Table,
-    TableStyle,
 )
 
 from app.schemas.report import ReportGenerateData, ReportGenerateRequest
@@ -43,8 +40,6 @@ class DemoReportService:
                 "整体健康状态",
                 "可能疾病与诊断参考",
                 "重点健康问题",
-                "检验指标明细",
-                "优先改善方向",
                 "健康随访",
             ],
             disclaimer="",
@@ -207,35 +202,10 @@ class DemoReportService:
                 )
         else:
             story.append(Paragraph("当前已确认的数据未提示需要优先改善的健康问题。", normal))
-        story.extend([Spacer(1, 3 * mm), Paragraph("四、检验指标明细", heading)])
-        rows = [["指标", "结果", "参考范围"]]
-        for indicator in request.indicators:
-            low = "" if indicator.reference_low is None else str(indicator.reference_low)
-            high = "" if indicator.reference_high is None else str(indicator.reference_high)
-            rows.append(
-                [
-                    indicator.name,
-                    f"{indicator.value} {indicator.unit}",
-                    "-" if not low and not high else f"{low} - {high}",
-                ]
-            )
-        story.append(self._table(rows, [58 * mm, 58 * mm, 44 * mm], normal))
-        recommendations = list(
-            dict.fromkeys(item for result in focus for item in result.recommendations)
-        )[:3]
-        if request.interpretation is not None and request.interpretation.recommendations:
-            recommendations = request.interpretation.recommendations[:3]
-        directions = [Paragraph("五、优先改善方向", heading)]
-        for item in recommendations or [
-            "保持规律作息、均衡饮食与适量运动，并在有新的检验报告时进行复评。"
-        ]:
-            directions.append(Paragraph(f"• {self._safe(item)}", normal))
         story.extend(
             [
                 Spacer(1, 3 * mm),
-                KeepTogether(directions),
-                Spacer(1, 3 * mm),
-                Paragraph("六、健康随访", heading),
+                Paragraph("四、健康随访", heading),
                 Paragraph(
                     "已根据本次重点健康问题生成本周健康计划，请在健康随访中完成任务并提交反馈。",
                     normal,
@@ -305,23 +275,3 @@ class DemoReportService:
             "GUT_BARRIER": "消化与肠道健康",
             "HEAVY_METAL_EXPOSURE": "环境暴露健康",
         }.get(model_code, "健康状态关注")
-
-    @staticmethod
-    def _table(rows: list[list[str]], widths: list[float], style: ParagraphStyle) -> Table:
-        formatted = [[Paragraph(str(cell), style) for cell in row] for row in rows]
-        table = Table(formatted, colWidths=widths, repeatRows=1)
-        table.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#DDF3ED")),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#0F4C45")),
-                    ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#C8D8D3")),
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                    ("TOPPADDING", (0, 0), (-1, -1), 5),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                ]
-            )
-        )
-        return table

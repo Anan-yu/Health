@@ -200,6 +200,73 @@ public class PdfReportService {
         return new ArtifactRecoveryResult(reportId, "RECOVERED", nextVersion, objectPath);
     }
 
+    /** Creates a new immutable PDF version after the report template is upgraded. */
+    @Transactional
+    public ArtifactRecoveryResult regeneratePublishedArtifact(long reportId, long operatorId) {
+        HealthReportEntity report = healthReportMapper.selectByIdForUpdate(reportId);
+        if (report == null || !"PUBLISHED".equals(report.getStatus())) {
+            throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
+        }
+        HealthReportVersionEntity latest =
+                versionMapper.selectOne(
+                        new LambdaQueryWrapper<HealthReportVersionEntity>()
+                                .eq(HealthReportVersionEntity::getHealthReportId, reportId)
+                                .eq(HealthReportVersionEntity::getDeleted, 0)
+                                .orderByDesc(HealthReportVersionEntity::getVersionNo)
+                                .last("LIMIT 1"));
+        int nextVersion = latest == null ? 1 : latest.getVersionNo() + 1;
+        String objectPath =
+                buildRecoveryObjectPath(
+                        report.getTenantId(), report.getPatientId(), report.getId(), nextVersion);
+        if (objectExists(objectPath)) {
+            throw new BusinessException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+        }
+
+        HealthAssessmentEntity assessment = assessmentMapper.selectById(report.getAssessmentId());
+        PatientEntity patient = patientMapper.selectById(report.getPatientId());
+        if (assessment == null || patient == null) {
+            throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+        }
+        GeneratedPdf generated = renderReport(report, assessment, patient);
+        try {
+            ensureBucket();
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(minioProperties.bucketReports())
+                            .object(objectPath)
+                            .contentType("application/pdf")
+                            .stream(
+                                    new ByteArrayInputStream(generated.content()),
+                                    generated.content().length,
+                                    -1)
+                            .build());
+        } catch (Exception exception) {
+            throw new BusinessException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+        }
+
+        HealthReportVersionEntity versionEntity = new HealthReportVersionEntity();
+        versionEntity.setTenantId(report.getTenantId());
+        versionEntity.setHealthReportId(report.getId());
+        versionEntity.setVersionNo(nextVersion);
+        versionEntity.setContentSnapshot(
+                "{\"format\":\"PDF\",\"title\":%s,\"regenerated\":true}"
+                        .formatted(objectMapper.valueToTree(generated.title()).toString()));
+        versionEntity.setObjectPath(objectPath);
+        versionEntity.setCreatedBy(operatorId);
+        versionEntity.setCreatedAt(LocalDateTime.now());
+        versionEntity.setUpdatedBy(operatorId);
+        versionEntity.setUpdatedAt(LocalDateTime.now());
+        versionEntity.setDeleted(0);
+        versionEntity.setVersion(0);
+        try {
+            versionMapper.insert(versionEntity);
+        } catch (RuntimeException exception) {
+            removeNewObjectQuietly(objectPath);
+            throw exception;
+        }
+        return new ArtifactRecoveryResult(reportId, "REGENERATED", nextVersion, objectPath);
+    }
+
   /** Generate a presigned download URL for the report file. */
     public String getDownloadUrl(long reportId) {
         HealthReportEntity report = healthReportMapper.selectById(reportId);

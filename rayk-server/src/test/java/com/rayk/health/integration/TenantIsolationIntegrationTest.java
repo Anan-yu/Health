@@ -139,8 +139,8 @@ class TenantIsolationIntegrationTest {
 
         @Test
         @Transactional
-        @DisplayName("客户撤回专业协作授权后医生立即无法访问")
-        void revokedDataSharingConsentRemovesPatientFromDoctorScope() {
+        @DisplayName("医生可查看同院体检者且不依赖已停用的隐私授权入口")
+        void doctorScopeUsesHospitalBoundaryInsteadOfLegacyConsent() {
             authenticateAsTenant(TENANT_A, 10003, "DOCTOR");
             assertThat(patientMapper.selectList(dataScopeService.scopedPatients()))
                     .extracting(PatientEntity::getId)
@@ -152,7 +152,7 @@ class TenantIsolationIntegrationTest {
 
             assertThat(patientMapper.selectList(dataScopeService.scopedPatients()))
                     .extracting(PatientEntity::getId)
-                    .doesNotContain(TENANT_A_PATIENT);
+                    .contains(TENANT_A_PATIENT);
         }
     }
 

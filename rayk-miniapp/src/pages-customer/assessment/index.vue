@@ -5,8 +5,8 @@
       <view v-for="assessment in items" :key="assessment.id" class="assessment-block">
         <view class="card assessment-head">
           <view>
-            <view class="section-title">评估 #{{ assessment.id }}</view>
-            <view class="subtitle">规则版本 {{ assessment.modelVersion }}</view>
+            <view class="section-title">健康评估</view>
+            <view class="subtitle">已结合检验报告与健康档案完成评估</view>
           </view>
           <StatusTag :status="assessment.overallRiskLevel" />
         </view>

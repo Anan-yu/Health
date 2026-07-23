@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -38,6 +39,11 @@ public class HealthReportController {
     @GetMapping("/{id}")
     public ApiResponse<HealthReportVo> get(@PathVariable long id) {
         return ApiResponse.success(service.getHealthReport(id));
+    }
+
+    @PostMapping("/recover/{assessmentId}")
+    public ApiResponse<HealthReportVo> recover(@PathVariable long assessmentId) {
+        return ApiResponse.success(service.recoverHealthReport(assessmentId));
     }
 
     @GetMapping("/{id}/download")

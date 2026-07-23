@@ -12,11 +12,6 @@ import org.springframework.stereotype.Service;
 /** Applies the customer data boundary for each workbench role. */
 @Service
 public class DataScopeService {
-    private static final String ACTIVE_DATA_SHARING_CONSENT_SQL =
-            "SELECT patient_id FROM privacy_consent "
-                    + "WHERE tenant_id = %d AND consent_type = 'DATA_SHARING' "
-                    + "AND consented = 1 AND deleted = 0";
-
     private final PatientMapper patientMapper;
 
     public DataScopeService(PatientMapper patientMapper) {
@@ -30,10 +25,11 @@ public class DataScopeService {
                 .eq(PatientEntity::getDeleted, 0);
         switch (current.workbench()) {
             case "CUSTOMER" -> query.eq(PatientEntity::getUserId, current.userId());
-            // Doctors use the hospital search pool. They can view authorised customers, but cannot review,
-            // edit or publish assessment content.
-            case "DOCTOR" -> query.inSql(PatientEntity::getId,
-                    ACTIVE_DATA_SHARING_CONSENT_SQL.formatted(current.tenantId()));
+            // Doctors use the same-hospital examinee pool. Their permissions remain read-only:
+            // they can search customers and view published reports, but cannot edit or publish them.
+            case "DOCTOR" -> {
+                // Tenant and deletion predicates above are the complete doctor data boundary.
+            }
             case "PLATFORM_ADMIN" -> {
                 // Platform-wide statistics and hospital management are provided through dedicated APIs.
             }

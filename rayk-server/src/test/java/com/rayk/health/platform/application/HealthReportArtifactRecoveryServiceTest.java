@@ -2,6 +2,7 @@ package com.rayk.health.platform.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.rayk.health.platform.mapper.HealthReportRecoveryMapper;
@@ -53,6 +54,36 @@ class HealthReportArtifactRecoveryServiceTest {
         assertThat(result.recovered()).isEqualTo(1);
         assertThat(result.skipped()).isEqualTo(1);
         assertThat(result.items()).hasSize(2);
+        assertThat(TenantContext.get()).isNull();
+    }
+
+    @Test
+    void regeneratesSelectedReportInItsTenantAndRestoresTenantContext() {
+        HealthReportRecoveryMapper mapper = mock(HealthReportRecoveryMapper.class);
+        PdfReportService pdfReportService = mock(PdfReportService.class);
+        when(mapper.selectPublishedReports())
+                .thenReturn(List.of(new PublishedReportRef(11L, 20001L)));
+        when(pdfReportService.regeneratePublishedArtifact(11L, 10001L))
+                .thenReturn(new ArtifactRecoveryResult(11L, "REGENERATED", 2, "a/report-v02.pdf"));
+        CurrentPrincipal principal =
+                new CurrentPrincipal(
+                        "jti-test",
+                        "platform_admin",
+                        10001L,
+                        1L,
+                        List.of("PLATFORM_ADMIN"),
+                        List.of("platform:tenant:list"),
+                        "PLATFORM_ADMIN");
+        SecurityContextHolder.getContext()
+                .setAuthentication(new TestingAuthenticationToken(principal, null));
+
+        var result =
+                new HealthReportArtifactRecoveryService(mapper, pdfReportService)
+                        .regenerateHealthReportArtifact(11L);
+
+        assertThat(result.status()).isEqualTo("REGENERATED");
+        assertThat(result.versionNo()).isEqualTo(2);
+        verify(pdfReportService).regeneratePublishedArtifact(11L, 10001L);
         assertThat(TenantContext.get()).isNull();
     }
 }

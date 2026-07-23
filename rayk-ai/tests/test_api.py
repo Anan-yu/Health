@@ -155,4 +155,6 @@ def test_report_generation_returns_a_real_pdf() -> None:
     assert response.status_code == 200
     data = response.json()["data"]
     assert "可能疾病与诊断参考" in data["sections"]
+    assert "检验指标明细" not in data["sections"]
+    assert "优先改善方向" not in data["sections"]
     assert b64decode(data["pdfBase64"]).startswith(b"%PDF-")

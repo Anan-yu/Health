@@ -26,13 +26,14 @@ class DataScopeServiceTest {
     void clear() { SecurityContextHolder.clearContext(); }
 
     @Test
-    void doctorSearchesOnlyOwnTenantAndConsentedCustomers() {
+    void doctorSearchesAllActiveCustomersInOwnTenant() {
         CurrentPrincipal principal = new CurrentPrincipal("jti", "doctor", 10003L, 20001L,
                 List.of("DOCTOR"), List.of("patient:list"), "DOCTOR");
         SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(principal, null));
         LambdaQueryWrapper<PatientEntity> query = new DataScopeService(org.mockito.Mockito.mock(PatientMapper.class)).scopedPatients();
         String sql = query.getSqlSegment();
-        assertThat(sql).contains("tenant_id").contains("privacy_consent").contains("DATA_SHARING");
+        assertThat(sql).contains("tenant_id").contains("deleted");
+        assertThat(sql).doesNotContain("privacy_consent").doesNotContain("DATA_SHARING");
         assertThat(sql).doesNotContain("assigned_doctor_id");
     }
 }

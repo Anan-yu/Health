@@ -61,7 +61,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class WorkflowApplicationService {
     public static final String DISCLAIMER =
-            "该结果仅用于系统开发测试和健康管理参考，不构成医学诊断。";
+            "该结果仅用于健康管理参考，不构成医学诊断。";
 
     private final LabReportMapper labReportMapper;
     private final IndicatorValueMapper indicatorMapper;
@@ -283,14 +283,14 @@ public class WorkflowApplicationService {
             touch(report, current.userId());
             labReportMapper.updateById(report);
             return toAssessmentVo(assessment);
-        } catch (JsonProcessingException | BusinessException exception) {
+        } catch (JsonProcessingException | RuntimeException exception) {
             task.setStatus("FAILED");
-            task.setErrorMessage("AI服务调用失败或响应无法解析");
+            task.setErrorMessage("AI评估或健康报告生成失败");
             task.setFinishedAt(LocalDateTime.now());
             touch(task, current.userId());
             aiTaskMapper.updateById(task);
             report.setStatus("FAILED");
-            report.setFailureReason("AI服务暂时不可用");
+            report.setFailureReason("健康评估报告生成失败，请稍后重试");
             touch(report, current.userId());
             labReportMapper.updateById(report);
             if (exception instanceof BusinessException businessException) {
@@ -298,6 +298,35 @@ public class WorkflowApplicationService {
             }
             throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
         }
+    }
+
+    @PreAuthorize("hasAuthority('self:assessment') and principal.workbench == 'CUSTOMER'")
+    public HealthReportVo recoverHealthReport(long assessmentId) {
+        HealthAssessmentEntity assessment = assessmentMapper.selectById(assessmentId);
+        if (assessment == null || !"SUCCESS".equals(assessment.getStatus())) {
+            throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
+        }
+        PatientEntity patient = dataScopeService.requirePatient(assessment.getPatientId());
+        HealthReportEntity existing =
+                healthReportMapper.selectOne(
+                        new LambdaQueryWrapper<HealthReportEntity>()
+                                .eq(HealthReportEntity::getAssessmentId, assessmentId)
+                                .eq(HealthReportEntity::getDeleted, 0)
+                                .last("LIMIT 1"));
+        if (existing != null) {
+            return toHealthReportVo(existing);
+        }
+
+        CurrentPrincipal current = CurrentUser.require();
+        HealthReportEntity report = publishAutomatically(assessment, patient, current);
+        LabReportEntity labReport = labReportMapper.selectById(assessment.getReportId());
+        if (labReport != null) {
+            labReport.setStatus("PUBLISHED");
+            labReport.setFailureReason(null);
+            touch(labReport, current.userId());
+            labReportMapper.updateById(labReport);
+        }
+        return toHealthReportVo(report);
     }
 
     public List<AssessmentVo> listAssessments() {
@@ -696,7 +725,7 @@ public class WorkflowApplicationService {
                 profile.recentDietaryPattern());
     }
 
-    private void publishAutomatically(
+    private HealthReportEntity publishAutomatically(
             HealthAssessmentEntity assessment, PatientEntity patient, CurrentPrincipal current) {
         HealthReportEntity report = new HealthReportEntity();
         report.setTenantId(current.tenantId());
@@ -714,6 +743,7 @@ public class WorkflowApplicationService {
         healthReportMapper.insert(report);
         pdfReportService.generateAndStore(report, assessment, patient, current.userId());
         createAiFollowup(assessment, patient, current);
+        return report;
     }
 
     private void createAiFollowup(
@@ -737,34 +767,83 @@ public class WorkflowApplicationService {
             JsonNode root = objectMapper.readTree(assessment.getResultSnapshot());
             JsonNode results = root.path("results");
             List<String> focuses = new java.util.ArrayList<>();
-            List<String> actions = new java.util.ArrayList<>();
+            Set<String> focusCodes = new java.util.LinkedHashSet<>();
             for (JsonNode item : results) {
                 if (!Set.of("ATTENTION", "HIGH").contains(item.path("riskLevel").asText())) {
                     continue;
                 }
+                focusCodes.add(item.path("modelCode").asText());
                 if (item.path("evidence").isArray() && !item.path("evidence").isEmpty()) {
                     String evidence = item.path("evidence").get(0).asText();
                     if (!evidence.contains("未触发")) focuses.add(evidence);
                 }
-                if (item.path("recommendations").isArray() && !item.path("recommendations").isEmpty()) {
-                    actions.add(item.path("recommendations").get(0).asText());
-                }
             }
             focuses = focuses.stream().distinct().limit(3).toList();
-            actions = actions.stream().distinct().limit(3).toList();
-            StringBuilder content = new StringBuilder("本计划根据本次健康报告自动生成。\n");
+
+            List<String> dietActions = new java.util.ArrayList<>();
+            dietActions.add("每天三餐尽量定时，每餐安排蔬菜、优质蛋白和适量主食。");
+            if (focusCodes.contains("LIVER_METABOLIC")) {
+                dietActions.add("本周不饮酒，少吃油炸、肥肉、动物内脏和高糖饮料。");
+            }
+            if (focusCodes.contains("NUTRITION_MICRONUTRIENT")
+                    || focusCodes.contains("HEMATOLOGY_ANEMIA")) {
+                dietActions.add("每天至少两餐加入鱼、蛋、奶、豆制品或瘦肉中的一种。");
+            }
+            if (focusCodes.contains("GLUCOSE_METABOLISM")
+                    || focusCodes.contains("LIPID_CARDIOVASCULAR")) {
+                dietActions.add("主食优先选择燕麦、糙米或杂豆，减少甜点和夜宵。");
+            }
+
+            List<String> monitorActions = new java.util.ArrayList<>();
+            monitorActions.add("每天记录饮食、运动时长、睡眠时长和身体感受。");
             if (!focuses.isEmpty()) {
-                content.append("本周重点：").append(String.join("；", focuses)).append("。\n");
+                monitorActions.add("复查时重点关注：" + String.join("；", focuses) + "。");
             }
-            if (!actions.isEmpty()) {
-                content.append("建议执行：\n- ").append(String.join("\n- ", actions)).append("\n");
-            } else {
-                content.append("建议执行：保持规律作息、均衡饮食与适量运动，并记录本周身体感受。\n");
+            monitorActions.add("如正在用药，继续按医生医嘱执行，不自行增减或停药。");
+
+            StringBuilder content = new StringBuilder();
+            if (!focuses.isEmpty()) {
+                appendFollowupSection(content, "本周重点", focuses);
             }
-            return content.append("完成后提交反馈，系统将据此调整下一期健康随访。").toString();
+            appendFollowupSection(content, "饮食行动", dietActions.stream().distinct().limit(3).toList());
+            appendFollowupSection(
+                    content,
+                    "运动行动",
+                    List.of(
+                            "在身体允许的情况下，每周5天快走或同等强度运动，每次30分钟。",
+                            "每周安排2次轻量力量训练，每次15至20分钟；不适时立即停止。"));
+            appendFollowupSection(
+                    content,
+                    "作息行动",
+                    List.of(
+                            "固定上床和起床时间，每晚争取睡足7至9小时。",
+                            "睡前1小时减少手机使用，晚餐尽量在睡前3小时完成。"));
+            appendFollowupSection(content, "监测行动", monitorActions);
+            return content.toString().trim();
         } catch (Exception exception) {
-            return "请结合本次健康报告，记录近期饮食、运动、睡眠和身体感受；完成后提交反馈，系统将据此更新下一期健康随访。";
+            return """
+                    饮食行动
+                    • 每天三餐尽量定时，每餐安排蔬菜、优质蛋白和适量主食。
+                    运动行动
+                    • 在身体允许的情况下，每周5天快走或同等强度运动，每次30分钟。
+                    作息行动
+                    • 固定上床和起床时间，每晚争取睡足7至9小时。
+                    监测行动
+                    • 每天记录饮食、运动时长、睡眠时长和身体感受。
+                    """.trim();
         }
+    }
+
+    private void appendFollowupSection(
+            StringBuilder content, String title, List<String> actions) {
+        if (actions.isEmpty()) {
+            return;
+        }
+        if (!content.isEmpty()) {
+            content.append('\n');
+        }
+        content.append(title).append('\n');
+        actions.forEach(action -> content.append("• ").append(action).append('\n'));
     }
 
     private ReviewTaskVo toReviewVo(AssessmentReviewEntity review) {

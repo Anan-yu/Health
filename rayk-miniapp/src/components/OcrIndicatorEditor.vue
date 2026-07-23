@@ -22,7 +22,7 @@
         <view class="scan-icon"><view class="scan-line" /></view>
         <view>
           <view class="processing-title">正在识别报告内容</view>
-          <view class="processing-copy">请耐心等待</view>
+          <view class="processing-copy">无需停留本页，可退出后等待</view>
         </view>
       </view>
       <view v-else-if="task?.status === 'FAILED'" class="failed-box">
@@ -365,7 +365,7 @@ async function previewSource() {
     // #ifdef H5
     const downloadFile = await getFileDownloadUrl(props.reportId, file.id)
     if (!downloadFile.downloadUrl) throw new Error('报告预览地址生成失败')
-    const previewWindow = window.open(downloadFile.downloadUrl, '_blank')
+    const previewWindow = globalThis.open(downloadFile.downloadUrl, '_blank')
     if (!previewWindow) throw new Error('浏览器拦截了预览窗口，请允许弹窗后重试')
     previewWindow.opener = null
     // #endif

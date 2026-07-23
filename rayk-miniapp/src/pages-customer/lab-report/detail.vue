@@ -23,7 +23,9 @@
           ><text>正常范围</text></view
         >
       </view>
-      <view v-if="isProcessing" class="processing-note">系统正在自动识别检验指标并生成健康评估，请耐心等待。</view>
+      <view v-if="isProcessing" class="processing-note"
+        >系统正在自动识别并生成健康评估，无需停留本页，可退出后等待。完成后可在“我的报告”查看结果。</view
+      >
       <view class="section-head"
         ><view
           ><view class="eyebrow">INDICATORS</view><view class="section-title">检验指标</view></view
