@@ -228,7 +228,10 @@ async function submit() {
     state.value = 'OCR_PROCESSING'
     uni.showToast({ title: '已开始识别' })
     setTimeout(
-      () => uni.navigateTo({ url: `/pages-customer/lab-report/detail?id=${result.report.id}` }),
+      () =>
+        uni.navigateTo({
+          url: `/pages-customer/lab-report/detail?id=${result.report.id}&autoReturn=1`,
+        }),
       500,
     )
   } catch (e) {

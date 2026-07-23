@@ -81,6 +81,7 @@ import { getHealthReport, getHealthReportDownloadUrl } from '@/api/health-report
 import { getApiBaseUrl, getRequestHeaders } from '@/utils/request'
 import { useAuthStore } from '@/stores/auth'
 import type { Assessment, HealthReport } from '@/types/api'
+import { cleanHealthText } from '@/utils/health-text'
 import PageState from '@/components/PageState.vue'
 
 type Focus = {
@@ -126,11 +127,15 @@ const concerns = computed<Focus[]>(() =>
       title: labels[item.modelCode] || '健康状态关注',
       level: item.riskLevel === 'HIGH' ? 'high' : 'attention',
       description:
-        (item.evidence || []).find((value) => !value.includes('未触发')) ||
+        cleanHealthText(
+          (item.evidence || []).find((value) => !value.includes('未触发')) || '',
+        ) ||
         '本次数据提示该方向需要持续关注。',
-      next: (item.recommendations || [])[0] || '结合后续健康随访持续观察变化。',
-      evidence: item.evidence || [],
-      recommendations: item.recommendations || [],
+      next:
+        cleanHealthText((item.recommendations || [])[0] || '') ||
+        '结合后续健康随访持续观察变化。',
+      evidence: (item.evidence || []).map(cleanHealthText).filter(Boolean),
+      recommendations: (item.recommendations || []).map(cleanHealthText).filter(Boolean),
     })),
 )
 const overallSummary = computed(() =>

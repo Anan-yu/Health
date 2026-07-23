@@ -110,6 +110,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { Assessment } from '@/types/api'
+import { cleanHealthText } from '@/utils/health-text'
 
 type DimensionResult = NonNullable<Assessment['results']['results']>[number]
 const props = defineProps<{ models: DimensionResult[] }>()
@@ -196,38 +197,7 @@ function visibleEvidence(model: DimensionResult) {
   return (model.evidence || []).filter((item) => !item.includes('未触发')).slice(0, 4)
 }
 function translateEvidence(value: string) {
-  const translations: Array<[string, string]> = [
-    ['VERY_HIGH', '很高'],
-    ['VERY_POOR', '很差'],
-    ['VERY_GOOD', '很好'],
-    ['EXCELLENT', '优秀'],
-    ['SOMETIMES', '有时'],
-    ['3_5_PER_WEEK', '每周 3–5 次'],
-    ['1_2_PER_WEEK', '每周 1–2 次'],
-    ['OCCASIONAL', '偶尔'],
-    ['REGULAR', '经常'],
-    ['DAILY', '几乎每天'],
-    ['RARELY', '很少'],
-    ['ALWAYS', '总是'],
-    ['NEVER', '从不'],
-    ['MEDIUM', '中等'],
-    ['NORMAL', '正常'],
-    ['ABNORMAL', '异常'],
-    ['CURRENT', '当前'],
-    ['FORMER', '既往'],
-    ['POOR', '较差'],
-    ['FAIR', '一般'],
-    ['GOOD', '良好'],
-    ['HIGH', '较高'],
-    ['LOW', '较低'],
-    ['NONE', '无'],
-    ['YES', '有'],
-    ['NO', '无'],
-  ]
-  return translations.reduce(
-    (translated, [source, target]) => translated.split(source).join(target),
-    value,
-  )
+  return cleanHealthText(value)
 }
 function toggle(model: DimensionResult) {
   if (isEvaluated(model))

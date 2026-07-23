@@ -1,4 +1,5 @@
 import base64
+import re
 from html import escape
 from io import BytesIO
 
@@ -97,7 +98,7 @@ class DemoReportService:
         profile_summary = self._profile_summary(request)
         if profile_summary:
             story.extend([Paragraph(profile_summary, small), Spacer(1, 2 * mm)])
-        story.append(Paragraph(self._safe(summary), normal))
+        story.append(Paragraph(self._safe(self._display_text(summary)), normal))
         if request.interpretation is not None:
             if request.interpretation.red_flags:
                 story.extend(
@@ -105,21 +106,13 @@ class DemoReportService:
                         Spacer(1, 2 * mm),
                         Paragraph(
                             "<b>需优先关注：</b>"
-                            + self._safe("；".join(request.interpretation.red_flags[:3])),
+                            + self._safe(
+                                self._display_text("；".join(request.interpretation.red_flags[:3]))
+                            ),
                             small,
                         ),
                     ]
                 )
-            story.extend(
-                [
-                    Spacer(1, 2 * mm),
-                    Paragraph(
-                        "<b>结果局限：</b>" + self._safe(request.interpretation.uncertainty),
-                        small,
-                    ),
-                ]
-            )
-
         story.extend(
             [
                 Spacer(1, 3 * mm),
@@ -147,14 +140,17 @@ class DemoReportService:
                             normal,
                         ),
                         Paragraph(
-                            f"<b>综合判断：</b>{self._safe(reference.rationale)}",
+                            f"<b>综合判断：</b>"
+                            f"{self._safe(self._display_text(reference.rationale))}",
                             small,
                         ),
                         Paragraph(
                             "<b>主要线索：</b>"
                             + self._safe(
-                                "；".join(reference.supporting_evidence)
-                                or "当前仅有有限的相关风险信号"
+                                self._display_text(
+                                    "；".join(reference.supporting_evidence)
+                                    or "当前仅有有限的相关风险信号"
+                                )
                             ),
                             small,
                         ),
@@ -181,9 +177,11 @@ class DemoReportService:
         focus = [item for item in request.results if item.risk_level in {"ATTENTION", "HIGH"}][:3]
         if focus:
             for result in focus:
-                evidence = "；".join(result.evidence[:3]) or "本次数据提示该方向需要持续关注"
+                evidence = self._display_text(
+                    "；".join(result.evidence[:3]) or "本次数据提示该方向需要持续关注"
+                )
                 next_step = (
-                    result.recommendations[0]
+                    self._display_text(result.recommendations[0])
                     if result.recommendations
                     else "结合后续健康随访持续观察变化"
                 )
@@ -236,6 +234,51 @@ class DemoReportService:
     def _safe(value: object) -> str:
         return escape(str(value)).replace("\n", "<br/>")
 
+    @staticmethod
+    def _display_text(value: str) -> str:
+        cleaned = re.sub(
+            r"\s*[（(][A-Za-z][A-Za-z0-9_]*\s*=\s*[^）)]*[）)]",
+            "",
+            value,
+        )
+        cleaned = re.sub(
+            r"\b[A-Za-z][A-Za-z0-9_]*\s*=\s*[-+]?\d+(?:\.\d+)?" r"(?:\s*[A-Za-z/%^0-9]+)?\b",
+            "",
+            cleaned,
+        )
+        translations = (
+            ("VERY_HIGH", "很高"),
+            ("VERY_POOR", "很差"),
+            ("VERY_GOOD", "很好"),
+            ("EXCELLENT", "优秀"),
+            ("SOMETIMES", "有时"),
+            ("3_5_PER_WEEK", "每周3至5次"),
+            ("1_2_PER_WEEK", "每周1至2次"),
+            ("OCCASIONAL", "偶尔"),
+            ("REGULAR", "经常"),
+            ("DAILY", "几乎每天"),
+            ("RARELY", "很少"),
+            ("ALWAYS", "总是"),
+            ("NEVER", "从不"),
+            ("MEDIUM", "中等"),
+            ("NORMAL", "正常"),
+            ("ABNORMAL", "异常"),
+            ("CURRENT", "当前"),
+            ("FORMER", "既往"),
+            ("POOR", "较差"),
+            ("FAIR", "一般"),
+            ("GOOD", "良好"),
+            ("HIGH", "较高"),
+            ("LOW", "较低"),
+            ("NONE", "无"),
+            ("YES", "有"),
+            ("NO", "无"),
+            ("BMI", "体质指数"),
+        )
+        for source, target in translations:
+            cleaned = cleaned.replace(source, target)
+        return re.sub(r"\s+", " ", cleaned).strip()
+
     @classmethod
     def _profile_summary(cls, request: ReportGenerateRequest) -> str:
         context = request.patient_context
@@ -248,7 +291,7 @@ class DemoReportService:
         if context.age is not None:
             parts.append(f"年龄：{context.age}岁")
         if context.bmi is not None:
-            parts.append(f"BMI：{context.bmi}")
+            parts.append(f"体质指数：{context.bmi}")
         return cls._safe("　".join(parts))
 
     @staticmethod

@@ -18,6 +18,7 @@ from app.schemas.indicator import IndicatorInput
 from app.schemas.ocr import OcrRecognizeData, OcrRecognizeRequest
 
 NUMBER_PATTERN = re.compile(r"[-+]?\d+(?:[.,]\d+)?")
+ROW_NUMBER_PATTERN = re.compile(r"^\s*\d{1,3}\s*")
 
 
 @dataclass(frozen=True)
@@ -62,6 +63,66 @@ class IndicatorRowParser:
         ("homocysteine", "同型半胱氨酸", "μmol/L", ("同型半胱氨酸", "HCY")),
         ("ferritin", "铁蛋白", "ng/mL", ("铁蛋白", "FER")),
         ("wbc", "白细胞计数", "10^9/L", ("白细胞计数", "白细胞", "WBC")),
+        (
+            "lymphocyte_percentage",
+            "淋巴细胞百分比",
+            "%",
+            ("淋巴细胞百分比", "淋巴细胞比率", "LYM%"),
+        ),
+        (
+            "neutrophil_percentage",
+            "中性粒细胞百分比",
+            "%",
+            ("中性粒细胞百分比", "中性粒细胞比率", "NEUT%"),
+        ),
+        (
+            "monocyte_percentage",
+            "单核细胞百分比",
+            "%",
+            ("单核细胞百分比", "单核细胞比率", "MONO%"),
+        ),
+        (
+            "eosinophil_percentage",
+            "嗜酸性粒细胞百分比",
+            "%",
+            ("嗜酸性粒细胞百分比", "嗜酸性粒细胞比率", "EOS%"),
+        ),
+        (
+            "basophil_percentage",
+            "嗜碱性粒细胞百分比",
+            "%",
+            ("嗜碱性粒细胞百分比", "嗜碱性粒细胞比率", "BASO%"),
+        ),
+        (
+            "lymphocyte_count",
+            "淋巴细胞绝对值",
+            "10^9/L",
+            ("淋巴细胞绝对值", "淋巴细胞计数", "LYM#"),
+        ),
+        (
+            "neutrophil_count",
+            "中性粒细胞绝对值",
+            "10^9/L",
+            ("中性粒细胞绝对值", "中性粒细胞计数", "NEUT#"),
+        ),
+        (
+            "monocyte_count",
+            "单核细胞绝对值",
+            "10^9/L",
+            ("单核细胞绝对值", "单核细胞计数", "MONO#"),
+        ),
+        (
+            "eosinophil_count",
+            "嗜酸性粒细胞绝对值",
+            "10^9/L",
+            ("嗜酸性粒细胞绝对值", "嗜酸性粒细胞计数", "EOS#"),
+        ),
+        (
+            "basophil_count",
+            "嗜碱性粒细胞绝对值",
+            "10^9/L",
+            ("嗜碱性粒细胞绝对值", "嗜碱性粒细胞计数", "BASO#"),
+        ),
         ("total_cholesterol", "总胆固醇", "mmol/L", ("总胆固醇", "胆固醇", "TC")),
         ("triglyceride", "甘油三酯", "mmol/L", ("甘油三酯", "TG")),
         ("hdl", "高密度脂蛋白胆固醇", "mmol/L", ("高密度脂蛋白胆固醇", "HDL-C", "HDL")),
@@ -92,7 +153,54 @@ class IndicatorRowParser:
         ("hemoglobin", "血红蛋白", "g/L", ("血红蛋白", "HGB")),
         ("rbc", "红细胞计数", "10^12/L", ("红细胞计数", "红细胞", "RBC")),
         ("mcv", "平均红细胞体积", "fL", ("平均红细胞体积", "MCV")),
-        ("mch", "平均红细胞血红蛋白量", "pg", ("平均红细胞血红蛋白量", "MCH")),
+        (
+            "hematocrit",
+            "红细胞比积",
+            "%",
+            ("红细胞比积", "红细胞压积", "HCT"),
+        ),
+        (
+            "mch",
+            "平均红细胞血红蛋白量",
+            "pg",
+            ("平均红细胞血红蛋白量", "平均血红蛋白量", "MCH"),
+        ),
+        (
+            "mchc",
+            "平均红细胞血红蛋白浓度",
+            "g/L",
+            ("平均红细胞血红蛋白浓度", "平均血红蛋白浓度", "MCHC"),
+        ),
+        (
+            "rdw",
+            "红细胞分布宽度",
+            "%",
+            ("红细胞分布宽度", "RDW-CV", "RDW"),
+        ),
+        (
+            "platelet_count",
+            "血小板计数",
+            "10^9/L",
+            ("血小板计数", "血小板", "PLT"),
+        ),
+        (
+            "mpv",
+            "平均血小板体积",
+            "fL",
+            ("平均血小板体积", "MPV"),
+        ),
+        (
+            "plateletcrit",
+            "血小板压积",
+            "%",
+            ("血小板压积", "PCT"),
+        ),
+        (
+            "pdw",
+            "血小板分布宽度",
+            "%",
+            ("血小板分布宽度", "PDW"),
+        ),
         ("tsh", "促甲状腺激素", "mIU/L", ("促甲状腺激素", "TSH")),
         ("ft3", "游离三碘甲状腺原氨酸", "pmol/L", ("游离三碘甲状腺原氨酸", "游离T3", "FT3")),
         ("ft4", "游离甲状腺素", "pmol/L", ("游离甲状腺素", "游离T4", "FT4")),
@@ -145,7 +253,7 @@ class IndicatorRowParser:
         for index, line in enumerate(normalized_lines):
             known = self._parse_known(line)
             if known is None:
-                known = self._parse_known_cells(normalized_lines, index)
+                known = self._parse_cells(normalized_lines, index)
             if known is not None:
                 parsed[known.code or known.name] = known
                 continue
@@ -195,12 +303,18 @@ class IndicatorRowParser:
         ordered = sorted(row, key=lambda token: token.left)
         if len(ordered) < 3:
             return None
-        name_token = ordered[0].text
+        name_index = next(
+            (index for index, token in enumerate(ordered) if self._clean_name(token.text)),
+            None,
+        )
+        if name_index is None:
+            return None
+        name_token = self._clean_name(ordered[name_index].text)
         matched = self._matched_indicator(name_token, exact=True)
         value_index = next(
             (
                 index
-                for index, token in enumerate(ordered[1:], start=1)
+                for index, token in enumerate(ordered[name_index + 1 :], start=name_index + 1)
                 if NUMBER_PATTERN.fullmatch(token.text)
             ),
             None,
@@ -265,13 +379,45 @@ class IndicatorRowParser:
             return None
         return left, top, right, bottom
 
-    def _parse_known_cells(self, lines: list[str], index: int) -> IndicatorInput | None:
-        """Parse OCR tables that emit name, value, unit and range as separate cells."""
-        if index + 3 >= len(lines):
+    def _parse_cells(self, lines: list[str], index: int) -> IndicatorInput | None:
+        """Parse OCR tables that emit name, value, unit and range as separate cells.
+
+        Hospital reports vary between ``name/value/unit/range`` and
+        ``name/value/range-with-unit``. Row numbers may also be attached to the name.
+        """
+        if index + 2 >= len(lines):
+            return None
+        name = self._clean_name(lines[index])
+        if not name:
             return None
         value_text = lines[index + 1].strip()
-        range_text = lines[index + 3].strip()
         if NUMBER_PATTERN.fullmatch(value_text) is None:
+            return None
+        following: list[str] = []
+        for cell in lines[index + 2 : index + 6]:
+            cleaned_cell = self._clean_name(cell)
+            if (
+                following
+                and cleaned_cell
+                and (
+                    self._matched_indicator(cleaned_cell) is not None
+                    or re.search(r"[\u4e00-\u9fa5]", cleaned_cell)
+                )
+            ):
+                break
+            following.append(cell)
+        range_text = next(
+            (
+                cell
+                for cell in following
+                if re.search(
+                    r"[-+]?\d+(?:[.,]\d+)?\s*(?:-|~|—|至)\s*[-+]?\d+(?:[.,]\d+)?",
+                    cell,
+                )
+            ),
+            "",
+        )
+        if not range_text:
             return None
         range_numbers = [self._decimal(value) for value in NUMBER_PATTERN.findall(range_text)]
         reference_low, reference_high = self._reference_values(
@@ -280,18 +426,28 @@ class IndicatorRowParser:
         if reference_low is None or reference_high is None:
             return None
 
-        matched = self._matched_indicator(lines[index])
+        matched = self._matched_indicator(name)
+        combined_tail = " ".join(following)
         if matched is not None:
             code, standard_name, standard_unit, _ = matched
             return IndicatorInput(
                 code=code,
                 name=standard_name,
                 value=self._decimal(value_text),
-                unit=standard_unit,
+                unit=self._unit(combined_tail, standard_unit),
                 referenceLow=reference_low,
                 referenceHigh=reference_high,
             )
-        return None
+        if re.search(r"[\u4e00-\u9fa5A-Za-z]", name) is None:
+            return None
+        return IndicatorInput(
+            code="unrecognized_" + hashlib.sha1(name.encode()).hexdigest()[:10],
+            name=name,
+            value=self._decimal(value_text),
+            unit=self._unit(combined_tail, "index"),
+            referenceLow=reference_low,
+            referenceHigh=reference_high,
+        )
 
     def _parse_known(self, line: str) -> IndicatorInput | None:
         lowered = line.casefold()
@@ -375,6 +531,19 @@ class IndicatorRowParser:
     def _normalize(self, value: str) -> str:
         return re.sub(r"\s+", " ", value.replace("：", " ").replace(":", " ")).strip()
 
+    def _clean_name(self, value: str) -> str:
+        if re.search(
+            r"[-+]?\d+(?:[.,]\d+)?\s*(?:-|~|—|至)\s*[-+]?\d+(?:[.,]\d+)?",
+            value,
+        ):
+            return ""
+        cleaned = ROW_NUMBER_PATTERN.sub("", value, count=1).strip()
+        if self._matched_indicator(cleaned, exact=True) is not None:
+            return cleaned
+        if re.fullmatch(r"[%×xX^0-9A-Za-zμµ/·]+", cleaned):
+            return ""
+        return cleaned if re.search(r"[\u4e00-\u9fa5A-Za-z]", cleaned) else ""
+
     def _decimal(self, value: str) -> Decimal:
         return Decimal(value.replace(",", "."))
 
@@ -417,7 +586,12 @@ class PaddleOcrService(OcrService):
             path.unlink(missing_ok=True)
             if prepared_path != path:
                 prepared_path.unlink(missing_ok=True)
-        indicators = self.parser.parse_layout(lines, boxes) or self.parser.parse(lines)
+        layout_indicators = self.parser.parse_layout(lines, boxes)
+        sequential_indicators = self.parser.parse(lines)
+        merged: dict[str, IndicatorInput] = {}
+        for item in [*layout_indicators, *sequential_indicators]:
+            merged[item.code or item.name] = item
+        indicators = list(merged.values())
         confidence = Decimal(str(round(sum(scores) / len(scores), 4))) if scores else Decimal("0")
         warnings: list[str] = []
         if not indicators:

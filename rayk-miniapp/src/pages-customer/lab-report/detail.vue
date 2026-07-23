@@ -52,9 +52,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
-import { getLabReport } from '@/api/lab-report'
+import { computed, onUnmounted, ref } from 'vue'
+import { onHide, onLoad, onShow } from '@dcloudio/uni-app'
+import { getLabReport, getOcrTask } from '@/api/lab-report'
 import type { LabReport } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -75,8 +75,11 @@ const isProcessing = computed(() =>
   ),
 )
 const reportId = ref('')
+const autoReturn = ref(false)
+let pollTimer: ReturnType<typeof globalThis.setTimeout> | undefined
 onLoad((q) => {
   reportId.value = String(q?.id || '')
+  autoReturn.value = String(q?.autoReturn || '') === '1'
 })
 onShow(async () => {
   if (!reportId.value) {
@@ -88,12 +91,50 @@ onShow(async () => {
   error.value = ''
   try {
     report.value = await getLabReport(reportId.value)
+    scheduleOcrPoll()
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '检验报告加载失败'
   } finally {
     loading.value = false
   }
 })
+onHide(stopOcrPoll)
+onUnmounted(stopOcrPoll)
+
+function stopOcrPoll() {
+  if (pollTimer) {
+    globalThis.clearTimeout(pollTimer)
+    pollTimer = undefined
+  }
+}
+
+function scheduleOcrPoll() {
+  stopOcrPoll()
+  if (!autoReturn.value) return
+  pollTimer = globalThis.setTimeout(async () => {
+    try {
+      const task = await getOcrTask(reportId.value)
+      if (task.status === 'SUCCESS') {
+        stopOcrPoll()
+        uni.showToast({ title: '识别完成' })
+        globalThis.setTimeout(
+          () => uni.redirectTo({ url: '/pages-customer/lab-report/index' }),
+          500,
+        )
+        return
+      }
+      if (task.status === 'FAILED') {
+        stopOcrPoll()
+        report.value = await getLabReport(reportId.value)
+        return
+      }
+      report.value = await getLabReport(reportId.value)
+      scheduleOcrPoll()
+    } catch {
+      scheduleOcrPoll()
+    }
+  }, 1800)
+}
 </script>
 
 <style scoped>
