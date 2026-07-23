@@ -76,14 +76,23 @@ export interface HealthProfile {
   bloodType?: string
   lifestyleSummary?: string
   medicalHistory?: string
+  familyHistory?: string
   allergyHistory?: string
   currentMedications?: string
   smokingStatus?: string
   alcoholStatus?: string
   exerciseFrequency?: string
   sleepQuality?: string
+  sleepHours?: number
   stressLevel?: string
+  moodStatus?: string
+  fearLevel?: string
   dietaryPreference?: string
+  recentDietaryPattern?: string
+  diabetesStatus?: string
+  hypertensionStatus?: string
+  dyslipidemiaStatus?: string
+  fattyLiverStatus?: string
   profileCompleteness: number
   updatedAt?: string
 }
@@ -233,6 +242,7 @@ export interface HealthReport {
   doctorOpinion?: string
   disclaimer: string
   publishedAt: string
+  assessment?: Assessment
 }
 export interface Followup {
   id: string

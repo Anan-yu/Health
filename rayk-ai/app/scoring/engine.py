@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from decimal import Decimal
 from typing import Literal, TypedDict
 
-from app.schemas.assessment import AssessmentRequest, ModelResult
+from app.schemas.assessment import AssessmentRequest, ModelResult, PatientContext
 from app.schemas.indicator import IndicatorInput
 
 MODEL_VERSION = "RULE_3.0.0"
@@ -256,7 +256,7 @@ MODEL_DEFINITIONS: list[ModelDefinition] = [
         "model_code": "HPA_ADRENAL",
         "model_name": "HPA压力、睡眠与恢复",
         "indicators": ["cortisol_am", "cortisol_pm", "dhea_s", "sleep_hours", "hrv"],
-        "minimum_indicators": 2,
+        "minimum_indicators": 1,
         "rules": [
             _rule("cortisol_am", "HIGH", "25", "晨间皮质醇偏高", 14, "ug/dL"),
             _rule("cortisol_am", "LOW", "5", "晨间皮质醇偏低", 12, "ug/dL"),
@@ -371,6 +371,14 @@ class HealthRuleEngine(RuleEngine):
         values: dict[str, IndicatorInput] = {
             item.code: item for item in request.indicators if item.code
         }
+        context = request.patient_context
+        if context is not None and context.sleep_hours is not None and "sleep_hours" not in values:
+            values["sleep_hours"] = IndicatorInput(
+                code="sleep_hours",
+                name="平均睡眠时长",
+                value=context.sleep_hours,
+                unit="h",
+            )
         definitions = MODEL_DEFINITIONS
         if model_codes:
             selected = set(model_codes)
@@ -444,6 +452,7 @@ class HealthRuleEngine(RuleEngine):
         )
         if not evidence:
             evidence = ["已提供指标未触发该评估维度关注规则"]
+        evidence.extend(self._context_evidence(model["model_code"], context))
 
         return ModelResult(
             model_code=model["model_code"],
@@ -459,6 +468,43 @@ class HealthRuleEngine(RuleEngine):
             missing_indicators=missing,
             recommendations=model["recommendations"],
         )
+
+    @staticmethod
+    def _context_evidence(model_code: str, context: PatientContext | None) -> list[str]:
+        if context is None:
+            return []
+        evidence: list[str] = []
+        if model_code == "GLUCOSE_METABOLISM":
+            if context.diabetes_status == "YES":
+                evidence.append("已填写糖尿病既往诊断")
+            if context.family_history:
+                evidence.append("已纳入家族病史信息")
+            if context.bmi is not None:
+                evidence.append(f"BMI 为 {context.bmi}")
+        elif model_code == "LIPID_CARDIOVASCULAR":
+            if context.hypertension_status == "YES":
+                evidence.append("已填写高血压既往诊断")
+            if context.dyslipidemia_status == "YES":
+                evidence.append("已填写血脂异常既往诊断")
+            if context.smoking_status == "CURRENT":
+                evidence.append("当前吸烟情况已纳入评估")
+        elif model_code == "LIVER_METABOLIC" and context.fatty_liver_status == "YES":
+            evidence.append("已填写脂肪肝既往诊断")
+        elif model_code == "HPA_ADRENAL":
+            for label, value in (
+                ("睡眠质量", context.sleep_quality),
+                ("压力水平", context.stress_level),
+                ("近期心情", context.mood_status),
+                ("恐惧或焦虑感受", context.fear_level),
+            ):
+                if value:
+                    evidence.append(f"{label}：{value}")
+        elif model_code == "NUTRITION_MICRONUTRIENT":
+            if context.recent_dietary_pattern:
+                evidence.append("已纳入近三周饮食结构")
+            elif context.dietary_preference:
+                evidence.append("已纳入日常饮食偏好")
+        return evidence
 
 
 # Kept as a compatibility alias for existing imports.

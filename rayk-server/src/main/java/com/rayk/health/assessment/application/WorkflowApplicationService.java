@@ -30,6 +30,8 @@ import com.rayk.health.laboratory.vo.LabReportVo;
 import com.rayk.health.patient.application.DataScopeService;
 import com.rayk.health.patient.converter.PatientConverter;
 import com.rayk.health.patient.entity.PatientEntity;
+import com.rayk.health.patient.application.HealthProfileService;
+import com.rayk.health.patient.vo.HealthProfileVo;
 import com.rayk.health.patient.mapper.PatientMapper;
 import com.rayk.health.report.application.PdfReportService;
 import com.rayk.health.report.entity.HealthReportEntity;
@@ -66,6 +68,7 @@ public class WorkflowApplicationService {
     private final HealthReportMapper healthReportMapper;
     private final FollowupTaskMapper followupMapper;
     private final PatientMapper patientMapper;
+    private final HealthProfileService healthProfileService;
     private final DataScopeService dataScopeService;
     private final PatientConverter patientConverter;
     private final AiServiceClient aiServiceClient;
@@ -83,6 +86,7 @@ public class WorkflowApplicationService {
             HealthReportMapper healthReportMapper,
             FollowupTaskMapper followupMapper,
             PatientMapper patientMapper,
+            HealthProfileService healthProfileService,
             DataScopeService dataScopeService,
             PatientConverter patientConverter,
             AiServiceClient aiServiceClient,
@@ -98,6 +102,7 @@ public class WorkflowApplicationService {
         this.healthReportMapper = healthReportMapper;
         this.followupMapper = followupMapper;
         this.patientMapper = patientMapper;
+        this.healthProfileService = healthProfileService;
         this.dataScopeService = dataScopeService;
         this.patientConverter = patientConverter;
         this.aiServiceClient = aiServiceClient;
@@ -233,6 +238,7 @@ public class WorkflowApplicationService {
                     Set.of("MALE", "FEMALE").contains(patient.getGender())
                             ? patient.getGender()
                             : "UNKNOWN";
+            HealthProfileVo profile = healthProfileService.getProfile(patient.getId());
             AiDtos.EvaluateRequest aiRequest =
                     new AiDtos.EvaluateRequest(
                             task.getTaskCode(),
@@ -249,7 +255,7 @@ public class WorkflowApplicationService {
                                                             item.getReferenceHigh()))
                                     .toList(),
                             activeModelCodes,
-                            new AiDtos.PatientContext(gender, age));
+                            toPatientContext(gender, age, profile));
             AiDtos.AssessmentData aiResult = aiServiceClient.evaluate(aiRequest);
             task.setStatus("SUCCESS");
             task.setFinishedAt(LocalDateTime.now());
@@ -625,6 +631,32 @@ public class WorkflowApplicationService {
                 entity.getCreatedAt());
     }
 
+    private AiDtos.PatientContext toPatientContext(
+            String gender, Integer age, HealthProfileVo profile) {
+        return new AiDtos.PatientContext(
+                gender,
+                age,
+                profile.heightCm(),
+                profile.weightKg(),
+                profile.bmi(),
+                profile.medicalHistory(),
+                profile.familyHistory(),
+                profile.diabetesStatus(),
+                profile.hypertensionStatus(),
+                profile.dyslipidemiaStatus(),
+                profile.fattyLiverStatus(),
+                profile.smokingStatus(),
+                profile.alcoholStatus(),
+                profile.exerciseFrequency(),
+                profile.sleepQuality(),
+                profile.sleepHours(),
+                profile.stressLevel(),
+                profile.moodStatus(),
+                profile.fearLevel(),
+                profile.dietaryPreference(),
+                profile.recentDietaryPattern());
+    }
+
     private void publishAutomatically(
             HealthAssessmentEntity assessment, PatientEntity patient, CurrentPrincipal current) {
         HealthReportEntity report = new HealthReportEntity();
@@ -653,12 +685,47 @@ public class WorkflowApplicationService {
         task.setTenantId(current.tenantId());
         task.setPatientId(patient.getId());
         task.setAssigneeId(null);
-        task.setTitle("健康随访");
-        task.setContent("请结合本次健康评估，记录近期饮食、运动和身体感受；完成后提交反馈，Rayk AI 将据此生成下一步建议。");
+        task.setTitle("本周健康计划");
+        task.setContent(buildFollowupContent(assessment));
         task.setDueDate(LocalDate.now().plusDays(days));
         task.setStatus("PENDING");
         auditNew(task, current.userId());
         followupMapper.insert(task);
+    }
+
+    private String buildFollowupContent(HealthAssessmentEntity assessment) {
+        try {
+            JsonNode root = objectMapper.readTree(assessment.getResultSnapshot());
+            JsonNode results = root.path("results");
+            List<String> focuses = new java.util.ArrayList<>();
+            List<String> actions = new java.util.ArrayList<>();
+            for (JsonNode item : results) {
+                if (!Set.of("ATTENTION", "HIGH").contains(item.path("riskLevel").asText())) {
+                    continue;
+                }
+                if (item.path("evidence").isArray() && !item.path("evidence").isEmpty()) {
+                    String evidence = item.path("evidence").get(0).asText();
+                    if (!evidence.contains("未触发")) focuses.add(evidence);
+                }
+                if (item.path("recommendations").isArray() && !item.path("recommendations").isEmpty()) {
+                    actions.add(item.path("recommendations").get(0).asText());
+                }
+            }
+            focuses = focuses.stream().distinct().limit(3).toList();
+            actions = actions.stream().distinct().limit(3).toList();
+            StringBuilder content = new StringBuilder("本计划根据本次健康报告自动生成。\n");
+            if (!focuses.isEmpty()) {
+                content.append("本周重点：").append(String.join("；", focuses)).append("。\n");
+            }
+            if (!actions.isEmpty()) {
+                content.append("建议执行：\n- ").append(String.join("\n- ", actions)).append("\n");
+            } else {
+                content.append("建议执行：保持规律作息、均衡饮食与适量运动，并记录本周身体感受。\n");
+            }
+            return content.append("完成后提交反馈，系统将据此调整下一期健康随访。").toString();
+        } catch (Exception exception) {
+            return "请结合本次健康报告，记录近期饮食、运动、睡眠和身体感受；完成后提交反馈，系统将据此更新下一期健康随访。";
+        }
     }
 
     private ReviewTaskVo toReviewVo(AssessmentReviewEntity review) {
@@ -682,7 +749,8 @@ public class WorkflowApplicationService {
                 report.getSummary(),
                 report.getDoctorOpinion(),
                 report.getDisclaimer(),
-                report.getPublishedAt());
+                report.getPublishedAt(),
+                toAssessmentVo(assessmentMapper.selectById(report.getAssessmentId())));
     }
 
     private FollowupTaskVo toFollowupVo(FollowupTaskEntity task) {

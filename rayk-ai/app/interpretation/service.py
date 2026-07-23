@@ -163,7 +163,9 @@ class InterpretationService:
         context = request.patient_context
         return {
             "patientContext": (
-                {"gender": context.gender, "age": context.age} if context is not None else None
+                context.model_dump(by_alias=True, exclude_none=True, mode="json")
+                if context is not None
+                else None
             ),
             "indicators": [
                 {

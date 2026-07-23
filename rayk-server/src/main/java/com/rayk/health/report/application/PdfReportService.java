@@ -308,7 +308,8 @@ public class PdfReportService {
                                                                 item.getReferenceHigh()))
                                         .toList(),
                                 modelResults,
-                                interpretation));
+                                interpretation,
+                                extractPatientContext(assessment.getResultSnapshot())));
         return new GeneratedPdf(generated.title(), decodePdf(generated.pdfBase64()));
     }
 
@@ -349,6 +350,17 @@ public class PdfReportService {
             long reportId, String status, int versionNo, String objectPath) {}
 
     private record GeneratedPdf(String title, byte[] content) {}
+
+    private AiDtos.PatientContext extractPatientContext(String resultSnapshot) {
+        try {
+            JsonNode node = objectMapper.readTree(resultSnapshot).path("patientContext");
+            return node.isMissingNode() || node.isNull()
+                    ? new AiDtos.PatientContext("UNKNOWN", null)
+                    : objectMapper.convertValue(node, AiDtos.PatientContext.class);
+        } catch (Exception exception) {
+            return new AiDtos.PatientContext("UNKNOWN", null);
+        }
+    }
 
     private List<AiDtos.ModelResult> extractModelResults(String resultSnapshot) {
         try {

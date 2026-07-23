@@ -52,14 +52,23 @@ public class HealthProfileService {
         entity.setBloodType(normalize(request.bloodType()));
         entity.setLifestyleSummary(normalize(request.lifestyleSummary()));
         entity.setMedicalHistory(normalize(request.medicalHistory()));
+        entity.setFamilyHistory(normalize(request.familyHistory()));
         entity.setAllergyHistory(normalize(request.allergyHistory()));
         entity.setCurrentMedications(normalize(request.currentMedications()));
         entity.setSmokingStatus(normalize(request.smokingStatus()));
         entity.setAlcoholStatus(normalize(request.alcoholStatus()));
         entity.setExerciseFrequency(normalize(request.exerciseFrequency()));
         entity.setSleepQuality(normalize(request.sleepQuality()));
+        entity.setSleepHours(request.sleepHours());
         entity.setStressLevel(normalize(request.stressLevel()));
+        entity.setMoodStatus(normalize(request.moodStatus()));
+        entity.setFearLevel(normalize(request.fearLevel()));
         entity.setDietaryPreference(normalize(request.dietaryPreference()));
+        entity.setRecentDietaryPattern(normalize(request.recentDietaryPattern()));
+        entity.setDiabetesStatus(normalize(request.diabetesStatus()));
+        entity.setHypertensionStatus(normalize(request.hypertensionStatus()));
+        entity.setDyslipidemiaStatus(normalize(request.dyslipidemiaStatus()));
+        entity.setFattyLiverStatus(normalize(request.fattyLiverStatus()));
 
         entity.recalculateBmi();
         entity.setProfileCompleteness(ProfileCompletenessCalculator.calculate(entity));
@@ -108,14 +117,23 @@ public class HealthProfileService {
                 entity.getBloodType(),
                 entity.getLifestyleSummary(),
                 entity.getMedicalHistory(),
+                entity.getFamilyHistory(),
                 entity.getAllergyHistory(),
                 entity.getCurrentMedications(),
                 entity.getSmokingStatus(),
                 entity.getAlcoholStatus(),
                 entity.getExerciseFrequency(),
                 entity.getSleepQuality(),
+                entity.getSleepHours(),
                 entity.getStressLevel(),
+                entity.getMoodStatus(),
+                entity.getFearLevel(),
                 entity.getDietaryPreference(),
+                entity.getRecentDietaryPattern(),
+                entity.getDiabetesStatus(),
+                entity.getHypertensionStatus(),
+                entity.getDyslipidemiaStatus(),
+                entity.getFattyLiverStatus(),
                 entity.getProfileCompleteness() == null ? 0 : entity.getProfileCompleteness(),
                 entity.getUpdatedAt());
     }

@@ -50,6 +50,7 @@ def evaluate(request: AssessmentRequest) -> ApiResponse[object]:
         disclaimer=DISCLAIMER,
         results=results,
         interpretation=interpretation_service.interpret(request, results),
+        patient_context=request.patient_context,
     )
     return ok(data)
 

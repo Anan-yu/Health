@@ -1,6 +1,7 @@
 package com.rayk.health.report.vo;
 
 import java.time.LocalDateTime;
+import com.rayk.health.assessment.vo.AssessmentVo;
 
 public record HealthReportVo(
         String id,
@@ -12,5 +13,6 @@ public record HealthReportVo(
         String summary,
         String doctorOpinion,
         String disclaimer,
-        LocalDateTime publishedAt) {}
+        LocalDateTime publishedAt,
+        AssessmentVo assessment) {}
 

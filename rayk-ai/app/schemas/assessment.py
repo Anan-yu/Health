@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import Field
@@ -9,6 +10,25 @@ from app.schemas.indicator import IndicatorInput
 class PatientContext(RaykModel):
     gender: Literal["MALE", "FEMALE", "UNKNOWN"] = "UNKNOWN"
     age: int | None = Field(default=None, ge=0, le=120)
+    height_cm: Decimal | None = Field(default=None, alias="heightCm")
+    weight_kg: Decimal | None = Field(default=None, alias="weightKg")
+    bmi: Decimal | None = None
+    medical_history: str | None = Field(default=None, alias="medicalHistory")
+    family_history: str | None = Field(default=None, alias="familyHistory")
+    diabetes_status: str | None = Field(default=None, alias="diabetesStatus")
+    hypertension_status: str | None = Field(default=None, alias="hypertensionStatus")
+    dyslipidemia_status: str | None = Field(default=None, alias="dyslipidemiaStatus")
+    fatty_liver_status: str | None = Field(default=None, alias="fattyLiverStatus")
+    smoking_status: str | None = Field(default=None, alias="smokingStatus")
+    alcohol_status: str | None = Field(default=None, alias="alcoholStatus")
+    exercise_frequency: str | None = Field(default=None, alias="exerciseFrequency")
+    sleep_quality: str | None = Field(default=None, alias="sleepQuality")
+    sleep_hours: Decimal | None = Field(default=None, alias="sleepHours", ge=0, le=24)
+    stress_level: str | None = Field(default=None, alias="stressLevel")
+    mood_status: str | None = Field(default=None, alias="moodStatus")
+    fear_level: str | None = Field(default=None, alias="fearLevel")
+    dietary_preference: str | None = Field(default=None, alias="dietaryPreference")
+    recent_dietary_pattern: str | None = Field(default=None, alias="recentDietaryPattern")
 
 
 class AssessmentRequest(RaykModel):
@@ -68,3 +88,4 @@ class AssessmentData(RaykModel):
     disclaimer: str
     results: list[ModelResult]
     interpretation: ComprehensiveInterpretation
+    patient_context: PatientContext | None = Field(default=None, alias="patientContext")

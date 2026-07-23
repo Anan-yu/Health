@@ -22,7 +22,32 @@ public final class AiDtos {
         }
     }
 
-  public record PatientContext(String gender, Integer age) {}
+  public record PatientContext(
+      String gender,
+      Integer age,
+      BigDecimal heightCm,
+      BigDecimal weightKg,
+      BigDecimal bmi,
+      String medicalHistory,
+      String familyHistory,
+      String diabetesStatus,
+      String hypertensionStatus,
+      String dyslipidemiaStatus,
+      String fattyLiverStatus,
+      String smokingStatus,
+      String alcoholStatus,
+      String exerciseFrequency,
+      String sleepQuality,
+      BigDecimal sleepHours,
+      String stressLevel,
+      String moodStatus,
+      String fearLevel,
+      String dietaryPreference,
+      String recentDietaryPattern) {
+    public PatientContext(String gender, Integer age) {
+      this(gender, age, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    }
+  }
 
     public record OcrRecognizeRequest(
       String taskId, String fileId, String objectName, String mimeType, String downloadUrl) {}
@@ -51,7 +76,8 @@ public final class AiDtos {
             String doctorOpinion,
             List<Indicator> indicators,
       List<ModelResult> results,
-      ComprehensiveInterpretation interpretation) {}
+      ComprehensiveInterpretation interpretation,
+      PatientContext patientContext) {}
 
     public record ReportGenerateData(
       String title, String summary, List<String> sections, String disclaimer, String pdfBase64) {}
@@ -65,7 +91,8 @@ public final class AiDtos {
             String status,
             String disclaimer,
       List<ModelResult> results,
-      ComprehensiveInterpretation interpretation) {}
+      ComprehensiveInterpretation interpretation,
+      PatientContext patientContext) {}
 
     public record ModelResult(
             String modelCode,

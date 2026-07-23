@@ -34,11 +34,20 @@ class UpdateProfileRequestValidationTest {
                 "none",
                 "none",
                 "none",
+                "none",
                 "NEVER",
                 "NONE",
                 "3_5_PER_WEEK",
                 "GOOD",
+                new BigDecimal("7.5"),
                 "MEDIUM",
-                "balanced");
+                "GOOD",
+                "LOW",
+                "balanced",
+                "均衡饮食，外卖较少",
+                "NO",
+                "NO",
+                "NO",
+                "NO");
     }
 }
