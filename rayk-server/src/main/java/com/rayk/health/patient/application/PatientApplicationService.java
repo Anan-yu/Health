@@ -54,6 +54,8 @@ public class PatientApplicationService {
         PatientEntity entity = dataScopeService.requirePatient(id);
         CurrentPrincipal current = CurrentUser.require();
         entity.setName(request.name().trim());
+        entity.setGender(request.gender());
+        entity.setBirthDate(request.birthDate());
         if (request.phone() != null && !request.phone().isBlank()) {
             String phone = PhoneIdentity.normalize(request.phone());
             entity.setPhoneMasked(maskPhone(phone));

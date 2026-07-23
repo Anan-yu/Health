@@ -30,7 +30,7 @@ def test_demo_assessment_contains_disclaimer() -> None:
     body = response.json()
     assert body["data"]["status"] == "SUCCESS"
     assert body["data"]["disclaimer"] == DISCLAIMER
-    assert body["data"]["results"][0]["riskLevel"] == "ATTENTION"
+    assert body["data"]["results"][0]["riskLevel"] == "INSUFFICIENT_DATA"
 
 
 def test_assessment_flags_confirmed_bilirubin_and_electrolyte_abnormalities() -> None:
@@ -44,8 +44,20 @@ def test_assessment_flags_confirmed_bilirubin_and_electrolyte_abnormalities() ->
                 {"code": "alt", "name": "丙氨酸氨基转移酶", "value": 14.4, "unit": "U/L"},
                 {"code": "ast", "name": "天门冬氨酸氨基转移酶", "value": 19.5, "unit": "U/L"},
                 {"code": "ggt", "name": "谷酰转肽酶", "value": 16, "unit": "U/L"},
-                {"code": "total_bilirubin", "name": "总胆红素", "value": 22.7, "unit": "μmol/L", "referenceHigh": 22},
-                {"code": "direct_bilirubin", "name": "直接胆红素", "value": 8.8, "unit": "μmol/L", "referenceHigh": 6},
+                {
+                    "code": "total_bilirubin",
+                    "name": "总胆红素",
+                    "value": 22.7,
+                    "unit": "μmol/L",
+                    "referenceHigh": 22,
+                },
+                {
+                    "code": "direct_bilirubin",
+                    "name": "直接胆红素",
+                    "value": 8.8,
+                    "unit": "μmol/L",
+                    "referenceHigh": 6,
+                },
                 {"code": "albumin", "name": "白蛋白", "value": 48.9, "unit": "g/L"},
                 {"code": "creatinine", "name": "肌酐", "value": 75.4, "unit": "μmol/L"},
                 {"code": "urea", "name": "尿素", "value": 2.84, "unit": "mmol/L"},
@@ -53,7 +65,13 @@ def test_assessment_flags_confirmed_bilirubin_and_electrolyte_abnormalities() ->
                 {"code": "sodium", "name": "钠离子", "value": 140, "unit": "mmol/L"},
                 {"code": "potassium", "name": "钾离子", "value": 4.6, "unit": "mmol/L"},
                 {"code": "chloride", "name": "氯离子", "value": 108, "unit": "mmol/L"},
-                {"code": "bicarbonate", "name": "碳酸氢根", "value": 31.4, "unit": "mmol/L", "referenceHigh": 30},
+                {
+                    "code": "bicarbonate",
+                    "name": "碳酸氢根",
+                    "value": 31.4,
+                    "unit": "mmol/L",
+                    "referenceHigh": 30,
+                },
                 {"code": "calcium", "name": "钙离子", "value": 2.39, "unit": "mmol/L"},
             ],
         },
@@ -106,7 +124,35 @@ def test_report_generation_returns_a_real_pdf() -> None:
                     "recommendations": ["控制精制碳水化合物摄入"],
                 }
             ],
+            "interpretation": {
+                "status": "SUCCESS",
+                "source": "DEEPSEEK",
+                "model": "configured-model",
+                "summary": "空腹血糖轻度高于参考范围，结合现有资料建议关注糖代谢状态。",
+                "priorityConcerns": ["空腹血糖轻度升高"],
+                "crossModelFindings": [],
+                "diagnosticReferences": [
+                    {
+                        "conditionName": "糖代谢异常",
+                        "assessment": "RISK_SIGNAL",
+                        "rationale": "空腹血糖轻度高于本次报告参考上限。",
+                        "indicatorCodes": ["fasting_glucose"],
+                        "supportingEvidence": ["空腹血糖6.2 mmol/L，高于参考上限6.1 mmol/L"],
+                        "contradictingEvidence": ["缺少糖化血红蛋白和重复空腹血糖结果"],
+                        "confirmationAdvice": ["复查空腹血糖并结合糖化血红蛋白综合判断"],
+                        "recommendedDepartment": "内分泌科或全科",
+                    }
+                ],
+                "recommendations": ["减少精制糖和含糖饮料摄入"],
+                "missingDataAdvice": ["建议补充糖化血红蛋白"],
+                "followupQuestions": ["近期是否有明显口渴或体重变化？"],
+                "redFlags": [],
+                "uncertainty": "单次轻度异常不能用于确诊。",
+                "disclaimer": "辅助诊断参考不能替代医生的最终判断。",
+            },
         },
     )
     assert response.status_code == 200
-    assert b64decode(response.json()["data"]["pdfBase64"]).startswith(b"%PDF-")
+    data = response.json()["data"]
+    assert "可能疾病与诊断参考" in data["sections"]
+    assert b64decode(data["pdfBase64"]).startswith(b"%PDF-")

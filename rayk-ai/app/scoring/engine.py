@@ -305,7 +305,13 @@ MODEL_DEFINITIONS: list[ModelDefinition] = [
     {
         "model_code": "GUT_BARRIER",
         "model_name": "消化与肠道屏障",
-        "indicators": ["zonulin", "calprotectin", "occult_blood", "stool_ph", "digestive_symptom_score"],
+        "indicators": [
+            "zonulin",
+            "calprotectin",
+            "occult_blood",
+            "stool_ph",
+            "digestive_symptom_score",
+        ],
         "minimum_indicators": 2,
         "rules": [
             _rule("zonulin", "HIGH", "100", "连蛋白高于检验参考范围", 12, "ng/mL"),
@@ -447,9 +453,7 @@ class HealthRuleEngine(RuleEngine):
         # follow-up flag.  The previous score-only cut-off marked a single confirmed
         # abnormality (for example bilirubin above the laboratory upper limit) as LOW.
         risk_level = "HIGH" if score < 60 else "ATTENTION" if evidence else "LOW"
-        confidence: Literal["HIGH", "MEDIUM", "LOW"] = (
-            "HIGH" if completeness >= 80 else "MEDIUM"
-        )
+        confidence: Literal["HIGH", "MEDIUM", "LOW"] = "HIGH" if completeness >= 80 else "MEDIUM"
         if not evidence:
             evidence = ["已提供指标未触发该评估维度关注规则"]
         evidence.extend(self._context_evidence(model["model_code"], context))

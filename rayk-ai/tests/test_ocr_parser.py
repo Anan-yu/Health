@@ -19,12 +19,11 @@ def test_parser_supports_english_aliases() -> None:
     assert [item.code for item in indicators] == ["hba1c", "ldl"]
 
 
-def test_parser_keeps_generic_numeric_rows_for_manual_review() -> None:
+def test_parser_recognizes_apolipoprotein_a1() -> None:
     indicators = IndicatorRowParser().parse(["载脂蛋白A1 1.23 g/L 1.00-1.60"])
 
     assert len(indicators) == 1
-    assert indicators[0].code is not None
-    assert indicators[0].code.startswith("unrecognized_")
+    assert indicators[0].code == "apoa1"
 
 
 def test_parser_prefers_specific_alias_over_broad_alias() -> None:

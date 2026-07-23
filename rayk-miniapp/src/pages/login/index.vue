@@ -25,7 +25,6 @@
     <view class="card login-card">
       <view class="card-kicker">欢迎使用</view>
       <view class="card-title">微信授权手机号登录</view>
-      <view class="subtitle">授权手机号后自动识别机构身份；未预录入的号码将创建个人健康账户</view>
       <button
         class="wechat"
         :loading="wechatLoading"

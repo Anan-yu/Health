@@ -215,6 +215,16 @@ export interface Assessment {
         indicatorCodes: string[]
         explanation: string
       }>
+      diagnosticReferences?: Array<{
+        conditionName: string
+        assessment: 'RISK_SIGNAL' | 'POSSIBLE' | 'PRIORITY_REVIEW'
+        rationale: string
+        indicatorCodes: string[]
+        supportingEvidence: string[]
+        contradictingEvidence: string[]
+        confirmationAdvice: string[]
+        recommendedDepartment?: string
+      }>
       recommendations: string[]
       missingDataAdvice: string[]
       followupQuestions: string[]

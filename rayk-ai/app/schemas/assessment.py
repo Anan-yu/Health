@@ -60,14 +60,38 @@ class CrossModelFinding(RaykModel):
     explanation: str = Field(min_length=1, max_length=500)
 
 
+class DiagnosticReference(RaykModel):
+    condition_name: str = Field(alias="conditionName", min_length=1, max_length=100)
+    assessment: Literal["RISK_SIGNAL", "POSSIBLE", "PRIORITY_REVIEW"]
+    rationale: str = Field(min_length=1, max_length=500)
+    indicator_codes: list[str] = Field(default_factory=list, alias="indicatorCodes", max_length=20)
+    supporting_evidence: list[str] = Field(
+        default_factory=list, alias="supportingEvidence", max_length=10
+    )
+    contradicting_evidence: list[str] = Field(
+        default_factory=list, alias="contradictingEvidence", max_length=10
+    )
+    confirmation_advice: list[str] = Field(
+        default_factory=list, alias="confirmationAdvice", max_length=10
+    )
+    recommended_department: str | None = Field(
+        default=None, alias="recommendedDepartment", max_length=100
+    )
+
+
 class ComprehensiveInterpretation(RaykModel):
     status: Literal["SUCCESS", "DISABLED", "FALLBACK"]
     source: Literal["DEEPSEEK", "RULE_FALLBACK"]
     model: str | None = None
     summary: str = Field(min_length=1, max_length=1000)
-    priority_concerns: list[str] = Field(default_factory=list, alias="priorityConcerns", max_length=10)
+    priority_concerns: list[str] = Field(
+        default_factory=list, alias="priorityConcerns", max_length=10
+    )
     cross_model_findings: list[CrossModelFinding] = Field(
         default_factory=list, alias="crossModelFindings", max_length=10
+    )
+    diagnostic_references: list[DiagnosticReference] = Field(
+        default_factory=list, alias="diagnosticReferences", max_length=5
     )
     recommendations: list[str] = Field(default_factory=list, max_length=20)
     missing_data_advice: list[str] = Field(

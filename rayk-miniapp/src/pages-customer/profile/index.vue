@@ -6,14 +6,13 @@
         ><view class="row"
           ><text>姓名</text><text>{{ patient?.name }}</text></view
         ><view class="row"
+          ><text>性别</text><text>{{ genderLabel }}</text></view
+        ><view class="row"
           ><text>出生日期</text><text>{{ patient?.birthDate || '待完善' }}</text></view
         ><view class="row"
-          ><text>身高 / 体重</text
-          ><text>{{ profile?.heightCm || '-' }} cm / {{ profile?.weightKg || '-' }} kg</text></view
+          ><text>身高</text><text>{{ profile?.heightCm || '-' }} cm</text></view
         ><view class="row"
-          ><text>BMI</text><text>{{ profile?.bmi || '-' }}</text></view
-        ><view class="row"
-          ><text>运动 / 睡眠</text><text>{{ lifestyleLabel }}</text></view
+          ><text>体重</text><text>{{ profile?.weightKg || '-' }} kg</text></view
         ><view class="row"
           ><text>最近更新</text><text>{{ formatTime(profile?.updatedAt) }}</text></view
         ></view
@@ -42,11 +41,9 @@ const patient = ref<Patient | null>(null)
 const profile = ref<HealthProfile | null>(null)
 const loading = ref(true)
 const error = ref('')
-const lifestyleLabel = computed(() => {
-  const exercise = profile.value?.exerciseFrequency || '待完善'
-  const sleep = profile.value?.sleepQuality || '待完善'
-  return `${exercise} / ${sleep}`
-})
+const genderLabel = computed(() =>
+  ({ MALE: '男', FEMALE: '女' })[patient.value?.gender || ''] || '待完善',
+)
 const formatTime = (value?: string) => (value ? value.replace('T', ' ').slice(0, 16) : '待完善')
 onShow(async () => {
   loading.value = true

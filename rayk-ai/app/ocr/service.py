@@ -163,17 +163,15 @@ class IndicatorRowParser:
         Grouping the boxes into visual rows first keeps a result, unit and reference interval
         attached to the correct analyte.
         """
-        tokens = [
-            LayoutToken(self._normalize(str(text)), self._box(box))
-            for text, box in zip(lines, boxes)
-            if str(text).strip() and self._box(box) is not None
-        ]
+        tokens: list[LayoutToken] = []
+        for text, box in zip(lines, boxes, strict=False):
+            normalized_box = self._box(box)
+            if str(text).strip() and normalized_box is not None:
+                tokens.append(LayoutToken(self._normalize(str(text)), normalized_box))
         if not tokens:
             return []
         table_header = [
-            token
-            for token in tokens
-            if token.text in {"检验项目", "结果", "单位", "参考范围"}
+            token for token in tokens if token.text in {"检验项目", "结果", "单位", "参考范围"}
         ]
         if len(table_header) < 4:
             return []
@@ -267,9 +265,7 @@ class IndicatorRowParser:
             return None
         return left, top, right, bottom
 
-    def _parse_known_cells(
-        self, lines: list[str], index: int
-    ) -> IndicatorInput | None:
+    def _parse_known_cells(self, lines: list[str], index: int) -> IndicatorInput | None:
         """Parse OCR tables that emit name, value, unit and range as separate cells."""
         if index + 3 >= len(lines):
             return None
@@ -323,13 +319,15 @@ class IndicatorRowParser:
     ) -> tuple[str, str, str, str] | None:
         """Return the most specific alias so broad names cannot steal table rows."""
         lowered = line.casefold()
-        matches = (
+        matches = [
             (code, standard_name, standard_unit, alias)
             for code, standard_name, standard_unit, aliases in self.INDICATORS
             for alias in aliases
             if (alias.casefold() == lowered if exact else alias.casefold() in lowered)
-        )
-        return max(matches, key=lambda item: len(item[3]), default=None)
+        ]
+        if not matches:
+            return None
+        return max(matches, key=lambda item: len(item[3]))
 
     def _parse_generic(self, line: str) -> IndicatorInput | None:
         match = re.match(
@@ -372,9 +370,7 @@ class IndicatorRowParser:
     def _unit(self, tail: str, fallback: str) -> str:
         units = re.findall(r"[%A-Za-zμµ]+(?:/[A-Za-z]+)?", tail)
         ignored = {"H", "L", "N", "HIGH", "LOW"}
-        return next(
-            (unit for unit in reversed(units) if unit.upper() not in ignored), fallback
-        )
+        return next((unit for unit in reversed(units) if unit.upper() not in ignored), fallback)
 
     def _normalize(self, value: str) -> str:
         return re.sub(r"\s+", " ", value.replace("：", " ").replace(":", " ")).strip()

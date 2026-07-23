@@ -9,6 +9,28 @@
         ><view class="field"
           ><text>姓名</text><input v-model="identity.name" placeholder="请输入真实姓名" /></view
         ><view class="field"
+          ><text>性别</text
+          ><picker
+            :range="genderOptions"
+            range-key="label"
+            @change="selectGender"
+            ><view class="picker-value"
+              >{{ optionLabel(genderOptions, identity.gender) }} ›</view
+            ></picker
+          ></view
+        ><view class="field"
+          ><text>出生日期</text
+          ><picker
+            mode="date"
+            :value="identity.birthDate"
+            :start="minBirthDate"
+            :end="today"
+            @change="selectBirthDate"
+            ><view class="picker-value"
+              >{{ identity.birthDate || '请选择出生日期' }} ›</view
+            ></picker
+          ></view
+        ><view class="field"
           ><text>手机号</text
           ><input v-model="identity.phone" type="number" maxlength="11" :placeholder="patient?.phoneMasked || '请输入 11 位手机号'" /><view class="field-tip">{{ patient?.phoneMasked ? `当前已登记：${patient.phoneMasked}` : '填写后可供医生按手机号查询健康报告' }}</view></view
         ><view class="field"
@@ -139,7 +161,7 @@ const patient = ref<Patient | null>(null),
   loading = ref(true),
   saving = ref(false),
   error = ref('')
-const identity = reactive({ name: '', phone: '' })
+const identity = reactive({ name: '', gender: '', birthDate: '', phone: '' })
 const form = reactive<Record<string, string>>({
   heightCm: '',
   weightKg: '',
@@ -209,10 +231,29 @@ const diseaseOptions: SelectOption[] = [
   { label: '请选择', value: '' }, { label: '无', value: 'NO' },
   { label: '有，已确诊', value: 'YES' }, { label: '不清楚', value: 'UNKNOWN' },
 ]
+const genderOptions: SelectOption[] = [
+  { label: '请选择', value: '' },
+  { label: '男', value: 'MALE' },
+  { label: '女', value: 'FEMALE' },
+]
 const optionLabel = (options: SelectOption[], value: string) =>
   options.find((item) => item.value === value)?.label || '请选择'
 const selectOption = (field: string, options: SelectOption[], event: PickerChangeEvent) => {
   form[field] = options[Number(event.detail.value)]?.value || ''
+}
+const selectGender = (event: PickerChangeEvent) => {
+  identity.gender = genderOptions[Number(event.detail.value)]?.value || ''
+}
+const formatDate = (value: Date) => {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+const today = formatDate(new Date())
+const minBirthDate = `${new Date().getFullYear() - 120}-01-01`
+const selectBirthDate = (event: PickerChangeEvent) => {
+  identity.birthDate = String(event.detail.value || '')
 }
 const assign = (profile: HealthProfile) =>
   Object.keys(form).forEach((key) => {
@@ -225,6 +266,10 @@ onShow(async () => {
     patient.value = await getMyProfile()
     if (patient.value) {
       identity.name = patient.value.name || ''
+      identity.gender = ['MALE', 'FEMALE'].includes(patient.value.gender)
+        ? patient.value.gender
+        : ''
+      identity.birthDate = patient.value.birthDate || ''
       identity.phone = ''
       const profile = await getHealthProfile(patient.value.id)
       assign(profile)
@@ -239,6 +284,14 @@ const save = async () => {
   if (!patient.value) return
   if (!identity.name.trim()) {
     uni.showToast({ title: '请填写姓名', icon: 'none' })
+    return
+  }
+  if (!identity.gender) {
+    uni.showToast({ title: '请选择性别', icon: 'none' })
+    return
+  }
+  if (!identity.birthDate) {
+    uni.showToast({ title: '请选择出生日期', icon: 'none' })
     return
   }
   if (identity.phone && !/^1[3-9]\d{9}$/.test(identity.phone)) {
@@ -264,6 +317,8 @@ const save = async () => {
   try {
     patient.value = await updatePatientIdentity(patient.value.id, {
       name: identity.name.trim(),
+      gender: identity.gender,
+      birthDate: identity.birthDate,
       ...(identity.phone ? { phone: identity.phone } : {}),
     })
     await updateHealthProfile(patient.value.id, {

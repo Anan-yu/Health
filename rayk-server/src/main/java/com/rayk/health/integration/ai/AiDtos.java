@@ -133,6 +133,16 @@ public final class AiDtos {
 
   public record CrossModelFinding(String title, List<String> indicatorCodes, String explanation) {}
 
+  public record DiagnosticReference(
+      String conditionName,
+      String assessment,
+      String rationale,
+      List<String> indicatorCodes,
+      List<String> supportingEvidence,
+      List<String> contradictingEvidence,
+      List<String> confirmationAdvice,
+      String recommendedDepartment) {}
+
   public record ComprehensiveInterpretation(
       String status,
       String source,
@@ -140,10 +150,21 @@ public final class AiDtos {
       String summary,
       List<String> priorityConcerns,
       List<CrossModelFinding> crossModelFindings,
+      List<DiagnosticReference> diagnosticReferences,
       List<String> recommendations,
       List<String> missingDataAdvice,
       List<String> followupQuestions,
       List<String> redFlags,
       String uncertainty,
-      String disclaimer) {}
+      String disclaimer) {
+    public ComprehensiveInterpretation {
+      priorityConcerns = priorityConcerns == null ? List.of() : priorityConcerns;
+      crossModelFindings = crossModelFindings == null ? List.of() : crossModelFindings;
+      diagnosticReferences = diagnosticReferences == null ? List.of() : diagnosticReferences;
+      recommendations = recommendations == null ? List.of() : recommendations;
+      missingDataAdvice = missingDataAdvice == null ? List.of() : missingDataAdvice;
+      followupQuestions = followupQuestions == null ? List.of() : followupQuestions;
+      redFlags = redFlags == null ? List.of() : redFlags;
+    }
+  }
 }
