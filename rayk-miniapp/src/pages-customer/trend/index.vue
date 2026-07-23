@@ -7,16 +7,29 @@
       >
     </view>
     <PageState :loading="loadingReports" :error="error" :empty="indicators.length === 0">
-      <scroll-view class="indicator-tabs" scroll-x>
-        <view
-          v-for="item in indicators"
-          :key="item.code"
-          class="indicator-tab"
-          :class="{ active: item.code === selectedCode }"
-          @click="selectIndicator(item.code)"
-          >{{ item.name }}</view
-        >
-      </scroll-view>
+      <view class="indicator-selector">
+        <view class="selector-main" @click="showSelector = !showSelector">
+          <view>
+            <view class="selector-label">当前查看指标</view>
+            <view class="selector-value">{{ selectedName }}<text v-if="selectedUnit"> · {{ selectedUnit }}</text></view>
+          </view>
+          <view class="selector-action">{{ showSelector ? '收起' : '切换指标' }} <text>⌄</text></view>
+        </view>
+        <view v-if="showSelector" class="selector-options">
+          <view class="option-tip">请选择要查看趋势的检验指标</view>
+          <view class="option-grid">
+            <view
+              v-for="item in indicators"
+              :key="item.code"
+              class="indicator-option"
+              :class="{ active: item.code === selectedCode }"
+              @click="selectIndicator(item.code)"
+            >
+              <text>{{ item.name }}</text><text v-if="item.code === selectedCode">✓</text>
+            </view>
+          </view>
+        </view>
+      </view>
       <PageState :loading="loadingTrend" :empty="points.length === 0">
         <view class="card summary-card">
           <view
@@ -79,6 +92,7 @@ const summary = ref<TrendSummary | null>(null)
 const loadingReports = ref(true)
 const loadingTrend = ref(false)
 const error = ref('')
+const showSelector = ref(false)
 const indicators = computed(() => {
   const seen = new Map<string, Indicator>()
   reports.value.forEach((report) => report.indicators.forEach((item) => seen.set(item.code, item)))
@@ -115,6 +129,7 @@ const loadTrend = async () => {
 const selectIndicator = (code: string) => {
   if (code === selectedCode.value) return
   selectedCode.value = code
+  showSelector.value = false
   void loadTrend()
 }
 const barHeight = (value: number) => {
@@ -148,24 +163,30 @@ onShow(async () => {
 .title {
   margin-top: 8rpx;
 }
-.indicator-tabs {
-  white-space: nowrap;
-  margin: 0 -30rpx 24rpx;
-  padding: 0 30rpx;
+.indicator-selector {
+  overflow: hidden;
+  margin-bottom: 24rpx;
+  border: 1rpx solid #dcebe5;
+  border-radius: 24rpx;
+  background: #fff;
+  box-shadow: 0 10rpx 26rpx rgba(31, 74, 63, 0.05);
 }
-.indicator-tab {
-  display: inline-block;
-  margin-right: 14rpx;
-  padding: 14rpx 24rpx;
-  border-radius: 999rpx;
-  background: #eaf0ee;
-  color: #70817b;
-  font-size: 23rpx;
+.selector-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 23rpx 25rpx;
 }
-.indicator-tab.active {
-  background: #0f7a62;
-  color: #fff;
-}
+.selector-label { color: #82948d; font-size: 21rpx; }
+.selector-value { margin-top: 6rpx; color: #20483d; font-size: 29rpx; font-weight: 700; }
+.selector-value text { color: #789087; font-size: 20rpx; font-weight: 400; }
+.selector-action { padding: 12rpx 16rpx; border-radius: 999rpx; background: #e6f6f0; color: #0d765e; font-size: 22rpx; }
+.selector-action text { margin-left: 6rpx; font-size: 20rpx; }
+.selector-options { padding: 0 22rpx 23rpx; border-top: 1rpx solid #edf3f0; }
+.option-tip { margin: 18rpx 0 14rpx; color: #82948d; font-size: 21rpx; }
+.option-grid { display: flex; flex-wrap: wrap; gap: 14rpx; }
+.indicator-option { display: flex; align-items: center; gap: 8rpx; padding: 14rpx 18rpx; border: 1rpx solid #dde9e5; border-radius: 16rpx; background: #f8fbfa; color: #62766f; font-size: 22rpx; }
+.indicator-option.active { border-color: #0f7a62; background: #e2f5ed; color: #0c7159; font-weight: 650; }
 .summary-card {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
