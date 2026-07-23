@@ -11,7 +11,7 @@ import type { PlatformOverview } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 const overview = ref<PlatformOverview>(), loading = ref(true), error = ref('')
-const metrics = computed(() => !overview.value ? [] : [{ label: '合作医院', value: overview.value.tenantCount }, { label: '预录入医生', value: overview.value.userCount }, { label: '健康客户', value: overview.value.patientCount }, { label: 'AI 随访任务', value: overview.value.pendingFollowupCount }])
+const metrics = computed(() => !overview.value ? [] : [{ label: '合作医院', value: overview.value.tenantCount }, { label: '预录入医生', value: overview.value.userCount }, { label: '健康客户', value: overview.value.patientCount }, { label: '健康随访任务', value: overview.value.pendingFollowupCount }])
 async function load() { loading.value = true; error.value = ''; try { overview.value = await getPlatformOverview() } catch (cause) { error.value = cause instanceof Error ? cause.message : '平台概览加载失败' } finally { loading.value = false } }
 onShow(load)
 const createTenant = () => uni.navigateTo({ url: '/pages-tenant/dashboard/tenant-create' })

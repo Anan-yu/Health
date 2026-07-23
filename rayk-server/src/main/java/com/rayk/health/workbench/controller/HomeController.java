@@ -48,7 +48,7 @@ public class HomeController {
         return List.of(
                 new HomeMetric("TENANT", "合作医院", overview.tenantCount(), "/pages-tenant/dashboard/index"),
                 new HomeMetric("USER", "预录入医生", overview.userCount(), "/pages-tenant/dashboard/index"),
-                new HomeMetric("FOLLOWUP", "AI 随访任务", overview.pendingFollowupCount(), "/pages-tenant/dashboard/index"));
+                new HomeMetric("FOLLOWUP", "健康随访任务", overview.pendingFollowupCount(), "/pages-tenant/dashboard/index"));
     }
 
     private List<HomeMetric> customerMetrics() {
@@ -60,7 +60,7 @@ public class HomeController {
         return List.of(
                 new HomeMetric("PROFILE", "档案完整度", completeness, "/pages-customer/profile/index"),
                 new HomeMetric("REPORT", "已生成健康报告", reports, "/pages-customer/health-report/index"),
-                new HomeMetric("FOLLOWUP", "待完成 AI 随访", followups, "/pages-customer/followup/index"));
+                new HomeMetric("FOLLOWUP", "待完成健康随访", followups, "/pages-customer/followup/index"));
     }
 
     private List<HomeMetric> doctorMetrics() {

@@ -457,7 +457,7 @@ public class WorkflowApplicationService {
         next.setTenantId(completed.getTenantId());
         next.setPatientId(completed.getPatientId());
         next.setAssigneeId(null);
-        next.setTitle("AI 健康随访（下一期）");
+        next.setTitle("健康随访（下一期）");
         next.setContent("请继续记录近两周的饮食、运动、睡眠和身体感受；提交反馈后，Rayk AI 将自动更新后续随访安排。");
         next.setDueDate(LocalDate.now().plusDays(14));
         next.setStatus("PENDING");
@@ -653,7 +653,7 @@ public class WorkflowApplicationService {
         task.setTenantId(current.tenantId());
         task.setPatientId(patient.getId());
         task.setAssigneeId(null);
-        task.setTitle("AI 健康随访");
+        task.setTitle("健康随访");
         task.setContent("请结合本次健康评估，记录近期饮食、运动和身体感受；完成后提交反馈，Rayk AI 将据此生成下一步建议。");
         task.setDueDate(LocalDate.now().plusDays(days));
         task.setStatus("PENDING");

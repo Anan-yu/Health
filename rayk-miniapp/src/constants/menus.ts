@@ -9,7 +9,7 @@ const customer: MenuItem[] = [
   { title: 'AI评估结果', description: '查看健康评估与建议', icon: 'AI', route: '/pages-customer/assessment/index', permission: 'self:assessment' },
   { title: '健康报告', description: '查看已生成的 PDF 健康报告', icon: '康', route: '/pages-customer/health-report/index', permission: 'self:health-report' },
   { title: '指标趋势', description: '查看历次指标变化趋势', icon: '趋', route: '/pages-customer/trend/index', permission: 'self:lab-report' },
-  { title: 'AI随访', description: '查看并完成健康随访任务', icon: '访', route: '/pages-customer/followup/index', permission: 'self:followup' },
+  { title: '健康随访', description: '查看并完成健康随访任务', icon: '访', route: '/pages-customer/followup/index', permission: 'self:followup' },
 ]
 
 const doctor: MenuItem[] = [
