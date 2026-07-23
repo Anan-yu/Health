@@ -89,26 +89,39 @@ class SupportTicketServiceTest {
     }
 
     @Test
-    void returnsOnlyResolvedTicketsWithAPlatformReply() {
+    void returnsAllTicketsForCurrentUserIncludingPendingReplies() {
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 21, 20, 34, 41);
-        SupportTicketEntity entity = new SupportTicketEntity();
-        entity.setId(2079545597569081345L);
-        entity.setTenantId(20001L);
-        entity.setUserId(10005L);
-        entity.setCategory("OTHER");
-        entity.setContent("联调反馈");
-        entity.setStatus("RESOLVED");
-        entity.setReply("已回复，请刷新后重试");
-        entity.setCreatedAt(createdAt);
-        entity.setUpdatedAt(createdAt);
-        entity.setDeleted(0);
-        when(ticketMapper.selectList(any())).thenReturn(List.of(entity));
+        SupportTicketEntity pending = new SupportTicketEntity();
+        pending.setId(2079545597569081345L);
+        pending.setTenantId(20001L);
+        pending.setUserId(10005L);
+        pending.setCategory("OTHER");
+        pending.setContent("等待平台回复");
+        pending.setStatus("OPEN");
+        pending.setCreatedAt(createdAt);
+        pending.setUpdatedAt(createdAt);
+        pending.setDeleted(0);
+
+        SupportTicketEntity resolved = new SupportTicketEntity();
+        resolved.setId(2079545597569081346L);
+        resolved.setTenantId(20001L);
+        resolved.setUserId(10005L);
+        resolved.setCategory("BUG");
+        resolved.setContent("已经处理的反馈");
+        resolved.setStatus("RESOLVED");
+        resolved.setReply("已回复，请刷新后重试");
+        resolved.setCreatedAt(createdAt);
+        resolved.setUpdatedAt(createdAt);
+        resolved.setDeleted(0);
+        when(ticketMapper.selectList(any())).thenReturn(List.of(pending, resolved));
 
         List<SupportTicketVo> tickets = service.listMine();
 
-        assertThat(tickets).hasSize(1);
+        assertThat(tickets).hasSize(2);
         assertThat(tickets.get(0).id()).isEqualTo("2079545597569081345");
-        assertThat(tickets.get(0).content()).isEqualTo("联调反馈");
+        assertThat(tickets.get(0).status()).isEqualTo("OPEN");
+        assertThat(tickets.get(1).status()).isEqualTo("RESOLVED");
+        assertThat(tickets.get(1).reply()).isEqualTo("已回复，请刷新后重试");
     }
 
     @Test

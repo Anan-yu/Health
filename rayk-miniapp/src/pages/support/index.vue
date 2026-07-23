@@ -49,12 +49,12 @@
     <view v-for="ticket in tickets" :key="ticket.id" class="card ticket-card">
       <view class="ticket-head"
         ><text>{{ categoryLabels[ticket.category] }}</text
-        ><text :class="`status ${ticket.status.toLowerCase()}`">{{
-          statusLabels[ticket.status]
+        ><text class="status" :class="{ replied: isReplied(ticket) }">{{
+          isReplied(ticket) ? '已回复' : '待回复'
         }}</text></view
       >
       <view class="ticket-content">{{ ticket.content }}</view>
-      <view v-if="ticket.reply" class="reply">平台回复：{{ ticket.reply }}</view>
+      <view v-if="isReplied(ticket)" class="reply">平台回复：{{ ticket.reply }}</view>
       <view class="ticket-time">{{ formatTime(ticket.createdAt) }}</view>
     </view>
   </view>
@@ -84,7 +84,8 @@ const faqs = [
   },
   {
     question: '提交反馈后在哪里查看回复？',
-    answer: '问题提交后由平台处理。仅当平台完成正式回复后，内容才会显示在本页“我的反馈”中。',
+    answer:
+      '提交后会立即显示在本页“我的反馈”中，状态为“待回复”；平台管理员正式回复后，状态会更新为“已回复”并显示回复内容。',
   },
 ]
 const categories = [
@@ -99,12 +100,6 @@ const categoryLabels: Record<SupportTicket['category'], string> = {
   SUGGESTION: '产品建议',
   OTHER: '其他问题',
 }
-const statusLabels: Record<SupportTicket['status'], string> = {
-  OPEN: '待处理',
-  PROCESSING: '处理中',
-  RESOLVED: '已回复',
-  CLOSED: '已关闭',
-}
 const categoryIndex = ref(0)
 const content = ref('')
 const contact = ref('')
@@ -117,13 +112,13 @@ const selectCategory = (event: { detail: { value: string | number } }) => {
   categoryIndex.value = Number(event.detail.value) || 0
 }
 const formatTime = (value: string) => value.replace('T', ' ').slice(0, 16)
+const isReplied = (ticket: SupportTicket) =>
+  ['RESOLVED', 'CLOSED'].includes(ticket.status) && Boolean(ticket.reply?.trim())
 const load = async () => {
   try {
-    tickets.value = (await getMySupportTickets()).filter(
-      (ticket) => ticket.status === 'RESOLVED' && Boolean(ticket.reply?.trim()),
-    )
+    tickets.value = await getMySupportTickets()
   } catch {
-    tickets.value = []
+    return
   }
 }
 const submit = async () => {
@@ -134,11 +129,12 @@ const submit = async () => {
   }
   submitting.value = true
   try {
-    await createSupportTicket({
+    const created = await createSupportTicket({
       category: selectedCategory.value.value,
       content: description,
       contact: contact.value.trim() || undefined,
     })
+    tickets.value = [created, ...tickets.value.filter((ticket) => ticket.id !== created.id)]
     content.value = ''
     contact.value = ''
     await load()
@@ -239,11 +235,7 @@ onShow(load)
   color: #a06a0b;
   font-size: 21rpx;
 }
-.status.resolved,
-.status.closed {
+.status.replied {
   color: #0f7a62;
-}
-.status.processing {
-  color: #426fb2;
 }
 </style>
