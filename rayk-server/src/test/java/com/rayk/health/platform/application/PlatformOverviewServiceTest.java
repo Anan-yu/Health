@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import com.rayk.health.platform.mapper.PlatformOverviewMapper;
 import com.rayk.health.platform.vo.PlatformOverviewVo;
 import com.rayk.health.platform.vo.TenantSummaryVo;
+import com.rayk.health.patient.mapper.PatientMapper;
 import com.rayk.health.system.mapper.SysRoleMapper;
 import com.rayk.health.system.mapper.SysRolePermissionMapper;
 import com.rayk.health.system.mapper.SysTenantMapper;
@@ -26,12 +27,15 @@ class PlatformOverviewServiceTest {
         SysRolePermissionMapper rolePermissionMapper = mock(SysRolePermissionMapper.class);
         SysUserRoleMapper userRoleMapper = mock(SysUserRoleMapper.class);
         SysUserWorkbenchMapper workbenchMapper = mock(SysUserWorkbenchMapper.class);
+        PatientMapper patientMapper = mock(PatientMapper.class);
         when(mapper.countTenants()).thenReturn(2L);
         when(mapper.countActiveTenants()).thenReturn(2L);
         when(mapper.countUsers()).thenReturn(7L);
         when(mapper.countPatients()).thenReturn(2L);
         when(mapper.countPendingReviews()).thenReturn(1L);
         when(mapper.countPendingFollowups()).thenReturn(3L);
+        when(mapper.countTodayFollowups()).thenReturn(1L);
+        when(mapper.selectRecentFollowups()).thenReturn(List.of());
         when(mapper.selectTenants())
                 .thenReturn(
                         List.of(
@@ -52,6 +56,7 @@ class PlatformOverviewServiceTest {
                                 rolePermissionMapper,
                                 userRoleMapper,
                                 workbenchMapper,
+                                patientMapper,
                                 mock(org.springframework.security.crypto.password.PasswordEncoder.class))
                         .overview();
 
@@ -61,6 +66,7 @@ class PlatformOverviewServiceTest {
         assertThat(result.patientCount()).isEqualTo(2L);
         assertThat(result.pendingReviewCount()).isZero();
         assertThat(result.pendingFollowupCount()).isEqualTo(3L);
+        assertThat(result.todayFollowupCount()).isEqualTo(1L);
         assertThat(result.tenants()).singleElement().extracting(TenantSummaryVo::id).isEqualTo("20001");
     }
 }

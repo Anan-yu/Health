@@ -343,5 +343,17 @@ export interface PlatformOverview {
   patientCount: number
   pendingReviewCount: number
   pendingFollowupCount: number
+  todayFollowupCount: number
   tenants: TenantSummary[]
+  followups: PlatformFollowup[]
+}
+
+export interface PlatformFollowup {
+  id: string
+  patientName: string
+  title: string
+  dueDate: string
+  status: string
+  feedback?: string
+  completedAt?: string
 }

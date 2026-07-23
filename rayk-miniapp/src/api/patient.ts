@@ -5,6 +5,8 @@ export const getPatients = (keyword?: string) =>
   request<PageResponse<Patient>>({ url: `/api/v1/patients${keyword ? `?keyword=${encodeURIComponent(keyword)}` : ''}`, method: 'GET' })
 export const getPatient = (id: string) =>
   request<Patient>({ url: `/api/v1/patients/${id}`, method: 'GET' })
+export const updatePatientIdentity = (id: string, data: { name: string; phone?: string }) =>
+  request<Patient>({ url: `/api/v1/patients/${id}/identity`, method: 'PUT', data })
 export const createPatient = (data: object) =>
   request<Patient>({ url: '/api/v1/patients', method: 'POST', data })
 export const getMyProfile = () =>

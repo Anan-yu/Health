@@ -16,7 +16,7 @@
       >
       <view class="step-line" :class="{ active: state === 'OCR_PROCESSING' }" />
       <view class="step" :class="{ active: state === 'OCR_PROCESSING' }"
-        ><text>3</text><view>确认指标</view></view
+        ><text>3</text><view>自动评估</view></view
       >
     </view>
 
@@ -24,8 +24,11 @@
       <view class="form-heading"><text class="form-index">01</text><text>报告信息</text></view>
       <view class="field-label">报告所属人</view>
       <view class="input owner-field owner-selector" @click="editOwner">
-        <text>{{ patient?.name || '正在识别当前账号…' }}</text>
-        <text class="owner-edit">修改 ›</text>
+        <view class="owner-info">
+          <text class="owner-name">{{ patient?.name || '正在识别当前账号…' }}</text>
+          <text v-if="patient" class="owner-meta">{{ ownerAge }} 岁 · {{ ownerGender }}</text>
+        </view>
+        <text class="owner-edit">修改健康档案 ›</text>
       </view>
       <view class="field-label">报告名称</view>
       <input v-model="reportName" class="input" placeholder="例如：生化检验报告" />
@@ -64,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { uploadLabReport } from '@/api/lab-report'
 import { getMyProfile } from '@/api/patient'
@@ -84,6 +87,24 @@ const patient = ref<Patient | null>(null),
   state = ref('IDLE'),
   loading = ref(false),
   error = ref('')
+
+const ownerAge = computed(() => {
+  const birthDate = patient.value?.birthDate
+  if (!birthDate) return '年龄未填写'
+  const birthday = new Date(birthDate)
+  if (Number.isNaN(birthday.getTime())) return '年龄未填写'
+  const now = new Date()
+  let age = now.getFullYear() - birthday.getFullYear()
+  const birthdayNotReached =
+    now.getMonth() < birthday.getMonth() ||
+    (now.getMonth() === birthday.getMonth() && now.getDate() < birthday.getDate())
+  if (birthdayNotReached) age -= 1
+  return age >= 0 ? age : '年龄未填写'
+})
+const ownerGender = computed(() => {
+  const gender = patient.value?.gender
+  return gender === 'MALE' ? '男' : gender === 'FEMALE' ? '女' : '性别未填写'
+})
 
 onShow(async () => {
   try {
@@ -349,8 +370,24 @@ function formatSize(size: number) {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20rpx;
+}
+.owner-info {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+.owner-name {
+  font-size: 27rpx;
+}
+.owner-meta {
+  margin-top: 6rpx;
+  color: #81918b;
+  font-size: 21rpx;
 }
 .owner-edit {
+  flex: 0 0 auto;
   color: #0f7a62;
   font-size: 22rpx;
   font-weight: 650;

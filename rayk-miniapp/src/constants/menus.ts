@@ -18,6 +18,7 @@ const doctor: MenuItem[] = [
 
 const platform: MenuItem[] = [
   { title: '医院管理', description: '创建、编辑、启停合作医院和预录入医生', icon: '院', route: '/pages-tenant/dashboard/index', permission: 'platform:tenant:list' },
+  { title: '累计随访任务', description: '查看任务、客户反馈与完成情况', icon: '访', route: '/pages-tenant/dashboard/followup', permission: 'platform:tenant:list' },
   { title: '反馈中心', description: '查看、回复与关闭用户反馈', icon: '答', route: '/pages-platform/support/index' },
 ]
 

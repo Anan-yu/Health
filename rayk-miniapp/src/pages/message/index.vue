@@ -3,7 +3,7 @@
     <view class="page-heading">
       <view
         ><view class="eyebrow">NOTIFICATIONS</view><view class="title">消息中心</view
-        ><view class="subtitle">已发布报告和待处理随访会在这里汇总</view></view
+        ><view class="subtitle">已发布报告和用户健康随访会在这里汇总</view></view
       >
       <view class="message-count">{{ items.length }}</view>
     </view>
@@ -32,6 +32,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { getMyFollowups } from '@/api/followup'
 import { getMyHealthReports } from '@/api/health-report'
 import PageState from '@/components/PageState.vue'
+import { useAuthStore } from '@/stores/auth'
 
 type Notification = {
   id: string
@@ -44,6 +45,8 @@ const reports = ref<Awaited<ReturnType<typeof getMyHealthReports>>>([])
 const followups = ref<Awaited<ReturnType<typeof getMyFollowups>>>([])
 const loading = ref(true)
 const error = ref('')
+const auth = useAuthStore()
+const isDoctor = computed(() => auth.currentWorkbench === 'DOCTOR')
 const items = computed<Notification[]>(() => [
   ...reports.value.map((report) => ({
     id: report.id,
@@ -53,16 +56,24 @@ const items = computed<Notification[]>(() => [
     time: report.publishedAt || '刚刚',
   })),
   ...followups.value
-    .filter((followup) => followup.status !== 'COMPLETED')
+    .filter((followup) => isDoctor.value || followup.status !== 'COMPLETED')
     .map((followup) => ({
       id: followup.id,
       kind: 'followup' as const,
-      title: '待完成随访',
-      content: followup.title,
-      time: `计划完成：${followup.dueDate}`,
+      title: isDoctor.value ? '用户健康随访任务' : '待完成健康随访',
+      content: isDoctor.value
+        ? `${followup.title} · ${followup.status === 'COMPLETED' ? '已完成' : '进行中'}`
+        : followup.title,
+      time: `截止日期：${followup.dueDate}`,
     })),
 ])
 const open = (item: Notification) => {
+  if (isDoctor.value) {
+    uni.navigateTo({
+      url: item.kind === 'report' ? '/pages-business/lab-report/index' : '/pages-business/patient/index',
+    })
+    return
+  }
   const url =
     item.kind === 'report'
       ? `/pages-customer/health-report/detail?id=${item.id}`

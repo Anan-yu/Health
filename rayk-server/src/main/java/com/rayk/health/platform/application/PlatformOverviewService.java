@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.rayk.health.common.exception.BusinessException;
 import com.rayk.health.common.exception.ErrorCode;
+import com.rayk.health.patient.entity.PatientEntity;
+import com.rayk.health.patient.mapper.PatientMapper;
 import com.rayk.health.platform.dto.CreatePlatformDoctorRequest;
 import com.rayk.health.platform.dto.CreatePlatformTenantRequest;
 import com.rayk.health.platform.dto.UpdatePlatformTenantRequest;
@@ -45,13 +47,14 @@ public class PlatformOverviewService {
     private final SysRolePermissionMapper rolePermissionMapper;
     private final SysUserRoleMapper userRoleMapper;
     private final SysUserWorkbenchMapper workbenchMapper;
+    private final PatientMapper patientMapper;
     private final PasswordEncoder passwordEncoder;
 
     public PlatformOverviewService(
             PlatformOverviewMapper mapper, SysTenantMapper tenantMapper, SysUserMapper userMapper,
             SysRoleMapper roleMapper, SysRolePermissionMapper rolePermissionMapper,
             SysUserRoleMapper userRoleMapper, SysUserWorkbenchMapper workbenchMapper,
-            PasswordEncoder passwordEncoder) {
+            PatientMapper patientMapper, PasswordEncoder passwordEncoder) {
         this.mapper = mapper;
         this.tenantMapper = tenantMapper;
         this.userMapper = userMapper;
@@ -59,13 +62,15 @@ public class PlatformOverviewService {
         this.rolePermissionMapper = rolePermissionMapper;
         this.userRoleMapper = userRoleMapper;
         this.workbenchMapper = workbenchMapper;
+        this.patientMapper = patientMapper;
         this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional(readOnly = true)
     public PlatformOverviewVo overview() {
         return new PlatformOverviewVo(mapper.countTenants(), mapper.countActiveTenants(), mapper.countUsers(),
-                mapper.countPatients(), 0, mapper.countPendingFollowups(), mapper.selectTenants());
+                mapper.countPatients(), 0, mapper.countPendingFollowups(), mapper.countTodayFollowups(), mapper.selectTenants(),
+                mapper.selectRecentFollowups());
     }
 
     @Transactional(readOnly = true)
@@ -175,8 +180,59 @@ public class PlatformOverviewService {
         workbench.setDeleted(0);
         workbench.setVersion(0);
         workbenchMapper.insert(workbench);
+        provisionPersonalHealthAccess(user, operator, now);
         return new StaffVo(String.valueOf(user.getId()), user.getUsername(), user.getDisplayName(),
                 user.getPhoneMasked(), List.of("DOCTOR"), user.getStatus());
+    }
+
+    /** A doctor may also be a health-service customer using the same verified phone account. */
+    private void provisionPersonalHealthAccess(SysUserEntity user, long operator, LocalDateTime now) {
+        SysRoleEntity customerRole = roleMapper.selectByTenantAndCodeIgnoringTenant(user.getTenantId(), "CUSTOMER");
+        if (customerRole == null) throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+
+        SysUserRoleEntity customerUserRole = new SysUserRoleEntity();
+        customerUserRole.setId(IdWorker.getId());
+        customerUserRole.setTenantId(user.getTenantId());
+        customerUserRole.setUserId(user.getId());
+        customerUserRole.setRoleId(customerRole.getId());
+        customerUserRole.setCreatedBy(operator);
+        customerUserRole.setCreatedAt(now);
+        customerUserRole.setUpdatedBy(operator);
+        customerUserRole.setUpdatedAt(now);
+        customerUserRole.setDeleted(0);
+        customerUserRole.setVersion(0);
+        userRoleMapper.insert(customerUserRole);
+
+        SysUserWorkbenchEntity personalWorkbench = new SysUserWorkbenchEntity();
+        personalWorkbench.setId(IdWorker.getId());
+        personalWorkbench.setTenantId(user.getTenantId());
+        personalWorkbench.setUserId(user.getId());
+        personalWorkbench.setWorkbenchCode("CUSTOMER");
+        personalWorkbench.setIsDefault(0);
+        personalWorkbench.setCreatedBy(operator);
+        personalWorkbench.setCreatedAt(now);
+        personalWorkbench.setUpdatedBy(operator);
+        personalWorkbench.setUpdatedAt(now);
+        personalWorkbench.setDeleted(0);
+        personalWorkbench.setVersion(0);
+        workbenchMapper.insert(personalWorkbench);
+
+        PatientEntity patient = new PatientEntity();
+        patient.setId(IdWorker.getId());
+        patient.setTenantId(user.getTenantId());
+        patient.setUserId(user.getId());
+        patient.setName(user.getDisplayName());
+        patient.setGender("UNKNOWN");
+        patient.setPhoneMasked(user.getPhoneMasked());
+        patient.setPhoneHash(user.getPhoneHash());
+        patient.setStatus("ACTIVE");
+        patient.setCreatedBy(operator);
+        patient.setCreatedAt(now);
+        patient.setUpdatedBy(operator);
+        patient.setUpdatedAt(now);
+        patient.setDeleted(0);
+        patient.setVersion(0);
+        patientMapper.insert(patient);
     }
 
     @Transactional

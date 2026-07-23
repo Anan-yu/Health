@@ -9,4 +9,6 @@ public record PlatformOverviewVo(
         long patientCount,
         long pendingReviewCount,
         long pendingFollowupCount,
-        List<TenantSummaryVo> tenants) {}
+        long todayFollowupCount,
+        List<TenantSummaryVo> tenants,
+        List<PlatformFollowupVo> followups) {}

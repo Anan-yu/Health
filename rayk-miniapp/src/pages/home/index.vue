@@ -63,7 +63,7 @@
         </view>
       </view>
 
-      <view v-if="showInsight" class="insight-card" @click="open(insightRoute)">
+      <view v-if="isCustomer" class="insight-card" @click="open(insightRoute)">
         <view class="insight-icon">{{ isCustomer ? '✓' : '效' }}</view>
         <view class="insight-content">
           <view class="insight-label">{{ insightLabel }}</view>
@@ -101,8 +101,6 @@ const roleNames: Record<Role, string> = {
 }
 
 const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
-const isPlatformAdmin = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
-const showInsight = computed(() => !isPlatformAdmin.value)
 const roleLabel = computed(() =>
   auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '工作台',
 )
@@ -119,26 +117,12 @@ const profileCompleteness = computed(() => {
   const value = summary.value?.metrics.find((item) => item.code === 'PROFILE')?.value ?? 0
   return Math.min(100, Math.max(0, Number(value) || 0))
 })
-const pendingTaskCount = computed(() => {
-  const pendingCodes = new Set(['OCR', 'FOLLOWUP'])
-  return (summary.value?.metrics || [])
-    .filter((item) => pendingCodes.has(item.code))
-    .reduce((total, item) => total + Math.max(0, Number(item.value) || 0), 0)
-})
 const insightTitle = computed(() =>
-  isCustomer.value
-    ? `健康档案已完善 ${profileCompleteness.value}%`
-    : pendingTaskCount.value > 0
-      ? `当前共有 ${pendingTaskCount.value} 项待处理任务`
-      : '当前暂无待处理任务',
+  `健康档案已完善 ${profileCompleteness.value}%`,
 )
-const insightLabel = computed(() => (isCustomer.value ? '健康管理进度' : '团队工作提醒'))
+const insightLabel = computed(() => '健康管理进度')
 const insightProgress = computed(() => profileCompleteness.value)
-const insightRoute = computed(() =>
-  isCustomer.value
-    ? '/pages-customer/profile/index'
-    : '/pages-business/patient/index',
-)
+const insightRoute = computed(() => '/pages-customer/profile/index')
 const dateText = computed(() => {
   const now = new Date()
   const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']

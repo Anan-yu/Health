@@ -4,11 +4,13 @@ import com.rayk.health.common.api.ApiResponse;
 import com.rayk.health.common.api.PageResponse;
 import com.rayk.health.patient.application.PatientApplicationService;
 import com.rayk.health.patient.dto.CreatePatientRequest;
+import com.rayk.health.patient.dto.UpdatePatientIdentityRequest;
 import com.rayk.health.patient.vo.PatientVo;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -36,6 +38,12 @@ public class PatientController {
     @GetMapping("/{id}")
     public ApiResponse<PatientVo> get(@PathVariable long id) {
         return ApiResponse.success(service.get(id));
+    }
+
+    @PutMapping("/{id}/identity")
+    public ApiResponse<PatientVo> updateIdentity(
+            @PathVariable long id, @Valid @RequestBody UpdatePatientIdentityRequest request) {
+        return ApiResponse.success(service.updateSelfIdentity(id, request));
     }
 }
 

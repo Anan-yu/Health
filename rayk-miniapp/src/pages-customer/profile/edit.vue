@@ -5,6 +5,12 @@
     ><PageState :loading="loading" :error="error" :empty="!patient"
       ><view class="questionnaire-note"><text>健康问卷</text><view>身高体重、既往情况、饮食、睡眠和情绪信息将与检验报告共同用于本次健康评估。</view></view
       ><view class="card form-card"
+        ><view class="identity-note">姓名和手机号用于医院医生按姓名或手机号查询您的健康报告。</view
+        ><view class="field"
+          ><text>姓名</text><input v-model="identity.name" placeholder="请输入真实姓名" /></view
+        ><view class="field"
+          ><text>手机号</text
+          ><input v-model="identity.phone" type="number" maxlength="11" :placeholder="patient?.phoneMasked || '请输入 11 位手机号'" /><view class="field-tip">{{ patient?.phoneMasked ? `当前已登记：${patient.phoneMasked}` : '填写后可供医生按手机号查询健康报告' }}</view></view
         ><view class="field"
           ><text>身高（cm）</text
           ><input v-model="form.heightCm" type="digit" placeholder="例如 168" /></view
@@ -125,7 +131,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getHealthProfile, getMyProfile, updateHealthProfile } from '@/api/patient'
+import { getHealthProfile, getMyProfile, updateHealthProfile, updatePatientIdentity } from '@/api/patient'
 import type { HealthProfile, Patient } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 
@@ -133,6 +139,7 @@ const patient = ref<Patient | null>(null),
   loading = ref(true),
   saving = ref(false),
   error = ref('')
+const identity = reactive({ name: '', phone: '' })
 const form = reactive<Record<string, string>>({
   heightCm: '',
   weightKg: '',
@@ -217,6 +224,8 @@ onShow(async () => {
   try {
     patient.value = await getMyProfile()
     if (patient.value) {
+      identity.name = patient.value.name || ''
+      identity.phone = ''
       const profile = await getHealthProfile(patient.value.id)
       assign(profile)
     }
@@ -228,6 +237,14 @@ onShow(async () => {
 })
 const save = async () => {
   if (!patient.value) return
+  if (!identity.name.trim()) {
+    uni.showToast({ title: '请填写姓名', icon: 'none' })
+    return
+  }
+  if (identity.phone && !/^1[3-9]\d{9}$/.test(identity.phone)) {
+    uni.showToast({ title: '请输入正确的 11 位手机号', icon: 'none' })
+    return
+  }
   const height = Number(form.heightCm)
   const weight = Number(form.weightKg)
   const sleepHours = Number(form.sleepHours)
@@ -245,6 +262,10 @@ const save = async () => {
   }
   saving.value = true
   try {
+    patient.value = await updatePatientIdentity(patient.value.id, {
+      name: identity.name.trim(),
+      ...(identity.phone ? { phone: identity.phone } : {}),
+    })
     await updateHealthProfile(patient.value.id, {
       ...form,
       heightCm: form.heightCm ? height : null,
@@ -267,6 +288,7 @@ const save = async () => {
 }
 .questionnaire-note { margin-bottom:20rpx; padding:24rpx 26rpx; border-radius:20rpx; background:#eaf8f3; color:#42685d; font-size:23rpx; line-height:1.65; }
 .questionnaire-note text { display:block; margin-bottom:6rpx; color:#0e755d; font-size:27rpx; font-weight:720; }
+.identity-note { margin-bottom: 4rpx; color: #55746a; font-size: 22rpx; line-height: 1.6; }
 .field {
   padding: 24rpx 0;
   border-bottom: 1rpx solid #edf1ef;
@@ -292,6 +314,7 @@ const save = async () => {
 .field textarea {
   min-height: 110rpx;
 }
+.field-tip { margin-top: 10rpx; color: #8b9994; font-size: 21rpx; line-height: 1.5; }
 .primary-button {
   margin-top: 26rpx;
   border-radius: 16rpx;

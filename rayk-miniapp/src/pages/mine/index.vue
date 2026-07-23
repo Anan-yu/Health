@@ -1,6 +1,6 @@
 <template>
   <view class="page mine-page">
-    <view class="profile-card">
+    <view class="profile-card" :class="{ clickable: canSwitch }" @click="canSwitch && goSwitch()">
       <view class="profile-pattern" />
       <view class="profile-top">
         <view class="avatar">{{ avatarText }}</view>
@@ -9,7 +9,7 @@
           <view class="profile-meta">{{ auth.user?.tenantName }}</view>
           <view class="role-pill">{{ workbenchName }}</view>
         </view>
-        <view class="profile-arrow">›</view>
+        <view v-if="canSwitch" class="profile-arrow">›</view>
       </view>
       <view class="profile-stats">
         <view
@@ -23,30 +23,14 @@
       </view>
     </view>
 
-    <view class="section-head">
+    <view v-if="!isPlatform" class="section-head">
       <view>
         <view class="eyebrow">ACCOUNT</view>
         <view class="section-title">账号与服务</view>
       </view>
     </view>
-    <view class="card settings-card">
-      <view class="setting" @click="goSwitch">
-        <view class="setting-icon green">换</view>
-        <view class="setting-content">
-          <view class="setting-title">切换工作台</view>
-          <view class="muted">在不同身份与服务视角间切换</view>
-        </view>
-        <view class="setting-arrow">›</view>
-      </view>
-      <view class="setting" @click="bindCurrentWeChat">
-        <view class="setting-icon amber">安</view>
-        <view class="setting-content">
-          <view class="setting-title">账号安全</view>
-          <view class="muted">微信绑定与登录设备管理</view>
-        </view>
-        <view class="setting-arrow">›</view>
-      </view>
-      <view v-if="!isPlatform" class="setting last" @click="goSupport">
+    <view v-if="!isPlatform" class="card settings-card">
+      <view class="setting last" @click="goSupport">
         <view class="setting-icon purple">帮</view>
         <view class="setting-content">
           <view class="setting-title">帮助与反馈</view>
@@ -63,7 +47,6 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { bindWeChat } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 import type { Role } from '@/types/api'
 
@@ -77,24 +60,10 @@ const avatarText = computed(() => auth.user?.displayName?.slice(0, 1) || 'R')
 const workbenchName = computed(() =>
   auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '当前工作台',
 )
+const canSwitch = computed(() => (auth.user?.availableWorkbenches.length || 0) > 1)
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
 const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
-async function bindCurrentWeChat() {
-  // #ifdef MP-WEIXIN
-  try {
-    const result = await uni.login({ provider: 'weixin' })
-    if (!result.code) throw new Error('微信未返回登录凭证')
-    await bindWeChat(result.code)
-    uni.showToast({ title: '微信身份已绑定', icon: 'success' })
-  } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : '绑定失败', icon: 'none' })
-  }
-  // #endif
-  // #ifdef H5
-  uni.showToast({ title: '请在微信小程序中完成绑定', icon: 'none' })
-  // #endif
-}
 async function signOut() {
   await auth.signOut()
   uni.reLaunch({ url: '/pages/login/index' })
@@ -113,6 +82,9 @@ async function signOut() {
   background: linear-gradient(145deg, #123d34, #0b735c);
   color: #fff;
   box-shadow: 0 22rpx 48rpx rgba(10, 91, 72, 0.21);
+}
+.profile-card.clickable {
+  cursor: pointer;
 }
 .profile-pattern {
   position: absolute;

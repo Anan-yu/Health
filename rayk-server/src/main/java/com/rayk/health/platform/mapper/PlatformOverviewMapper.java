@@ -2,6 +2,7 @@ package com.rayk.health.platform.mapper;
 
 import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.rayk.health.platform.vo.TenantSummaryVo;
+import com.rayk.health.platform.vo.PlatformFollowupVo;
 import java.util.List;
 import org.apache.ibatis.annotations.Select;
 
@@ -41,6 +42,10 @@ public interface PlatformOverviewMapper {
     long countPendingFollowups();
 
     @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT COUNT(*) FROM followup_task WHERE DATE(created_at) = CURRENT_DATE AND deleted = 0")
+    long countTodayFollowups();
+
+    @InterceptorIgnore(tenantLine = "true")
     @Select(
             """
             SELECT CAST(t.tenant_id AS CHAR) AS id,
@@ -59,4 +64,22 @@ public interface PlatformOverviewMapper {
             ORDER BY t.tenant_id
             """)
     List<TenantSummaryVo> selectTenants();
+
+    @InterceptorIgnore(tenantLine = "true")
+    @Select(
+            """
+            SELECT CAST(f.id AS CHAR) AS id,
+                   p.name AS patientName,
+                   f.title AS title,
+                   f.due_date AS dueDate,
+                   f.status AS status,
+                   f.feedback AS feedback,
+                   f.completed_at AS completedAt
+            FROM followup_task f
+            INNER JOIN health_patient p ON p.id = f.patient_id AND p.deleted = 0
+            WHERE f.deleted = 0
+            ORDER BY f.updated_at DESC
+            LIMIT 8
+            """)
+    List<PlatformFollowupVo> selectRecentFollowups();
 }

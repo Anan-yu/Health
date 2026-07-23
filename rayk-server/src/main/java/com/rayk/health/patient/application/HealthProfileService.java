@@ -32,6 +32,7 @@ public class HealthProfileService {
     public HealthProfileVo getProfile(long patientId) {
         dataScopeService.requirePatient(patientId);
         HealthProfileEntity entity = findOrCreate(patientId);
+        refreshDerivedValues(entity, false);
         return toVo(entity);
     }
 
@@ -70,11 +71,9 @@ public class HealthProfileService {
         entity.setDyslipidemiaStatus(normalize(request.dyslipidemiaStatus()));
         entity.setFattyLiverStatus(normalize(request.fattyLiverStatus()));
 
-        entity.recalculateBmi();
-        entity.setProfileCompleteness(ProfileCompletenessCalculator.calculate(entity));
         entity.setUpdatedBy(current.userId());
         entity.setUpdatedAt(LocalDateTime.now());
-        profileMapper.updateById(entity);
+        refreshDerivedValues(entity, true);
 
         return toVo(entity);
     }
@@ -82,6 +81,21 @@ public class HealthProfileService {
     private static String normalize(String value) {
         if (value == null || value.isBlank()) return null;
         return value.trim();
+    }
+
+    /**
+     * Keeps older seeded/imported records consistent with the current questionnaire fields.
+     * Completeness is derived, never trusted from a previously stored percentage.
+     */
+    private void refreshDerivedValues(HealthProfileEntity entity, boolean forcePersist) {
+        entity.recalculateBmi();
+        int calculatedCompleteness = ProfileCompletenessCalculator.calculate(entity);
+        boolean changed = entity.getProfileCompleteness() == null
+                || entity.getProfileCompleteness() != calculatedCompleteness;
+        entity.setProfileCompleteness(calculatedCompleteness);
+        if (forcePersist || changed) {
+            profileMapper.updateById(entity);
+        }
     }
 
     private HealthProfileEntity findOrCreate(long patientId) {

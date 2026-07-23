@@ -11,6 +11,7 @@ import com.rayk.health.security.service.CurrentPrincipal;
 import com.rayk.health.security.service.CurrentUser;
 import com.rayk.health.workbench.dto.HomeMetric;
 import com.rayk.health.workbench.dto.HomeSummaryData;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -48,7 +49,7 @@ public class HomeController {
         return List.of(
                 new HomeMetric("TENANT", "合作医院", overview.tenantCount(), "/pages-tenant/dashboard/index"),
                 new HomeMetric("USER", "预录入医生", overview.userCount(), "/pages-tenant/dashboard/index"),
-                new HomeMetric("FOLLOWUP", "健康随访任务", overview.pendingFollowupCount(), "/pages-tenant/dashboard/index"));
+                new HomeMetric("FOLLOWUP", "当日随访", overview.todayFollowupCount(), "/pages-tenant/dashboard/followup"));
     }
 
     private List<HomeMetric> customerMetrics() {
@@ -64,11 +65,22 @@ public class HomeController {
     }
 
     private List<HomeMetric> doctorMetrics() {
-        long patients = patientService.list(null).size();
-        long assessments = workflowService.listAssessments().stream().filter(item -> "SUCCESS".equals(item.status())).count();
+        LocalDate today = LocalDate.now();
+        long patients = workflowService.listLabReports().stream()
+                .filter(item -> item.createdAt() != null && today.equals(item.createdAt().toLocalDate()))
+                .map(item -> item.patientId())
+                .distinct()
+                .count();
+        long assessments = workflowService.listAssessments().stream()
+                .filter(item -> "SUCCESS".equals(item.status()))
+                .filter(item -> item.createdAt() != null && today.equals(item.createdAt().toLocalDate()))
+                .count();
+        long reports = workflowService.listHealthReports().stream()
+                .filter(item -> item.publishedAt() != null && today.equals(item.publishedAt().toLocalDate()))
+                .count();
         return List.of(
                 new HomeMetric("PATIENT", "已体检者数量", patients, "/pages-business/patient/index"),
                 new HomeMetric("ASSESSMENT", "可查看 AI 评估", assessments, "/pages-business/assessment/index"),
-                new HomeMetric("REPORT", "健康报告", workflowService.listHealthReports().size(), "/pages-business/lab-report/index"));
+                new HomeMetric("REPORT", "健康报告", reports, "/pages-business/lab-report/index"));
     }
 }

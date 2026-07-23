@@ -3,6 +3,7 @@ package com.rayk.health.patient.application;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.rayk.health.patient.converter.PatientConverter;
 import com.rayk.health.patient.dto.CreatePatientRequest;
+import com.rayk.health.patient.dto.UpdatePatientIdentityRequest;
 import com.rayk.health.patient.entity.PatientEntity;
 import com.rayk.health.patient.mapper.PatientMapper;
 import com.rayk.health.patient.vo.PatientVo;
@@ -46,6 +47,22 @@ public class PatientApplicationService {
 
     public PatientVo get(long id) {
         return converter.toVo(dataScopeService.requirePatient(id));
+    }
+
+    @PreAuthorize("hasAuthority('self:health-record') and principal.workbench == 'CUSTOMER'")
+    public PatientVo updateSelfIdentity(long id, UpdatePatientIdentityRequest request) {
+        PatientEntity entity = dataScopeService.requirePatient(id);
+        CurrentPrincipal current = CurrentUser.require();
+        entity.setName(request.name().trim());
+        if (request.phone() != null && !request.phone().isBlank()) {
+            String phone = PhoneIdentity.normalize(request.phone());
+            entity.setPhoneMasked(maskPhone(phone));
+            entity.setPhoneHash(PhoneIdentity.hash(phone));
+        }
+        entity.setUpdatedBy(current.userId());
+        entity.setUpdatedAt(LocalDateTime.now());
+        patientMapper.updateById(entity);
+        return converter.toVo(entity);
     }
 
     @PreAuthorize("hasAuthority('patient:create') or (hasAuthority('self:health-record') and principal.workbench == 'CUSTOMER')")
