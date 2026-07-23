@@ -20,9 +20,6 @@
           ><text>{{ auth.user?.availableWorkbenches.length || 0 }}</text
           ><text>可用工作台</text></view
         >
-        <view
-          ><text>{{ auth.permissions.length }}</text
-          ><text>授权能力</text></view
         >
       </view>
     </view>
@@ -39,14 +36,6 @@
         <view class="setting-content">
           <view class="setting-title">切换工作台</view>
           <view class="muted">在不同身份与服务视角间切换</view>
-        </view>
-        <view class="setting-arrow">›</view>
-      </view>
-      <view v-if="isCustomer" class="setting" @click="goPrivacy">
-        <view class="setting-icon blue">隐</view>
-        <view class="setting-content">
-          <view class="setting-title">隐私授权</view>
-          <view class="muted">管理健康数据授权范围</view>
         </view>
         <view class="setting-arrow">›</view>
       </view>
@@ -90,10 +79,8 @@ const workbenchName = computed(() =>
   auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '当前工作台',
 )
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
-const goPrivacy = () => uni.navigateTo({ url: '/pages-customer/privacy/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
 const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
-const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
 async function bindCurrentWeChat() {
   // #ifdef MP-WEIXIN
   try {
@@ -186,7 +173,7 @@ async function signOut() {
 .profile-stats {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   margin-top: 34rpx;
   padding-top: 27rpx;
   border-top: 1rpx solid rgba(255, 255, 255, 0.13);

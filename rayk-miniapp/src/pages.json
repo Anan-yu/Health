@@ -14,7 +14,6 @@
     { "root": "pages-customer", "pages": [
       { "path": "profile/index", "style": { "navigationBarTitleText": "健康档案" } },
       { "path": "profile/edit", "style": { "navigationBarTitleText": "完善健康档案" } },
-      { "path": "privacy/index", "style": { "navigationBarTitleText": "隐私授权" } },
       { "path": "lab-report/upload", "style": { "navigationBarTitleText": "上传报告" } },
       { "path": "lab-report/index", "style": { "navigationBarTitleText": "我的检验报告" } },
       { "path": "lab-report/detail", "style": { "navigationBarTitleText": "报告详情" } },

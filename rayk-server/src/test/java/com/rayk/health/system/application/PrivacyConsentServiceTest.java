@@ -1,15 +1,13 @@
 package com.rayk.health.system.application;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import com.rayk.health.common.exception.BusinessException;
-import com.rayk.health.common.exception.ErrorCode;
 import com.rayk.health.patient.application.DataScopeService;
 import com.rayk.health.patient.entity.PatientEntity;
 import com.rayk.health.security.service.CurrentPrincipal;
@@ -76,19 +74,15 @@ class PrivacyConsentServiceTest {
     }
 
     @Test
-    void rejectsMissingAssessmentConsentWithSpecificCode() {
+    void recordsMissingAssessmentConsentOnFirstUse() {
         when(consentMapper.selectOne(any())).thenReturn(null);
 
-        assertThatThrownBy(
+        assertThatCode(
                         () ->
                                 service.requireConsent(
                                         30001L, PrivacyConsentService.TYPE_HEALTH_ASSESSMENT))
-                .isInstanceOfSatisfying(
-                        BusinessException.class,
-                        exception ->
-                                org.assertj.core.api.Assertions.assertThat(
-                                                exception.getErrorCode())
-                                        .isEqualTo(
-                                                ErrorCode.HEALTH_ASSESSMENT_CONSENT_REQUIRED));
+                .doesNotThrowAnyException();
+
+        verify(consentMapper).insert(any(PrivacyConsentEntity.class));
     }
 }

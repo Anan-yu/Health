@@ -3,9 +3,6 @@
     ><view class="title">健康档案与问卷</view
     ><view class="subtitle page-copy">请认真作答，作答内容将作为健康报告评估依据。</view
     ><PageState :loading="loading" :error="error" :empty="!patient"
-      ><view v-if="!collectionAuthorized" class="consent-warning"
-        ><text>保存健康档案前，请先授权“健康数据采集”。</text
-        ><button size="mini" @click="openPrivacy">去授权</button></view
       ><view class="questionnaire-note"><text>健康问卷</text><view>身高体重、既往情况、饮食、睡眠和情绪信息将与检验报告共同用于本次健康评估。</view></view
       ><view class="card form-card"
         ><view class="field"
@@ -116,7 +113,7 @@
       ><button
         class="primary-button"
         :loading="saving"
-        :disabled="!collectionAuthorized || saving"
+        :disabled="saving"
         @click="save"
       >
         保存健康档案
@@ -129,14 +126,12 @@
 import { reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getHealthProfile, getMyProfile, updateHealthProfile } from '@/api/patient'
-import { getPrivacyConsents } from '@/api/privacy'
 import type { HealthProfile, Patient } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 
 const patient = ref<Patient | null>(null),
   loading = ref(true),
   saving = ref(false),
-  collectionAuthorized = ref(false),
   error = ref('')
 const form = reactive<Record<string, string>>({
   heightCm: '',
@@ -222,14 +217,8 @@ onShow(async () => {
   try {
     patient.value = await getMyProfile()
     if (patient.value) {
-      const [profile, consents] = await Promise.all([
-        getHealthProfile(patient.value.id),
-        getPrivacyConsents(patient.value.id),
-      ])
+      const profile = await getHealthProfile(patient.value.id)
       assign(profile)
-      collectionAuthorized.value = consents.some(
-        (item) => item.consentType === 'DATA_COLLECTION' && item.consented === 1,
-      )
     }
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '档案加载失败'
@@ -239,10 +228,6 @@ onShow(async () => {
 })
 const save = async () => {
   if (!patient.value) return
-  if (!collectionAuthorized.value) {
-    uni.showToast({ title: '请先授权健康数据采集', icon: 'none' })
-    return
-  }
   const height = Number(form.heightCm)
   const weight = Number(form.weightKg)
   const sleepHours = Number(form.sleepHours)
@@ -274,7 +259,6 @@ const save = async () => {
     saving.value = false
   }
 }
-const openPrivacy = () => uni.navigateTo({ url: '/pages-customer/privacy/index' })
 </script>
 
 <style scoped>
@@ -314,22 +298,5 @@ const openPrivacy = () => uni.navigateTo({ url: '/pages-customer/privacy/index' 
   background: #0f7a62;
   color: #fff;
   font-size: 28rpx;
-}
-.consent-warning {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20rpx;
-  margin-bottom: 20rpx;
-  padding: 22rpx;
-  border-radius: 18rpx;
-  background: #fff4dc;
-  color: #7b590f;
-  font-size: 23rpx;
-}
-.consent-warning button {
-  flex: 0 0 auto;
-  color: #7b590f;
-  background: #ffe4a8;
 }
 </style>

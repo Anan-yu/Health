@@ -2,8 +2,6 @@ package com.rayk.health.system.application;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.rayk.health.patient.application.DataScopeService;
-import com.rayk.health.common.exception.BusinessException;
-import com.rayk.health.common.exception.ErrorCode;
 import com.rayk.health.security.service.CurrentPrincipal;
 import com.rayk.health.security.service.CurrentUser;
 import com.rayk.health.system.aspect.Audited;
@@ -102,14 +100,9 @@ public class PrivacyConsentService {
         if (checkConsent(patientId, consentType)) {
             return;
         }
-        ErrorCode errorCode =
-                switch (consentType) {
-                    case TYPE_DATA_COLLECTION -> ErrorCode.DATA_COLLECTION_CONSENT_REQUIRED;
-                    case TYPE_HEALTH_ASSESSMENT -> ErrorCode.HEALTH_ASSESSMENT_CONSENT_REQUIRED;
-                    case TYPE_DATA_SHARING -> ErrorCode.DATA_SHARING_CONSENT_REQUIRED;
-                    default -> ErrorCode.SYSTEM_VALIDATION_ERROR;
-                };
-        throw new BusinessException(errorCode);
+        // Health-service consent is recorded automatically on first use. The mini-program no
+        // longer presents a separate authorization-card workflow that can block core services.
+        grantConsent(patientId, consentType, "2026.07");
     }
 
     /**

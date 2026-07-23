@@ -57,17 +57,7 @@
       </view>
     </view>
 
-    <view class="privacy-tip"
-      ><view class="shield">安</view
-      ><view class="privacy-content"
-        ><text>{{ collectionAuthorized ? '隐私安全保护' : '需要健康数据采集授权' }}</text
-        ><text>{{
-          collectionAuthorized
-            ? '文件将加密传输'
-            : '授权后才能上传并保存检验报告'
-        }}</text></view
-      ><button v-if="!collectionAuthorized" size="mini" @click="openPrivacy">去授权</button></view
-    >
+    <view class="privacy-tip"><view class="shield">安</view><view class="privacy-content"><text>安全上传</text><text>文件将加密传输</text></view></view>
     <view v-if="error" class="error">{{ error }} <text @click="submit">重新尝试</text></view>
     <button class="primary submit-button" :loading="loading" @click="submit">安全上传报告</button>
   </view>
@@ -78,12 +68,10 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { uploadLabReport } from '@/api/lab-report'
 import { getMyProfile } from '@/api/patient'
-import { getPrivacyConsents } from '@/api/privacy'
 import type { Patient } from '@/types/api'
 
 const today = new Date()
 const patient = ref<Patient | null>(null),
-  collectionAuthorized = ref(false),
   patientId = ref(''),
   reportName = ref('生化检验报告'),
   reportDate = ref(
@@ -105,10 +93,6 @@ onShow(async () => {
       error.value = '当前账号尚未关联客户档案'
       return
     }
-    const consents = await getPrivacyConsents(patientId.value)
-    collectionAuthorized.value = consents.some(
-      (item) => item.consentType === 'DATA_COLLECTION' && item.consented === 1,
-    )
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '客户档案加载失败'
   }
@@ -202,10 +186,6 @@ async function submit() {
     error.value = '当前账号尚未关联客户档案，请联系机构管理员'
     return
   }
-  if (!collectionAuthorized.value) {
-    error.value = '请先完成健康数据采集授权'
-    return
-  }
   if (!reportName.value.trim() || !filePath.value) {
     error.value = '请填写报告信息并选择文件'
     return
@@ -234,8 +214,6 @@ async function submit() {
     loading.value = false
   }
 }
-
-const openPrivacy = () => uni.navigateTo({ url: '/pages-customer/privacy/index' })
 
 const editOwner = () => uni.navigateTo({ url: '/pages-customer/profile/edit' })
 
@@ -467,12 +445,6 @@ function formatSize(size: number) {
 .privacy-content {
   display: flex;
   flex-direction: column;
-}
-.privacy-tip button {
-  flex: 0 0 auto;
-  margin-left: auto;
-  color: #825908;
-  background: #ffe4a8;
 }
 .privacy-tip text:first-child {
   color: #72531a;

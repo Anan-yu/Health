@@ -26,14 +26,6 @@
           ><text class="completion">{{ profile?.profileCompleteness || 0 }}%</text></view
         ><progress :percent="profile?.profileCompleteness || 0" active-color="#176b57"
       /></view>
-      <view class="card"
-        ><view class="row"
-          ><view
-            ><view class="section-title">隐私与数据授权</view
-            ><view class="subtitle">可随时查看、授权或撤回数据使用范围</view></view
-          ><text class="link" @click="privacy">管理 ›</text></view
-        ></view
-      >
       <button class="primary-button" @click="edit">完善健康档案</button>
     </PageState>
   </view>
@@ -69,7 +61,6 @@ onShow(async () => {
   }
 })
 const edit = () => uni.navigateTo({ url: '/pages-customer/profile/edit' })
-const privacy = () => uni.navigateTo({ url: '/pages-customer/privacy/index' })
 </script>
 
 <style scoped>
@@ -77,10 +68,6 @@ const privacy = () => uni.navigateTo({ url: '/pages-customer/privacy/index' })
   color: #0f7a62;
   font-size: 32rpx;
   font-weight: 750;
-}
-.link {
-  color: #0f7a62;
-  font-size: 24rpx;
 }
 .primary-button {
   margin-top: 26rpx;
