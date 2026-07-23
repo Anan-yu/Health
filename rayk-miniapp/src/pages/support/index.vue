@@ -68,16 +68,20 @@ import type { SupportTicket } from '@/types/api'
 
 const faqs = [
   {
-    question: '如何切换不同身份？',
-    answer: '进入“我的”或“工作台”，点击“切换工作台”，系统会按微信绑定账号自动展示可用身份。',
+    question: '如何登录并识别身份？',
+    answer: '使用微信授权手机号登录。平台已预录入的医生手机号会自动进入医生工作台；未预录入的手机号将创建个人健康账户。',
   },
   {
-    question: '上传报告后为什么没有评估？',
-    answer: '客户先确认 OCR 识别数据，系统再生成 AI 初评并提交医生审核；审核通过后客户才可查看结果。',
+    question: '健康档案和问卷有什么作用？',
+    answer: '身高、体重、睡眠、压力、饮食、运动、既往史和家族史等内容会与检验指标一起作为健康报告与健康随访的评估依据，请尽量如实、完整填写。',
   },
   {
-    question: '修改档案后数据何时更新？',
-    answer: '保存成功后，档案页和首页会重新读取最新数据；下拉刷新也可立即更新。',
+    question: '什么时候可以查看健康报告？',
+    answer: '报告上传后会自动完成识别与健康评估。评估完成后，可在“我的报告”查看健康报告，并根据报告中的建议完成后续健康随访。',
+  },
+  {
+    question: '提交反馈后在哪里查看回复？',
+    answer: '问题提交后由平台处理。仅当平台完成正式回复后，内容才会显示在本页“我的反馈”中。',
   },
 ]
 const categories = [
@@ -112,7 +116,9 @@ const selectCategory = (event: { detail: { value: string | number } }) => {
 const formatTime = (value: string) => value.replace('T', ' ').slice(0, 16)
 const load = async () => {
   try {
-    tickets.value = await getMySupportTickets()
+    tickets.value = (await getMySupportTickets()).filter(
+      (ticket) => ticket.status === 'RESOLVED' && Boolean(ticket.reply?.trim()),
+    )
   } catch {
     tickets.value = []
   }

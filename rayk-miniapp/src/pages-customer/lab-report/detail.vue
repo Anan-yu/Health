@@ -23,9 +23,7 @@
           ><text>正常范围</text></view
         >
       </view>
-      <button v-if="canConfirm" class="primary workflow-button" @click="openConfirmation">
-        {{ isProcessing ? '查看识别进度' : '校对并确认指标' }}
-      </button>
+      <view v-if="isProcessing" class="processing-note">系统正在自动识别检验指标并生成健康评估，请耐心等待。</view>
       <view class="section-head"
         ><view
           ><view class="eyebrow">INDICATORS</view><view class="section-title">检验指标</view></view
@@ -69,13 +67,10 @@ const abnormalCount = computed(
 const normalCount = computed(() =>
   Math.max((report.value?.indicators.length || 0) - abnormalCount.value, 0),
 )
-const canConfirm = computed(() =>
-  ['UPLOADED', 'OCR_PENDING', 'OCR_PROCESSING', 'OCR_FAILED', 'WAITING_CONFIRMATION'].includes(
+const isProcessing = computed(() =>
+  ['UPLOADED', 'OCR_PENDING', 'OCR_PROCESSING', 'CONFIRMED', 'AI_PROCESSING'].includes(
     report.value?.status || '',
   ),
-)
-const isProcessing = computed(() =>
-  ['UPLOADED', 'OCR_PENDING', 'OCR_PROCESSING'].includes(report.value?.status || ''),
 )
 const reportId = ref('')
 onLoad((q) => {
@@ -97,8 +92,6 @@ onShow(async () => {
     loading.value = false
   }
 })
-const openConfirmation = () =>
-  uni.navigateTo({ url: `/pages-customer/lab-report/confirm?id=${reportId.value}` })
 </script>
 
 <style scoped>
@@ -152,8 +145,14 @@ const openConfirmation = () =>
   border-radius: 25rpx;
   background: #fff;
 }
-.workflow-button {
+.processing-note {
   margin-top: 22rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 18rpx;
+  background: #eaf7f2;
+  color: #28715e;
+  font-size: 23rpx;
+  line-height: 1.6;
 }
 .indicator-summary view {
   display: flex;

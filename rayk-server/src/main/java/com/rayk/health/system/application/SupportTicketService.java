@@ -32,9 +32,12 @@ public class SupportTicketService {
                         new LambdaQueryWrapper<SupportTicketEntity>()
                                 .eq(SupportTicketEntity::getTenantId, current.tenantId())
                                 .eq(SupportTicketEntity::getUserId, current.userId())
+                                .eq(SupportTicketEntity::getStatus, "RESOLVED")
                                 .eq(SupportTicketEntity::getDeleted, 0)
                                 .orderByDesc(SupportTicketEntity::getCreatedAt))
                 .stream()
+                .filter(ticket -> "RESOLVED".equals(ticket.getStatus()))
+                .filter(ticket -> ticket.getReply() != null && !ticket.getReply().isBlank())
                 .map(this::toVo)
                 .toList();
     }

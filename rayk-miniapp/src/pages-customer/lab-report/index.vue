@@ -15,12 +15,12 @@
         ><text>全部报告</text></view
       >
       <view
-        ><text>{{ confirmedCount }}</text
-        ><text>已确认</text></view
+        ><text>{{ completedCount }}</text
+        ><text>已完成</text></view
       >
       <view
         ><text>{{ pendingCount }}</text
-        ><text>待处理</text></view
+        ><text>处理中</text></view
       >
     </view>
 
@@ -73,10 +73,10 @@ const reports = ref<LabReport[]>([]),
   activeFilter = ref<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
 const filters = [
   { code: 'ALL' as const, label: '全部' },
-  { code: 'PENDING' as const, label: '待确认' },
+  { code: 'PENDING' as const, label: '处理中' },
   { code: 'COMPLETED' as const, label: '已完成' },
 ]
-const completedStatuses = ['CONFIRMED', 'AI_PROCESSING', 'AI_COMPLETED', 'COMPLETED', 'PUBLISHED']
+const completedStatuses = ['AI_COMPLETED', 'COMPLETED', 'PUBLISHED']
 const filteredReports = computed(() => {
   if (activeFilter.value === 'ALL') return reports.value
   return reports.value.filter((item) =>
@@ -85,10 +85,10 @@ const filteredReports = computed(() => {
       : !completedStatuses.includes(item.status),
   )
 })
-const confirmedCount = computed(
+const completedCount = computed(
   () => reports.value.filter((item) => completedStatuses.includes(item.status)).length,
 )
-const pendingCount = computed(() => Math.max(reports.value.length - confirmedCount.value, 0))
+const pendingCount = computed(() => Math.max(reports.value.length - completedCount.value, 0))
 
 onShow(async () => {
   loading.value = true

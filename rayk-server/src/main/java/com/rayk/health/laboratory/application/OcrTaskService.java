@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rayk.health.assessment.entity.AiTaskEntity;
+import com.rayk.health.assessment.application.WorkflowApplicationService;
 import com.rayk.health.assessment.mapper.AiTaskMapper;
 import com.rayk.health.common.exception.BusinessException;
 import com.rayk.health.common.exception.ErrorCode;
@@ -45,6 +46,7 @@ public class OcrTaskService {
     private static final String TASK_TYPE = "LAB_REPORT_OCR";
     private static final Set<String> ACTIVE_STATUSES = Set.of("PENDING", "PROCESSING");
     private final AiTaskMapper taskMapper;
+    private final WorkflowApplicationService workflowApplicationService;
     private final LabReportMapper reportMapper;
     private final LabReportFileMapper fileMapper;
     private final IndicatorValueMapper indicatorMapper;
@@ -57,6 +59,7 @@ public class OcrTaskService {
 
     public OcrTaskService(
             AiTaskMapper taskMapper,
+            WorkflowApplicationService workflowApplicationService,
             LabReportMapper reportMapper,
             LabReportFileMapper fileMapper,
             IndicatorValueMapper indicatorMapper,
@@ -67,6 +70,7 @@ public class OcrTaskService {
             PlatformTransactionManager transactionManager,
             TaskIdempotencyGuard idempotencyGuard) {
         this.taskMapper = taskMapper;
+        this.workflowApplicationService = workflowApplicationService;
         this.reportMapper = reportMapper;
         this.fileMapper = fileMapper;
         this.indicatorMapper = indicatorMapper;
@@ -160,6 +164,13 @@ public class OcrTaskService {
                                         throw new OcrPersistenceException(exception);
                                     }
                                 });
+                        try {
+                            workflowApplicationService.submitAiAutomatically(
+                                    report.getId(), event.tenantId());
+                        } catch (RuntimeException ignored) {
+                            // submitAiAutomatically records the assessment failure on the report.
+                            // OCR has succeeded and must not be retried solely because AI is unavailable.
+                        }
                     } catch (Exception exception) {
                         transactionTemplate.executeWithoutResult(
                                 status -> markFailed(task, report, "识别服务调用失败，请稍后重试"));
@@ -247,13 +258,13 @@ public class OcrTaskService {
             entity.setReferenceLow(item.referenceLow());
             entity.setReferenceHigh(item.referenceHigh());
             entity.setAbnormalFlag(abnormal(item));
-            entity.setManuallyConfirmed(0);
+            entity.setManuallyConfirmed(1);
             auditNew(entity, task.getCreatedBy());
             indicatorMapper.insert(entity);
         }
         String snapshot = objectMapper.writeValueAsString(result);
         report.setOcrSnapshot(snapshot);
-        report.setStatus("WAITING_CONFIRMATION");
+        report.setStatus("CONFIRMED");
         report.setFailureReason(null);
         touch(report, task.getCreatedBy());
         reportMapper.updateById(report);

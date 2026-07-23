@@ -6,6 +6,7 @@ import com.rayk.health.system.entity.SysUserEntity;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 public interface SysUserMapper extends BaseMapper<SysUserEntity> {
     /**
@@ -46,4 +47,27 @@ public interface SysUserMapper extends BaseMapper<SysUserEntity> {
             ORDER BY u.created_at, u.id
             """)
     List<SysUserEntity> selectDoctorsByTenantIgnoringTenant(@Param("tenantId") long tenantId);
+
+    @InterceptorIgnore(tenantLine = "true")
+    @Update(
+            """
+            UPDATE sys_user
+            SET display_name = #{user.displayName}, phone_masked = #{user.phoneMasked},
+                phone_hash = #{user.phoneHash}, updated_by = #{user.updatedBy}, updated_at = #{user.updatedAt}
+            WHERE id = #{user.id} AND tenant_id = #{user.tenantId} AND deleted = 0
+            """)
+    int updateDoctorIgnoringTenant(@Param("user") SysUserEntity user);
+
+    @InterceptorIgnore(tenantLine = "true")
+    @Update(
+            """
+            UPDATE sys_user
+            SET deleted = 1, updated_by = #{operatorId}, updated_at = #{updatedAt}
+            WHERE id = #{doctorId} AND tenant_id = #{tenantId} AND deleted = 0
+            """)
+    int softDeleteDoctorIgnoringTenant(
+            @Param("tenantId") long tenantId,
+            @Param("doctorId") long doctorId,
+            @Param("operatorId") long operatorId,
+            @Param("updatedAt") java.time.LocalDateTime updatedAt);
 }

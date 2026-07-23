@@ -3,8 +3,8 @@
     <view class="selector-page">
       <view class="selector-hero">
         <view class="eyebrow-light">OCR REVIEW</view>
-        <view class="hero-title">客户确认进度</view>
-        <view class="hero-copy">OCR 数据由客户本人核对；本工作台仅查看报告处理进度。</view>
+        <view class="hero-title">报告处理进度</view>
+        <view class="hero-copy">报告上传后由系统自动识别并进入健康评估，本工作台仅查看处理进度。</view>
       </view>
       <PageState :loading="loading" :error="error" :empty="items.length === 0">
         <view v-for="item in items" :key="item.id" class="card report-card">
@@ -12,7 +12,7 @@
           <view class="report-content">
             <view class="section-title">{{ item.reportName }}</view>
             <view class="subtitle">客户 ID {{ item.patientId }} · {{ item.reportDate }}</view>
-            <view class="muted">已识别 {{ item.indicators.length }} 项指标，等待客户确认</view>
+            <view class="muted">已识别 {{ item.indicators.length }} 项指标，系统正在生成健康评估</view>
           </view>
           <view class="arrow">›</view>
         </view>
@@ -38,9 +38,11 @@ const load = async () => {
   error.value = ''
   try {
     const reports = (await getLabReports()).records
-    items.value = reports.filter((item) => item.status === 'WAITING_CONFIRMATION')
+    items.value = reports.filter((item) =>
+      ['OCR_PENDING', 'OCR_PROCESSING', 'CONFIRMED', 'AI_PROCESSING'].includes(item.status),
+    )
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '待校对报告加载失败'
+    error.value = cause instanceof Error ? cause.message : '报告处理进度加载失败'
   } finally {
     loading.value = false
   }

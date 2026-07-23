@@ -51,6 +51,9 @@ import java.time.Period;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -455,6 +458,34 @@ public class WorkflowApplicationService {
         followupMapper.updateById(task);
         createNextAiFollowup(task, CurrentUser.require());
         return toFollowupVo(task);
+    }
+
+    /** Runs the same assessment pipeline after OCR completes, without requiring customer confirmation. */
+    public AssessmentVo submitAiAutomatically(long reportId, long tenantId) {
+        LabReportEntity report = requireReport(reportId);
+        PatientEntity patient = patientMapper.selectById(report.getPatientId());
+        if (patient == null || patient.getUserId() == null) {
+            throw new BusinessException(ErrorCode.PATIENT_NOT_FOUND);
+        }
+        SecurityContext previous = SecurityContextHolder.getContext();
+        SecurityContext automatedContext = SecurityContextHolder.createEmptyContext();
+        CurrentPrincipal automatedUser =
+                new CurrentPrincipal(
+                        "system-ocr-" + reportId,
+                        "system-ocr",
+                        patient.getUserId(),
+                        tenantId,
+                        List.of("CUSTOMER"),
+                        List.of("self:assessment", "self:health-record"),
+                        "CUSTOMER");
+        automatedContext.setAuthentication(
+                new UsernamePasswordAuthenticationToken(automatedUser, null, List.of()));
+        SecurityContextHolder.setContext(automatedContext);
+        try {
+            return submitAi(reportId);
+        } finally {
+            SecurityContextHolder.setContext(previous);
+        }
     }
 
     /** Current AI follow-up policy: a completed feedback closes this task and opens the next check-in. */

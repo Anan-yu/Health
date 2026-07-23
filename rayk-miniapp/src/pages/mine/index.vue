@@ -20,7 +20,6 @@
           ><text>{{ auth.user?.availableWorkbenches.length || 0 }}</text
           ><text>可用工作台</text></view
         >
-        >
       </view>
     </view>
 

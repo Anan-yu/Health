@@ -17,7 +17,6 @@
       { "path": "lab-report/upload", "style": { "navigationBarTitleText": "上传报告" } },
       { "path": "lab-report/index", "style": { "navigationBarTitleText": "我的检验报告" } },
       { "path": "lab-report/detail", "style": { "navigationBarTitleText": "报告详情" } },
-      { "path": "lab-report/confirm", "style": { "navigationBarTitleText": "确认OCR指标" } },
       { "path": "assessment/index", "style": { "navigationBarTitleText": "AI评估结果" } },
       { "path": "health-report/index", "style": { "navigationBarTitleText": "健康报告" } },
       { "path": "health-report/detail", "style": { "navigationBarTitleText": "健康报告详情" } },

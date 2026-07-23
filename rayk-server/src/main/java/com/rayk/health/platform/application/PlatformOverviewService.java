@@ -7,6 +7,7 @@ import com.rayk.health.common.exception.ErrorCode;
 import com.rayk.health.platform.dto.CreatePlatformDoctorRequest;
 import com.rayk.health.platform.dto.CreatePlatformTenantRequest;
 import com.rayk.health.platform.dto.UpdatePlatformTenantRequest;
+import com.rayk.health.platform.dto.UpdatePlatformDoctorRequest;
 import com.rayk.health.platform.mapper.PlatformOverviewMapper;
 import com.rayk.health.platform.vo.PlatformOverviewVo;
 import com.rayk.health.security.service.CurrentUser;
@@ -178,6 +179,38 @@ public class PlatformOverviewService {
                 user.getPhoneMasked(), List.of("DOCTOR"), user.getStatus());
     }
 
+    @Transactional
+    public StaffVo updateDoctor(long tenantId, long doctorId, UpdatePlatformDoctorRequest request) {
+        SysUserEntity doctor = findDoctor(tenantId, doctorId);
+        String phone = request.phone() == null ? "" : request.phone().trim();
+        doctor.setDisplayName(request.displayName().trim());
+        if (!phone.isEmpty()) {
+            String phoneHash = PhoneIdentity.hash(PhoneIdentity.normalize(phone));
+            SysUserEntity matched = userMapper.selectByPhoneHashIgnoringTenant(phoneHash);
+            if (matched != null && !matched.getId().equals(doctor.getId())) {
+                throw new BusinessException(ErrorCode.PHONE_ALREADY_REGISTERED);
+            }
+            doctor.setPhoneHash(phoneHash);
+            doctor.setPhoneMasked(PhoneIdentity.mask(phone));
+        }
+        doctor.setUpdatedBy(CurrentUser.require().userId());
+        doctor.setUpdatedAt(LocalDateTime.now());
+        if (userMapper.updateDoctorIgnoringTenant(doctor) != 1) {
+            throw new BusinessException(ErrorCode.SYSTEM_VALIDATION_ERROR);
+        }
+        return toDoctorVo(doctor);
+    }
+
+    @Transactional
+    public void deleteDoctor(long tenantId, long doctorId) {
+        findDoctor(tenantId, doctorId);
+        if (userMapper.softDeleteDoctorIgnoringTenant(
+                        tenantId, doctorId, CurrentUser.require().userId(), LocalDateTime.now())
+                != 1) {
+            throw new BusinessException(ErrorCode.SYSTEM_VALIDATION_ERROR);
+        }
+    }
+
     private void provisionStandardRoles(long tenantId, long operatorId, LocalDateTime now) {
         List<SysRoleEntity> templates = roleMapper.selectList(new LambdaQueryWrapper<SysRoleEntity>()
                 .eq(SysRoleEntity::getTenantId, ROLE_TEMPLATE_TENANT_ID)
@@ -219,6 +252,24 @@ public class PlatformOverviewService {
         SysTenantEntity tenant = tenantMapper.selectByTenantIdIgnoringTenant(tenantId);
         if (tenant == null) throw new BusinessException(ErrorCode.TENANT_NOT_FOUND);
         return tenant;
+    }
+
+    private SysUserEntity findDoctor(long tenantId, long doctorId) {
+        findTenant(tenantId);
+        return userMapper.selectDoctorsByTenantIgnoringTenant(tenantId).stream()
+                .filter(user -> user.getId().equals(doctorId))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.SYSTEM_VALIDATION_ERROR));
+    }
+
+    private StaffVo toDoctorVo(SysUserEntity user) {
+        return new StaffVo(
+                String.valueOf(user.getId()),
+                user.getUsername(),
+                user.getDisplayName(),
+                user.getPhoneMasked(),
+                List.of("DOCTOR"),
+                user.getStatus());
     }
 
     private TenantProfileVo toProfile(SysTenantEntity tenant) {

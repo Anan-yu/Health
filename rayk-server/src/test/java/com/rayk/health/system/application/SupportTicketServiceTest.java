@@ -89,7 +89,7 @@ class SupportTicketServiceTest {
     }
 
     @Test
-    void returnsCurrentUsersTicketsAsStringIds() {
+    void returnsOnlyResolvedTicketsWithAPlatformReply() {
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 21, 20, 34, 41);
         SupportTicketEntity entity = new SupportTicketEntity();
         entity.setId(2079545597569081345L);
@@ -97,7 +97,8 @@ class SupportTicketServiceTest {
         entity.setUserId(10005L);
         entity.setCategory("OTHER");
         entity.setContent("联调反馈");
-        entity.setStatus("OPEN");
+        entity.setStatus("RESOLVED");
+        entity.setReply("已回复，请刷新后重试");
         entity.setCreatedAt(createdAt);
         entity.setUpdatedAt(createdAt);
         entity.setDeleted(0);

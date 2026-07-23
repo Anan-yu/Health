@@ -24,3 +24,20 @@ export const getPlatformDoctors = (tenantId: string) =>
 
 export const createPlatformDoctor = (tenantId: string, data: { displayName: string; phone: string }) =>
   request<TenantStaff>({ url: `/api/v1/platform/tenants/${tenantId}/doctors`, method: 'POST', data })
+
+export const updatePlatformDoctor = (
+  tenantId: string,
+  doctorId: string,
+  data: { displayName: string; phone?: string },
+) =>
+  request<TenantStaff>({
+    url: `/api/v1/platform/tenants/${tenantId}/doctors/${doctorId}`,
+    method: 'PUT',
+    data,
+  })
+
+export const deletePlatformDoctor = (tenantId: string, doctorId: string) =>
+  request<void>({
+    url: `/api/v1/platform/tenants/${tenantId}/doctors/${doctorId}`,
+    method: 'DELETE',
+  })

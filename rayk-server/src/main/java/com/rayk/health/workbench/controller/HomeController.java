@@ -67,7 +67,7 @@ public class HomeController {
         long patients = patientService.list(null).size();
         long assessments = workflowService.listAssessments().stream().filter(item -> "SUCCESS".equals(item.status())).count();
         return List.of(
-                new HomeMetric("PATIENT", "本院已授权体检者", patients, "/pages-business/patient/index"),
+                new HomeMetric("PATIENT", "已体检者数量", patients, "/pages-business/patient/index"),
                 new HomeMetric("ASSESSMENT", "可查看 AI 评估", assessments, "/pages-business/assessment/index"),
                 new HomeMetric("REPORT", "健康报告", workflowService.listHealthReports().size(), "/pages-business/lab-report/index"));
     }

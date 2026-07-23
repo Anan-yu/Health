@@ -5,6 +5,7 @@ import com.rayk.health.platform.application.PlatformOverviewService;
 import com.rayk.health.platform.dto.UpdatePlatformTenantRequest;
 import com.rayk.health.platform.dto.CreatePlatformTenantRequest;
 import com.rayk.health.platform.dto.CreatePlatformDoctorRequest;
+import com.rayk.health.platform.dto.UpdatePlatformDoctorRequest;
 import com.rayk.health.platform.vo.PlatformOverviewVo;
 import com.rayk.health.tenant.vo.TenantProfileVo;
 import com.rayk.health.tenant.vo.StaffVo;
@@ -12,6 +13,7 @@ import java.util.List;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -64,5 +66,21 @@ public class PlatformController {
     public ApiResponse<StaffVo> createDoctor(
             @PathVariable long tenantId, @Valid @RequestBody CreatePlatformDoctorRequest request) {
         return ApiResponse.success(overviewService.createDoctor(tenantId, request));
+    }
+
+    @PutMapping("/tenants/{tenantId}/doctors/{doctorId}")
+    @PreAuthorize("hasAuthority('platform:tenant:list')")
+    public ApiResponse<StaffVo> updateDoctor(
+            @PathVariable long tenantId,
+            @PathVariable long doctorId,
+            @Valid @RequestBody UpdatePlatformDoctorRequest request) {
+        return ApiResponse.success(overviewService.updateDoctor(tenantId, doctorId, request));
+    }
+
+    @DeleteMapping("/tenants/{tenantId}/doctors/{doctorId}")
+    @PreAuthorize("hasAuthority('platform:tenant:list')")
+    public ApiResponse<Void> deleteDoctor(@PathVariable long tenantId, @PathVariable long doctorId) {
+        overviewService.deleteDoctor(tenantId, doctorId);
+        return ApiResponse.success(null);
     }
 }
