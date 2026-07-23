@@ -4,7 +4,9 @@
       <view class="selector-hero">
         <view class="eyebrow-light">OCR REVIEW</view>
         <view class="hero-title">报告处理进度</view>
-        <view class="hero-copy">报告上传后由系统自动识别并进入健康评估，本工作台仅查看处理进度。</view>
+        <view class="hero-copy"
+          >报告上传后由系统自动识别并进入健康评估，本工作台仅查看处理进度。</view
+        >
       </view>
       <PageState :loading="loading" :error="error" :empty="items.length === 0">
         <view v-for="item in items" :key="item.id" class="card report-card">
@@ -12,7 +14,9 @@
           <view class="report-content">
             <view class="section-title">{{ item.reportName }}</view>
             <view class="subtitle">客户 ID {{ item.patientId }} · {{ item.reportDate }}</view>
-            <view class="muted">已识别 {{ item.indicators.length }} 项指标，系统正在生成健康评估</view>
+            <view class="muted"
+              >已识别 {{ item.indicators.length }} 项指标，系统正在生成健康评估</view
+            >
           </view>
           <view class="arrow">›</view>
         </view>

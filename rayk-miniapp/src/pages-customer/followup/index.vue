@@ -30,8 +30,13 @@
             </view>
           </view>
         </view>
-        <view class="due-row"><text>计划完成日期</text><text>{{ item.dueDate }}</text></view
-        ><button v-if="item.status !== 'COMPLETED'" class="feedback-button" @click.stop="feedback(item.id)">
+        <view class="due-row"
+          ><text>计划完成日期</text><text>{{ item.dueDate }}</text></view
+        ><button
+          v-if="item.status !== 'COMPLETED'"
+          class="feedback-button"
+          @click.stop="feedback(item.id)"
+        >
           填写反馈
         </button></view
       ></PageState
@@ -60,7 +65,14 @@ const filteredItems = computed(() =>
     : items.value.filter((item) => item.status === activeFilter.value),
 )
 type PlanSection = { title: string; actions: string[] }
-const sectionTitles = new Set(['本周重点', '饮食行动', '运动行动', '作息行动', '监测行动', '健康行动'])
+const sectionTitles = new Set([
+  '本周重点',
+  '饮食行动',
+  '运动行动',
+  '作息行动',
+  '监测行动',
+  '健康行动',
+])
 const introToHide = '本计划根据本次健康报告自动生成。'
 
 function planSections(content: string): PlanSection[] {
@@ -92,12 +104,11 @@ function planSections(content: string): PlanSection[] {
     if (!current) startSection('健康行动')
     current?.actions.push(line.replace(/^[-•]\s*/, ''))
   }
-  return sections.filter((section) => section.actions.length)
+  return sections.filter((section) => section.title !== '本周重点' && section.actions.length)
 }
 
 function sectionIcon(title: string) {
   const icons: Record<string, string> = {
-    本周重点: '重',
     饮食行动: '食',
     运动行动: '动',
     作息行动: '眠',

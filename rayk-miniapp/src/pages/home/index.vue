@@ -21,7 +21,7 @@
 
       <view class="section-head">
         <view>
-          <view class="eyebrow">OVERVIEW</view>
+          <view class="eyebrow">数据概览</view>
           <view class="section-title">今日概览</view>
         </view>
         <view class="section-tip refresh-tip" @click="refresh(true)">{{ refreshLabel }}</view>
@@ -78,7 +78,7 @@
 
       <view class="section-head">
         <view>
-          <view class="eyebrow">SERVICES</view>
+          <view class="eyebrow">功能服务</view>
           <view class="section-title">常用服务</view>
         </view>
         <view class="section-tip" @click="goWorkbench">全部服务 ›</view>
@@ -149,9 +149,7 @@ const profileCompleteness = computed(() => {
   const value = summary.value?.metrics.find((item) => item.code === 'PROFILE')?.value ?? 0
   return Math.min(100, Math.max(0, Number(value) || 0))
 })
-const profileMetric = computed(() =>
-  summary.value?.metrics.find((item) => item.code === 'PROFILE'),
-)
+const profileMetric = computed(() => summary.value?.metrics.find((item) => item.code === 'PROFILE'))
 const customerStats = computed(
   () => summary.value?.metrics.filter((item) => item.code !== 'PROFILE') ?? [],
 )
@@ -163,9 +161,7 @@ const profileCompletenessLabel = computed(() => {
   if (profileCompleteness.value >= 70) return '继续补充更准确'
   return '建议优先完善档案'
 })
-const insightTitle = computed(() =>
-  `健康档案已完善 ${profileCompleteness.value}%`,
-)
+const insightTitle = computed(() => `健康档案已完善 ${profileCompleteness.value}%`)
 const insightLabel = computed(() => '健康管理进度')
 const insightProgress = computed(() => profileCompleteness.value)
 const insightRoute = computed(() => '/pages-customer/profile/index')

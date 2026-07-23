@@ -25,7 +25,7 @@
 
     <view v-if="!isPlatform" class="section-head">
       <view>
-        <view class="eyebrow">ACCOUNT</view>
+        <view class="eyebrow">账号服务</view>
         <view class="section-title">账号与服务</view>
       </view>
     </view>

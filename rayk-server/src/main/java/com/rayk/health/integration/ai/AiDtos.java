@@ -27,6 +27,8 @@ public final class AiDtos {
       Integer age,
       BigDecimal heightCm,
       BigDecimal weightKg,
+      BigDecimal waistCm,
+      BigDecimal recentWeightChangeKg,
       BigDecimal bmi,
       String medicalHistory,
       String familyHistory,
@@ -45,7 +47,7 @@ public final class AiDtos {
       String dietaryPreference,
       String recentDietaryPattern) {
     public PatientContext(String gender, Integer age) {
-      this(gender, age, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+      this(gender, age, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
   }
 

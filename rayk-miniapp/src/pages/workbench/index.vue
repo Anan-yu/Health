@@ -2,7 +2,7 @@
   <view class="page workbench-page">
     <view class="workbench-hero">
       <view class="hero-pattern" />
-      <view class="eyebrow-light">MY WORKBENCH</view>
+      <view class="eyebrow-light">我的工作台</view>
       <view class="hero-title">{{ workbenchName }}</view>
       <view class="hero-copy">{{ workbenchDescription }}</view>
       <view class="hero-stats">
@@ -20,7 +20,7 @@
 
     <view class="section-head">
       <view>
-        <view class="eyebrow">APPLICATIONS</view>
+        <view class="eyebrow">功能服务</view>
         <view class="section-title">全部功能</view>
       </view>
       <view class="soft-button" @click="goSwitch">切换身份</view>
@@ -65,7 +65,7 @@ const roleNames: Record<Role, string> = {
 }
 const roleDescriptions: Record<Role, string> = {
   PLATFORM_ADMIN: '查看平台运营、机构与关键审计信息',
-  DOCTOR: '按姓名或手机号查询本院已授权体检者，并查看其健康资料和报告',
+  DOCTOR: '按姓名或手机号查询体检者，并查看其健康资料和报告',
   CUSTOMER: '管理个人档案、报告、评估与随访反馈',
 }
 const workbenchName = computed(() =>

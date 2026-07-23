@@ -3,7 +3,11 @@
     ><view class="title">健康档案与问卷</view
     ><view class="subtitle page-copy">请认真作答，作答内容将作为健康报告评估依据。</view
     ><PageState :loading="loading" :error="error" :empty="!patient"
-      ><view class="questionnaire-note"><text>健康问卷</text><view>身高体重、既往情况、饮食、睡眠和情绪信息将与检验报告共同用于本次健康评估。</view></view
+      ><view class="questionnaire-note"
+        ><text>健康问卷</text
+        ><view
+          >身高体重、既往情况、饮食、睡眠和情绪信息将与检验报告共同用于本次健康评估。</view
+        ></view
       ><view class="completion-preview"
         ><view class="completion-header"
           ><text>档案完整度</text><text>{{ liveCompleteness }}%</text></view
@@ -15,10 +19,7 @@
           ><text>姓名</text><input v-model="identity.name" placeholder="请输入真实姓名" /></view
         ><view class="field"
           ><text>性别</text
-          ><picker
-            :range="genderOptions"
-            range-key="label"
-            @change="selectGender"
+          ><picker :range="genderOptions" range-key="label" @change="selectGender"
             ><view class="picker-value"
               >{{ optionLabel(genderOptions, identity.gender) }} ›</view
             ></picker
@@ -37,7 +38,11 @@
           ></view
         ><view class="field"
           ><text>手机号</text
-          ><input v-model="identity.phone" type="number" maxlength="11" :placeholder="patient?.phoneMasked || '请输入 11 位手机号'" /></view
+          ><input
+            v-model="identity.phone"
+            type="number"
+            maxlength="11"
+            :placeholder="patient?.phoneMasked || '请输入 11 位手机号'" /></view
         ><view class="field"
           ><text>身高（cm）</text
           ><input v-model="form.heightCm" type="digit" placeholder="例如 168" /></view
@@ -45,13 +50,24 @@
           ><text>体重（kg）</text
           ><input v-model="form.weightKg" type="digit" placeholder="例如 60" /></view
         ><view class="field"
+          ><text>腰围（cm）</text
+          ><input v-model="form.waistCm" type="digit" placeholder="例如 78" /></view
+        ><view class="field"
+          ><text>近三个月体重变化（kg）</text
+          ><input
+            v-model="form.recentWeightChangeKg"
+            placeholder="例如减轻 2 kg 填 -2，无变化填 0" /></view
+        ><view class="field"
           ><text>血型</text><input v-model="form.bloodType" placeholder="例如 A 型" /></view
         ><view class="field"
           ><text>既往病史</text
           ><textarea v-model="form.medicalHistory" placeholder="如无，请填写无" /></view
         ><view class="field"
           ><text>家族病史</text
-          ><textarea v-model="form.familyHistory" placeholder="如父母或兄弟姐妹的糖尿病、高血压、心脑血管病、肿瘤等；如无请填写无" /></view
+          ><textarea
+            v-model="form.familyHistory"
+            placeholder="如父母或兄弟姐妹的糖尿病、高血压、心脑血管病、肿瘤等；如无请填写无"
+          /></view
         ><view class="field"
           ><text>过敏史</text
           ><textarea v-model="form.allergyHistory" placeholder="如无，请填写无" /></view
@@ -109,46 +125,84 @@
             @change="selectOption('stressLevel', stressOptions, $event)"
             ><view class="picker-value"
               >{{ optionLabel(stressOptions, form.stressLevel) }} ›</view
-          ></picker
+            ></picker
           ></view
         ><view class="field"
           ><text>近期心情</text
-          ><picker :range="moodOptions" range-key="label" @change="selectOption('moodStatus', moodOptions, $event)"
-            ><view class="picker-value">{{ optionLabel(moodOptions, form.moodStatus) }} ›</view></picker></view
+          ><picker
+            :range="moodOptions"
+            range-key="label"
+            @change="selectOption('moodStatus', moodOptions, $event)"
+            ><view class="picker-value"
+              >{{ optionLabel(moodOptions, form.moodStatus) }} ›</view
+            ></picker
+          ></view
         ><view class="field"
           ><text>近期恐惧或焦虑感受</text
-          ><picker :range="fearOptions" range-key="label" @change="selectOption('fearLevel', fearOptions, $event)"
-            ><view class="picker-value">{{ optionLabel(fearOptions, form.fearLevel) }} ›</view></picker></view
+          ><picker
+            :range="fearOptions"
+            range-key="label"
+            @change="selectOption('fearLevel', fearOptions, $event)"
+            ><view class="picker-value"
+              >{{ optionLabel(fearOptions, form.fearLevel) }} ›</view
+            ></picker
+          ></view
         ><view class="field"
           ><text>饮食偏好</text
           ><input v-model="form.dietaryPreference" placeholder="例如：均衡、低盐、素食" /></view
         ><view class="field"
           ><text>近三周饮食结构</text
-          ><textarea v-model="form.recentDietaryPattern" placeholder="例如：蔬果、全谷、奶豆、鱼肉、外卖、甜饮和夜宵的频率" /></view
+          ><textarea
+            v-model="form.recentDietaryPattern"
+            placeholder="例如：蔬果、全谷、奶豆、鱼肉、外卖、甜饮和夜宵的频率"
+          /></view
         ><view class="field"
-          ><text>糖尿病既往诊断</text><picker :range="diseaseOptions" range-key="label" @change="selectOption('diabetesStatus', diseaseOptions, $event)"
-            ><view class="picker-value">{{ optionLabel(diseaseOptions, form.diabetesStatus) }} ›</view></picker></view
+          ><text>糖尿病既往诊断</text
+          ><picker
+            :range="diseaseOptions"
+            range-key="label"
+            @change="selectOption('diabetesStatus', diseaseOptions, $event)"
+            ><view class="picker-value"
+              >{{ optionLabel(diseaseOptions, form.diabetesStatus) }} ›</view
+            ></picker
+          ></view
         ><view class="field"
-          ><text>高血压既往诊断</text><picker :range="diseaseOptions" range-key="label" @change="selectOption('hypertensionStatus', diseaseOptions, $event)"
-            ><view class="picker-value">{{ optionLabel(diseaseOptions, form.hypertensionStatus) }} ›</view></picker></view
+          ><text>高血压既往诊断</text
+          ><picker
+            :range="diseaseOptions"
+            range-key="label"
+            @change="selectOption('hypertensionStatus', diseaseOptions, $event)"
+            ><view class="picker-value"
+              >{{ optionLabel(diseaseOptions, form.hypertensionStatus) }} ›</view
+            ></picker
+          ></view
         ><view class="field"
-          ><text>血脂异常既往诊断</text><picker :range="diseaseOptions" range-key="label" @change="selectOption('dyslipidemiaStatus', diseaseOptions, $event)"
-            ><view class="picker-value">{{ optionLabel(diseaseOptions, form.dyslipidemiaStatus) }} ›</view></picker></view
+          ><text>血脂异常既往诊断</text
+          ><picker
+            :range="diseaseOptions"
+            range-key="label"
+            @change="selectOption('dyslipidemiaStatus', diseaseOptions, $event)"
+            ><view class="picker-value"
+              >{{ optionLabel(diseaseOptions, form.dyslipidemiaStatus) }} ›</view
+            ></picker
+          ></view
         ><view class="field"
-          ><text>脂肪肝既往诊断</text><picker :range="diseaseOptions" range-key="label" @change="selectOption('fattyLiverStatus', diseaseOptions, $event)"
-            ><view class="picker-value">{{ optionLabel(diseaseOptions, form.fattyLiverStatus) }} ›</view></picker></view
+          ><text>脂肪肝既往诊断</text
+          ><picker
+            :range="diseaseOptions"
+            range-key="label"
+            @change="selectOption('fattyLiverStatus', diseaseOptions, $event)"
+            ><view class="picker-value"
+              >{{ optionLabel(diseaseOptions, form.fattyLiverStatus) }} ›</view
+            ></picker
+          ></view
         ><view class="field"
           ><text>生活方式概述</text
           ><textarea
             v-model="form.lifestyleSummary"
             placeholder="饮食、运动、作息等"
           /></view></view
-      ><button
-        class="primary-button"
-        :loading="saving"
-        :disabled="saving"
-        @click="save"
-      >
+      ><button class="primary-button" :loading="saving" :disabled="saving" @click="save">
         保存健康档案
       </button></PageState
     ></view
@@ -158,7 +212,12 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getHealthProfile, getMyProfile, updateHealthProfile, updatePatientIdentity } from '@/api/patient'
+import {
+  getHealthProfile,
+  getMyProfile,
+  updateHealthProfile,
+  updatePatientIdentity,
+} from '@/api/patient'
 import type { HealthProfile, Patient } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 
@@ -170,6 +229,8 @@ const identity = reactive({ name: '', gender: '', birthDate: '', phone: '' })
 const form = reactive<Record<string, string>>({
   heightCm: '',
   weightKg: '',
+  waistCm: '',
+  recentWeightChangeKg: '',
   bloodType: '',
   medicalHistory: '',
   familyHistory: '',
@@ -194,6 +255,8 @@ const form = reactive<Record<string, string>>({
 const questionnaireFields = [
   'heightCm',
   'weightKg',
+  'waistCm',
+  'recentWeightChangeKg',
   'bloodType',
   'lifestyleSummary',
   'medicalHistory',
@@ -253,16 +316,22 @@ const stressOptions: SelectOption[] = [
   { label: '较高', value: 'HIGH' },
 ]
 const moodOptions: SelectOption[] = [
-  { label: '请选择', value: '' }, { label: '愉快平稳', value: 'GOOD' },
-  { label: '一般', value: 'FAIR' }, { label: '低落或易烦躁', value: 'POOR' },
+  { label: '请选择', value: '' },
+  { label: '愉快平稳', value: 'GOOD' },
+  { label: '一般', value: 'FAIR' },
+  { label: '低落或易烦躁', value: 'POOR' },
 ]
 const fearOptions: SelectOption[] = [
-  { label: '请选择', value: '' }, { label: '无或很少', value: 'LOW' },
-  { label: '偶有', value: 'MEDIUM' }, { label: '经常或明显', value: 'HIGH' },
+  { label: '请选择', value: '' },
+  { label: '无或很少', value: 'LOW' },
+  { label: '偶有', value: 'MEDIUM' },
+  { label: '经常或明显', value: 'HIGH' },
 ]
 const diseaseOptions: SelectOption[] = [
-  { label: '请选择', value: '' }, { label: '无', value: 'NO' },
-  { label: '有，已确诊', value: 'YES' }, { label: '不清楚', value: 'UNKNOWN' },
+  { label: '请选择', value: '' },
+  { label: '无', value: 'NO' },
+  { label: '有，已确诊', value: 'YES' },
+  { label: '不清楚', value: 'UNKNOWN' },
 ]
 const genderOptions: SelectOption[] = [
   { label: '请选择', value: '' },
@@ -333,6 +402,8 @@ const save = async () => {
   }
   const height = Number(form.heightCm)
   const weight = Number(form.weightKg)
+  const waist = Number(form.waistCm)
+  const weightChange = Number(form.recentWeightChangeKg)
   const sleepHours = Number(form.sleepHours)
   if (form.heightCm && (!Number.isFinite(height) || height < 50 || height > 250)) {
     uni.showToast({ title: '身高应在 50–250 cm', icon: 'none' })
@@ -340,6 +411,17 @@ const save = async () => {
   }
   if (form.weightKg && (!Number.isFinite(weight) || weight < 10 || weight > 500)) {
     uni.showToast({ title: '体重应在 10–500 kg', icon: 'none' })
+    return
+  }
+  if (form.waistCm && (!Number.isFinite(waist) || waist < 30 || waist > 250)) {
+    uni.showToast({ title: '腰围应在 30–250 cm', icon: 'none' })
+    return
+  }
+  if (
+    form.recentWeightChangeKg &&
+    (!Number.isFinite(weightChange) || weightChange < -100 || weightChange > 100)
+  ) {
+    uni.showToast({ title: '请正确填写近三个月体重变化', icon: 'none' })
     return
   }
   if (form.sleepHours && (!Number.isFinite(sleepHours) || sleepHours < 0 || sleepHours > 24)) {
@@ -361,6 +443,8 @@ const save = async () => {
       ...questionnairePayload,
       heightCm: form.heightCm ? height : null,
       weightKg: form.weightKg ? weight : null,
+      waistCm: form.waistCm ? waist : null,
+      recentWeightChangeKg: form.recentWeightChangeKg ? weightChange : null,
       sleepHours: form.sleepHours ? sleepHours : null,
     })
     uni.showToast({ title: '已保存', icon: 'success' })
@@ -377,8 +461,22 @@ const save = async () => {
 .page-copy {
   margin-bottom: 24rpx;
 }
-.questionnaire-note { margin-bottom:20rpx; padding:24rpx 26rpx; border-radius:20rpx; background:#eaf8f3; color:#42685d; font-size:23rpx; line-height:1.65; }
-.questionnaire-note text { display:block; margin-bottom:6rpx; color:#0e755d; font-size:27rpx; font-weight:720; }
+.questionnaire-note {
+  margin-bottom: 20rpx;
+  padding: 24rpx 26rpx;
+  border-radius: 20rpx;
+  background: #eaf8f3;
+  color: #42685d;
+  font-size: 23rpx;
+  line-height: 1.65;
+}
+.questionnaire-note text {
+  display: block;
+  margin-bottom: 6rpx;
+  color: #0e755d;
+  font-size: 27rpx;
+  font-weight: 720;
+}
 .completion-preview {
   margin-bottom: 20rpx;
   padding: 24rpx 26rpx;
@@ -394,8 +492,15 @@ const save = async () => {
   font-size: 25rpx;
   font-weight: 700;
 }
-.completion-header text:last-child { color: #0f7a62; }
-.identity-note { margin-bottom: 4rpx; color: #55746a; font-size: 22rpx; line-height: 1.6; }
+.completion-header text:last-child {
+  color: #0f7a62;
+}
+.identity-note {
+  margin-bottom: 4rpx;
+  color: #55746a;
+  font-size: 22rpx;
+  line-height: 1.6;
+}
 .field {
   padding: 24rpx 0;
   border-bottom: 1rpx solid #edf1ef;

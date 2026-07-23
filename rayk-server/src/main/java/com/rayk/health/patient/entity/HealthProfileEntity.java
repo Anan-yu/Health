@@ -19,6 +19,8 @@ public class HealthProfileEntity {
     private Long patientId;
     private BigDecimal heightCm;
     private BigDecimal weightKg;
+    private BigDecimal waistCm;
+    private BigDecimal recentWeightChangeKg;
     private BigDecimal bmi;
     private String bloodType;
     private String lifestyleSummary;

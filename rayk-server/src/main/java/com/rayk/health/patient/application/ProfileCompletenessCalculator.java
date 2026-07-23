@@ -9,12 +9,14 @@ public final class ProfileCompletenessCalculator {
 
     private ProfileCompletenessCalculator() {}
 
-    private static final int TOTAL_FIELDS = 22;
+    private static final int TOTAL_FIELDS = 24;
 
     public static int calculate(HealthProfileEntity entity) {
         int nonNull = 0;
         if (entity.getHeightCm() != null) nonNull++;
         if (entity.getWeightKg() != null) nonNull++;
+        if (entity.getWaistCm() != null) nonNull++;
+        if (entity.getRecentWeightChangeKg() != null) nonNull++;
         if (hasText(entity.getBloodType())) nonNull++;
         if (hasText(entity.getLifestyleSummary())) nonNull++;
         if (hasText(entity.getMedicalHistory())) nonNull++;

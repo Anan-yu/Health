@@ -12,6 +12,8 @@ class PatientContext(RaykModel):
     age: int | None = Field(default=None, ge=0, le=120)
     height_cm: Decimal | None = Field(default=None, alias="heightCm")
     weight_kg: Decimal | None = Field(default=None, alias="weightKg")
+    waist_cm: Decimal | None = Field(default=None, alias="waistCm")
+    recent_weight_change_kg: Decimal | None = Field(default=None, alias="recentWeightChangeKg")
     bmi: Decimal | None = None
     medical_history: str | None = Field(default=None, alias="medicalHistory")
     family_history: str | None = Field(default=None, alias="familyHistory")

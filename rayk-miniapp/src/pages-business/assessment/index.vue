@@ -1,47 +1,60 @@
 <template>
-  <view class="page"
-    ><view class="title">AI评估任务</view
-    ><PageState :loading="loading" :empty="items.length === 0"
-      ><view v-for="item in items" :key="item.id" class="card"
-        ><view class="row"
-          ><view class="section-title">客户 {{ item.patientId }}</view
-          ><StatusTag :status="item.overallRiskLevel" /></view
-        ><view class="subtitle">规则版本 {{ item.modelVersion }} · {{ item.status }}</view
-        ><view v-if="item.results.interpretation" class="interpretation"
-          ><text class="interpretation-source">{{
-            item.results.interpretation.source === 'DEEPSEEK' ? 'AI综合解读' : '规则辅助解读'
-          }}</text
-          ><view>{{ displayInterpretation(item.results.interpretation.summary) }}</view></view
-        ><view v-if="unassessedModelCount(item)" class="coverage-note"
-          >本次报告已覆盖 {{ evaluatedModels(item).length }} 个可评估维度；另有
-          {{ unassessedModelCount(item) }} 个专项维度未覆盖。</view
-        ><view
-          v-for="(model, index) in evaluatedModels(item)"
-          :key="model.modelCode"
-          class="row model"
-          ><text>评估维度 {{ String(index + 1).padStart(2, '0') }}</text
-          ><view class="model-result"
-            ><text class="metric">{{ model.score ?? '—' }}</text
-            ><StatusTag :status="model.riskLevel" /></view></view></view></PageState
-  ></view>
+  <view class="page">
+    <view class="title">AI评估结果</view>
+    <PageState :loading="loading" :empty="items.length === 0">
+      <view v-for="assessment in items" :key="assessment.id" class="assessment-block">
+        <view class="card assessment-head">
+          <view>
+            <view class="section-title">健康评估</view>
+            <view class="subtitle">已结合检验报告与健康档案完成评估</view>
+          </view>
+          <StatusTag :status="assessment.overallRiskLevel" />
+        </view>
+
+        <view v-if="assessment.results?.interpretation" class="card interpretation-card">
+          <view class="row">
+            <view class="section-title">综合解读</view>
+            <text class="source-tag">
+              {{ interpretationSource(assessment.results.interpretation.source) }}
+            </text>
+          </view>
+          <view class="interpretation-summary">
+            {{ displayInterpretation(assessment.results.interpretation.summary) }}
+          </view>
+          <view
+            v-for="finding in assessment.results.interpretation.crossModelFindings"
+            :key="finding.title"
+            class="finding"
+          >
+            <view class="finding-title">{{ displayInterpretation(finding.title) }}</view>
+            <view class="subtitle">{{ displayInterpretation(finding.explanation) }}</view>
+          </view>
+        </view>
+
+        <HealthDimensionDashboard :models="assessment.results?.results || []" />
+        <view class="disclaimer">{{ assessment.disclaimer }}</view>
+      </view>
+    </PageState>
+  </view>
 </template>
+
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getAssessments } from '@/api/assessment'
 import type { Assessment } from '@/types/api'
+import HealthDimensionDashboard from '@/components/HealthDimensionDashboard.vue'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 const items = ref<Assessment[]>([]),
   loading = ref(true)
+
+function interpretationSource(value: string) {
+  return value === 'DEEPSEEK' ? 'AI 辅助解读' : '规则辅助解读'
+}
+
 function displayInterpretation(value: string) {
   return value.split('模型').join('评估维度')
-}
-function evaluatedModels(assessment: Assessment) {
-  return (assessment.results?.results || []).filter((model) => model.status !== 'INSUFFICIENT_DATA')
-}
-function unassessedModelCount(assessment: Assessment) {
-  return (assessment.results?.results || []).length - evaluatedModels(assessment).length
 }
 onShow(async () => {
   try {
@@ -51,37 +64,48 @@ onShow(async () => {
   }
 })
 </script>
+
 <style scoped>
-.model {
-  padding: 16rpx 0;
-  border-top: 1px solid #edf1ef;
+.assessment-block {
+  margin-bottom: 28rpx;
 }
-.interpretation {
-  margin: 20rpx 0;
-  padding: 18rpx;
-  border-radius: 16rpx;
-  background: #eef8f5;
-  color: #31564d;
-  line-height: 1.6;
-}
-.interpretation-source {
-  display: block;
-  margin-bottom: 8rpx;
-  color: #08745d;
-  font-size: 22rpx;
-  font-weight: 650;
-}
-.model-result {
+.assessment-head {
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  justify-content: space-between;
+  gap: 16rpx;
 }
-.coverage-note {
-  margin: 16rpx 0;
-  padding: 16rpx;
-  border-radius: 14rpx;
-  background: #f2f8f6;
-  color: #547069;
-  font-size: 22rpx;
+.interpretation-card {
+  background: linear-gradient(145deg, #ecf8f4, #ffffff 70%);
+  border: 1px solid #d9eee7;
+}
+.source-tag {
+  padding: 7rpx 14rpx;
+  border-radius: 999rpx;
+  color: #08745d;
+  background: #dff4ec;
+  font-size: 21rpx;
+}
+.interpretation-summary {
+  margin-top: 20rpx;
+  color: #203d36;
+  line-height: 1.75;
+}
+.finding {
+  margin-top: 18rpx;
+  padding: 18rpx;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.85);
+}
+.finding-title {
+  font-weight: 650;
+  color: #173f36;
+}
+.disclaimer {
+  margin-top: 18rpx;
+  padding: 0 12rpx;
+  color: #7b8985;
+  font-size: 23rpx;
+  line-height: 1.6;
 }
 </style>

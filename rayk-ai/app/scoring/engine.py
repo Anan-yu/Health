@@ -231,25 +231,29 @@ MODEL_DEFINITIONS: list[ModelDefinition] = [
         ],
     },
     {
-        "model_code": "SEX_HORMONE",
-        "model_name": "性激素与生殖内分泌",
-        "indicators": ["estradiol", "progesterone", "testosterone", "shbg", "lh", "fsh"],
-        "minimum_indicators": 3,
-        "requires_gender": True,
-        "requires_age": True,
-        "rules": [
-            _rule("estradiol", "LOW", "20", "雌二醇低于检验参考范围", 8, "pg/mL"),
-            _rule("progesterone", "LOW", "0.2", "孕酮低于检验参考范围", 8, "ng/mL"),
-            _rule("testosterone", "LOW", "3", "睾酮低于检验参考范围", 10, "ng/mL"),
-            _rule("shbg", "HIGH", "80", "性激素结合球蛋白偏高", 8, "nmol/L"),
-            _rule("lh", "HIGH", "12", "黄体生成素高于检验参考范围", 8, "IU/L"),
-            _rule("fsh", "HIGH", "12", "卵泡刺激素高于检验参考范围", 8, "IU/L"),
+        "model_code": "BODY_COMPOSITION",
+        "model_name": "体重与身体成分",
+        "indicators": [
+            "bmi",
+            "waist_risk_score",
+            "recent_weight_change_kg",
+            "exercise_frequency_score",
         ],
-        "base_score": 88,
+        "minimum_indicators": 2,
+        "rules": [
+            _rule("bmi", "LOW", "18.5", "BMI低于常用健康参考范围", 12),
+            _rule("bmi", "HIGH", "24", "BMI高于常用健康参考范围", 8),
+            _rule("bmi", "HIGH", "28", "BMI达到肥胖风险关注范围", 8),
+            _rule("waist_risk_score", "HIGH", "0", "腰围达到腹型肥胖风险关注范围", 10),
+            _rule("recent_weight_change_kg", "LOW", "-5", "近三个月体重下降较明显", 8, "kg"),
+            _rule("recent_weight_change_kg", "HIGH", "5", "近三个月体重增加较明显", 8, "kg"),
+            _rule("exercise_frequency_score", "LOW", "1", "当前运动频率偏低", 8),
+        ],
+        "base_score": 92,
         "recommendations": [
-            "性激素结果必须结合性别、年龄、生理阶段、采样时间和用药情况解释",
-            "当前结果仅用于提示需要专业复核，不用于诊断",
-            "如需干预，应由具备相应资质的医生决定",
+            "结合体重、腰围和运动情况制定可持续的饮食与运动计划",
+            "建议定期记录体重和腰围变化，关注趋势而非单次波动",
+            "体重短期明显变化或伴随不适时，应由医生进一步判断原因",
         ],
     },
     {
@@ -328,22 +332,20 @@ MODEL_DEFINITIONS: list[ModelDefinition] = [
         ],
     },
     {
-        "model_code": "HEAVY_METAL_EXPOSURE",
-        "model_name": "重金属与环境暴露",
-        "indicators": ["blood_lead", "blood_mercury", "cadmium", "arsenic", "heavy_metal_panel"],
-        "minimum_indicators": 1,
+        "model_code": "MENTAL_EMOTIONAL",
+        "model_name": "心理与情绪健康",
+        "indicators": ["stress_level_score", "mood_status_score", "fear_level_score"],
+        "minimum_indicators": 2,
         "rules": [
-            _rule("blood_lead", "HIGH", "100", "血铅高于检验参考范围", 18, "ug/L"),
-            _rule("blood_mercury", "HIGH", "10", "血汞高于检验参考范围", 18, "ug/L"),
-            _rule("cadmium", "HIGH", "5", "镉检测值高于检验参考范围", 18, "ug/L"),
-            _rule("arsenic", "HIGH", "10", "砷检测值高于检验参考范围", 18, "ug/L"),
-            _rule("heavy_metal_panel", "HIGH", "1", "重金属组合检测存在异常标识", 18),
+            _rule("stress_level_score", "HIGH", "1", "近期压力水平需要关注", 10),
+            _rule("mood_status_score", "HIGH", "1", "近期心情状态需要关注", 12),
+            _rule("fear_level_score", "HIGH", "1", "恐惧或焦虑感受需要关注", 10),
         ],
-        "base_score": 88,
+        "base_score": 92,
         "recommendations": [
-            "结合职业、居住环境、饮食和采样方式核对可能的暴露来源",
-            "异常结果应由医生结合规范检测方法确认",
-            "不得依据本评估自行采用螯合或所谓排毒治疗",
+            "保持规律作息，并通过可持续的放松活动减轻压力",
+            "记录持续的情绪、睡眠和压力变化，结合健康随访观察趋势",
+            "若情绪困扰持续影响日常生活，建议寻求专业支持",
         ],
     },
 ]
@@ -368,6 +370,13 @@ def _fires(value: Decimal, condition: str, threshold: Decimal) -> bool:
     return value > threshold if condition == "HIGH" else value < threshold
 
 
+def _context_level(value: str | None, mapping: dict[str, int]) -> Decimal | None:
+    if not value:
+        return None
+    score = mapping.get(value.strip().upper())
+    return Decimal(score) if score is not None else None
+
+
 class HealthRuleEngine(RuleEngine):
     def evaluate(
         self,
@@ -385,6 +394,76 @@ class HealthRuleEngine(RuleEngine):
                 value=context.sleep_hours,
                 unit="h",
             )
+        if context is not None:
+            if context.bmi is not None and "bmi" not in values:
+                values["bmi"] = IndicatorInput(
+                    code="bmi", name="身体质量指数", value=context.bmi, unit="kg/m2"
+                )
+            if context.waist_cm is not None and "waist_risk_score" not in values:
+                waist_limit = Decimal("85") if context.gender == "FEMALE" else Decimal("90")
+                values["waist_risk_score"] = IndicatorInput(
+                    code="waist_risk_score",
+                    name="腰围风险",
+                    value=Decimal("1") if context.waist_cm >= waist_limit else Decimal("0"),
+                    unit="score",
+                )
+            if (
+                context.recent_weight_change_kg is not None
+                and "recent_weight_change_kg" not in values
+            ):
+                values["recent_weight_change_kg"] = IndicatorInput(
+                    code="recent_weight_change_kg",
+                    name="近三个月体重变化",
+                    value=context.recent_weight_change_kg,
+                    unit="kg",
+                )
+            exercise_score = _context_level(
+                context.exercise_frequency,
+                {"RARELY": 0, "1_2_PER_WEEK": 1, "3_5_PER_WEEK": 2, "DAILY": 3},
+            )
+            if exercise_score is not None and "exercise_frequency_score" not in values:
+                values["exercise_frequency_score"] = IndicatorInput(
+                    code="exercise_frequency_score",
+                    name="运动频率",
+                    value=exercise_score,
+                    unit="score",
+                )
+            context_scores = (
+                (
+                    "stress_level_score",
+                    "近期压力水平",
+                    _context_level(
+                        context.stress_level,
+                        {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "VERY_HIGH": 4},
+                    ),
+                ),
+                (
+                    "mood_status_score",
+                    "近期心情状态",
+                    _context_level(
+                        context.mood_status,
+                        {
+                            "EXCELLENT": 0,
+                            "VERY_GOOD": 0,
+                            "GOOD": 1,
+                            "FAIR": 2,
+                            "POOR": 3,
+                            "VERY_POOR": 4,
+                        },
+                    ),
+                ),
+                (
+                    "fear_level_score",
+                    "恐惧或焦虑感受",
+                    _context_level(
+                        context.fear_level,
+                        {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "VERY_HIGH": 4},
+                    ),
+                ),
+            )
+            for code, name, score in context_scores:
+                if score is not None and code not in values:
+                    values[code] = IndicatorInput(code=code, name=name, value=score, unit="score")
         definitions = MODEL_DEFINITIONS
         if model_codes:
             selected = set(model_codes)
@@ -494,9 +573,24 @@ class HealthRuleEngine(RuleEngine):
                 evidence.append("当前吸烟情况已纳入评估")
         elif model_code == "LIVER_METABOLIC" and context.fatty_liver_status == "YES":
             evidence.append("已填写脂肪肝既往诊断")
+        elif model_code == "BODY_COMPOSITION":
+            if context.height_cm is not None:
+                evidence.append(f"身高：{context.height_cm} cm")
+            if context.weight_kg is not None:
+                evidence.append(f"体重：{context.weight_kg} kg")
+            if context.bmi is not None:
+                evidence.append(f"BMI：{context.bmi}")
+            if context.waist_cm is not None:
+                evidence.append(f"腰围：{context.waist_cm} cm")
+            if context.recent_weight_change_kg is not None:
+                evidence.append(f"近三个月体重变化：{context.recent_weight_change_kg} kg")
+            if context.exercise_frequency:
+                evidence.append(f"运动频率：{context.exercise_frequency}")
         elif model_code == "HPA_ADRENAL":
+            if context.sleep_quality:
+                evidence.append(f"睡眠质量：{context.sleep_quality}")
+        elif model_code == "MENTAL_EMOTIONAL":
             for label, value in (
-                ("睡眠质量", context.sleep_quality),
                 ("压力水平", context.stress_level),
                 ("近期心情", context.mood_status),
                 ("恐惧或焦虑感受", context.fear_level),

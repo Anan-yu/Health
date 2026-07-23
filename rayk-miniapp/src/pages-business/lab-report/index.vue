@@ -23,7 +23,12 @@
       </view>
     </view>
     <PageState :loading="loading" :empty="filteredItems.length === 0">
-      <view v-for="item in filteredItems" :key="item.id" class="card task-card" @click="open(item.id)">
+      <view
+        v-for="item in filteredItems"
+        :key="item.id"
+        class="card task-card"
+        @click="open(item.id)"
+      >
         <view class="task-index">{{ item.reportDate.slice(8, 10) }}</view>
         <view class="task-content">
           <view class="task-head"

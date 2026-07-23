@@ -8,6 +8,8 @@ public record HealthProfileVo(
         String patientId,
         BigDecimal heightCm,
         BigDecimal weightKg,
+        BigDecimal waistCm,
+        BigDecimal recentWeightChangeKg,
         BigDecimal bmi,
         String bloodType,
         String lifestyleSummary,

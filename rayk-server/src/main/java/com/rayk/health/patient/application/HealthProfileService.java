@@ -51,6 +51,8 @@ public class HealthProfileService {
         // completeness percentage can decrease after a user removes a field.
         entity.setHeightCm(request.heightCm());
         entity.setWeightKg(request.weightKg());
+        entity.setWaistCm(request.waistCm());
+        entity.setRecentWeightChangeKg(request.recentWeightChangeKg());
         entity.setBloodType(normalize(request.bloodType()));
         entity.setLifestyleSummary(normalize(request.lifestyleSummary()));
         entity.setMedicalHistory(normalize(request.medicalHistory()));
@@ -115,6 +117,10 @@ public class HealthProfileService {
                         .eq(HealthProfileEntity::getId, entity.getId())
                         .set(HealthProfileEntity::getHeightCm, entity.getHeightCm())
                         .set(HealthProfileEntity::getWeightKg, entity.getWeightKg())
+                        .set(HealthProfileEntity::getWaistCm, entity.getWaistCm())
+                        .set(
+                                HealthProfileEntity::getRecentWeightChangeKg,
+                                entity.getRecentWeightChangeKg())
                         .set(HealthProfileEntity::getBmi, entity.getBmi())
                         .set(HealthProfileEntity::getBloodType, entity.getBloodType())
                         .set(HealthProfileEntity::getLifestyleSummary, entity.getLifestyleSummary())
@@ -172,6 +178,8 @@ public class HealthProfileService {
                 String.valueOf(entity.getPatientId()),
                 entity.getHeightCm(),
                 entity.getWeightKg(),
+                entity.getWaistCm(),
+                entity.getRecentWeightChangeKg(),
                 entity.getBmi(),
                 entity.getBloodType(),
                 entity.getLifestyleSummary(),

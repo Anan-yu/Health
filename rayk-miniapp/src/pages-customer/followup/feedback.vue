@@ -6,7 +6,7 @@
         v-model="feedback"
         class="textarea"
         :maxlength="1000"
-        placeholder="记录睡眠、饮食、运动和方案执行情况"
+        placeholder="请如实填写本次睡眠、饮食、运动及计划执行情况"
       /><view class="count">{{ feedback.length }}/1000</view
       ><view v-if="error" class="error">{{ error }}</view
       ><button class="primary" :loading="loading" :disabled="loading" @click="submit">
@@ -20,7 +20,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { sendFeedback } from '@/api/followup'
 const id = ref(''),
-  feedback = ref('本周按计划记录了睡眠和饮食，整体执行良好。'),
+  feedback = ref(''),
   loading = ref(false),
   error = ref('')
 onLoad((q) => (id.value = String(q?.id || '')))

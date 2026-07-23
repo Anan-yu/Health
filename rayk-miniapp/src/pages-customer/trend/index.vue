@@ -11,9 +11,13 @@
         <view class="selector-main" @click="showSelector = !showSelector">
           <view>
             <view class="selector-label">当前查看指标</view>
-            <view class="selector-value">{{ selectedName }}<text v-if="selectedUnit"> · {{ selectedUnit }}</text></view>
+            <view class="selector-value"
+              >{{ selectedName }}<text v-if="selectedUnit"> · {{ selectedUnit }}</text></view
+            >
           </view>
-          <view class="selector-action">{{ showSelector ? '收起' : '切换指标' }} <text>⌄</text></view>
+          <view class="selector-action"
+            >{{ showSelector ? '收起' : '切换指标' }} <text>⌄</text></view
+          >
         </view>
         <view v-if="showSelector" class="selector-options">
           <view class="option-tip">请选择要查看趋势的检验指标</view>
@@ -25,7 +29,8 @@
               :class="{ active: item.code === selectedCode }"
               @click="selectIndicator(item.code)"
             >
-              <text>{{ item.name }}</text><text v-if="item.code === selectedCode">✓</text>
+              <text>{{ item.name }}</text
+              ><text v-if="item.code === selectedCode">✓</text>
             </view>
           </view>
         </view>
@@ -177,16 +182,63 @@ onShow(async () => {
   justify-content: space-between;
   padding: 23rpx 25rpx;
 }
-.selector-label { color: #82948d; font-size: 21rpx; }
-.selector-value { margin-top: 6rpx; color: #20483d; font-size: 29rpx; font-weight: 700; }
-.selector-value text { color: #789087; font-size: 20rpx; font-weight: 400; }
-.selector-action { padding: 12rpx 16rpx; border-radius: 999rpx; background: #e6f6f0; color: #0d765e; font-size: 22rpx; }
-.selector-action text { margin-left: 6rpx; font-size: 20rpx; }
-.selector-options { padding: 0 22rpx 23rpx; border-top: 1rpx solid #edf3f0; }
-.option-tip { margin: 18rpx 0 14rpx; color: #82948d; font-size: 21rpx; }
-.option-grid { display: flex; flex-wrap: wrap; gap: 14rpx; }
-.indicator-option { display: flex; align-items: center; gap: 8rpx; padding: 14rpx 18rpx; border: 1rpx solid #dde9e5; border-radius: 16rpx; background: #f8fbfa; color: #62766f; font-size: 22rpx; }
-.indicator-option.active { border-color: #0f7a62; background: #e2f5ed; color: #0c7159; font-weight: 650; }
+.selector-label {
+  color: #82948d;
+  font-size: 21rpx;
+}
+.selector-value {
+  margin-top: 6rpx;
+  color: #20483d;
+  font-size: 29rpx;
+  font-weight: 700;
+}
+.selector-value text {
+  color: #789087;
+  font-size: 20rpx;
+  font-weight: 400;
+}
+.selector-action {
+  padding: 12rpx 16rpx;
+  border-radius: 999rpx;
+  background: #e6f6f0;
+  color: #0d765e;
+  font-size: 22rpx;
+}
+.selector-action text {
+  margin-left: 6rpx;
+  font-size: 20rpx;
+}
+.selector-options {
+  padding: 0 22rpx 23rpx;
+  border-top: 1rpx solid #edf3f0;
+}
+.option-tip {
+  margin: 18rpx 0 14rpx;
+  color: #82948d;
+  font-size: 21rpx;
+}
+.option-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+.indicator-option {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 14rpx 18rpx;
+  border: 1rpx solid #dde9e5;
+  border-radius: 16rpx;
+  background: #f8fbfa;
+  color: #62766f;
+  font-size: 22rpx;
+}
+.indicator-option.active {
+  border-color: #0f7a62;
+  background: #e2f5ed;
+  color: #0c7159;
+  font-weight: 650;
+}
 .summary-card {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

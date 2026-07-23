@@ -16,7 +16,7 @@ class ProfileCompletenessCalculatorTest {
         profile.setMedicalHistory("none");
         profile.setSmokingStatus("NEVER");
 
-        assertThat(ProfileCompletenessCalculator.calculate(profile)).isEqualTo(18);
+        assertThat(ProfileCompletenessCalculator.calculate(profile)).isEqualTo(17);
     }
 
     @Test

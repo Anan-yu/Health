@@ -72,6 +72,8 @@ export interface HealthProfile {
   patientId: string
   heightCm?: number
   weightKg?: number
+  waistCm?: number
+  recentWeightChangeKg?: number
   bmi?: number
   bloodType?: string
   lifestyleSummary?: string

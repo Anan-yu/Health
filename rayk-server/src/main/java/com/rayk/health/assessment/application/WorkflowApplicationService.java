@@ -706,6 +706,8 @@ public class WorkflowApplicationService {
                 age,
                 profile.heightCm(),
                 profile.weightKg(),
+                profile.waistCm(),
+                profile.recentWeightChangeKg(),
                 profile.bmi(),
                 profile.medicalHistory(),
                 profile.familyHistory(),

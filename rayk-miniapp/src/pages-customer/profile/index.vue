@@ -14,6 +14,11 @@
         ><view class="row"
           ><text>体重</text><text>{{ profile?.weightKg || '-' }} kg</text></view
         ><view class="row"
+          ><text>腰围</text><text>{{ profile?.waistCm ?? '-' }} cm</text></view
+        ><view class="row"
+          ><text>近三个月体重变化</text
+          ><text>{{ profile?.recentWeightChangeKg ?? '-' }} kg</text></view
+        ><view class="row"
           ><text>最近更新</text><text>{{ formatTime(profile?.updatedAt) }}</text></view
         ></view
       >
@@ -41,8 +46,8 @@ const patient = ref<Patient | null>(null)
 const profile = ref<HealthProfile | null>(null)
 const loading = ref(true)
 const error = ref('')
-const genderLabel = computed(() =>
-  ({ MALE: '男', FEMALE: '女' })[patient.value?.gender || ''] || '待完善',
+const genderLabel = computed(
+  () => ({ MALE: '男', FEMALE: '女' })[patient.value?.gender || ''] || '待完善',
 )
 const formatTime = (value?: string) => (value ? value.replace('T', ' ').slice(0, 16) : '待完善')
 onShow(async () => {

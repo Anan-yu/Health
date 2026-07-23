@@ -53,5 +53,53 @@ onShow(load)
 </script>
 
 <style scoped>
-.followup-page{padding-top:34rpx}.page-heading{display:flex;align-items:flex-end;justify-content:space-between;margin:0 6rpx 30rpx;gap:18rpx}.page-heading .title{margin-top:8rpx}.refresh{flex:0 0 auto;padding:14rpx 22rpx;border-radius:999rpx;background:#e4f6f0;color:#0d765e;font-size:22rpx}.followup-card{margin-bottom:18rpx;padding:28rpx}.followup-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16rpx}.feedback{margin-top:20rpx;padding:18rpx;border-radius:16rpx;background:#edf8f4;color:#256f5d;font-size:23rpx;line-height:1.6}.pending-copy{margin-top:20rpx;font-size:22rpx}.completed-time{margin-top:16rpx;color:#8a9993;font-size:21rpx}
+.followup-page {
+  padding-top: 34rpx;
+}
+.page-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin: 0 6rpx 30rpx;
+  gap: 18rpx;
+}
+.page-heading .title {
+  margin-top: 8rpx;
+}
+.refresh {
+  flex: 0 0 auto;
+  padding: 14rpx 22rpx;
+  border-radius: 999rpx;
+  background: #e4f6f0;
+  color: #0d765e;
+  font-size: 22rpx;
+}
+.followup-card {
+  margin-bottom: 18rpx;
+  padding: 28rpx;
+}
+.followup-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+.feedback {
+  margin-top: 20rpx;
+  padding: 18rpx;
+  border-radius: 16rpx;
+  background: #edf8f4;
+  color: #256f5d;
+  font-size: 23rpx;
+  line-height: 1.6;
+}
+.pending-copy {
+  margin-top: 20rpx;
+  font-size: 22rpx;
+}
+.completed-time {
+  margin-top: 16rpx;
+  color: #8a9993;
+  font-size: 21rpx;
+}
 </style>

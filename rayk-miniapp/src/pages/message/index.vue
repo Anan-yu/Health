@@ -2,7 +2,7 @@
   <view class="page message-page">
     <view class="page-heading">
       <view
-        ><view class="eyebrow">NOTIFICATIONS</view><view class="title">消息中心</view
+        ><view class="eyebrow">消息通知</view><view class="title">消息中心</view
         ><view class="subtitle">已发布报告和用户健康随访会在这里汇总</view></view
       >
       <view class="message-count">{{ items.length }}</view>
@@ -70,7 +70,10 @@ const items = computed<Notification[]>(() => [
 const open = (item: Notification) => {
   if (isDoctor.value) {
     uni.navigateTo({
-      url: item.kind === 'report' ? '/pages-business/lab-report/index' : '/pages-business/patient/index',
+      url:
+        item.kind === 'report'
+          ? '/pages-business/lab-report/index'
+          : '/pages-business/patient/index',
     })
     return
   }

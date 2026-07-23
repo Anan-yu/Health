@@ -60,7 +60,10 @@
       </view>
     </view>
 
-    <view class="privacy-tip"><view class="shield">安</view><view class="privacy-content"><text>安全上传</text><text>文件将加密传输</text></view></view>
+    <view class="privacy-tip"
+      ><view class="shield">安</view
+      ><view class="privacy-content"><text>安全上传</text><text>文件将加密传输</text></view></view
+    >
     <view v-if="error" class="error">{{ error }} <text @click="submit">重新尝试</text></view>
     <button class="primary submit-button" :loading="loading" @click="submit">安全上传报告</button>
   </view>
@@ -136,20 +139,20 @@ const acceptFile = (
   file: { name?: string; path: string; size?: number },
   fallbackName = 'report.pdf',
 ) => {
-    const pathName = file.path.split('/').pop() || ''
-    const name = file.name || (pathName.includes('.') ? pathName : fallbackName)
-    const extension = name.split('.').pop()?.toLowerCase()
-    if (!extension || !['pdf', 'jpg', 'jpeg', 'png'].includes(extension)) {
-      error.value = '仅支持 PDF、JPG、PNG 文件'
-      return
-    }
-    fileName.value = name
-    filePath.value = file.path
-    fileSize.value = file.size || 0
-    progress.value = 0
-    state.value = 'SELECTED'
-    error.value = ''
+  const pathName = file.path.split('/').pop() || ''
+  const name = file.name || (pathName.includes('.') ? pathName : fallbackName)
+  const extension = name.split('.').pop()?.toLowerCase()
+  if (!extension || !['pdf', 'jpg', 'jpeg', 'png'].includes(extension)) {
+    error.value = '仅支持 PDF、JPG、PNG 文件'
+    return
   }
+  fileName.value = name
+  filePath.value = file.path
+  fileSize.value = file.size || 0
+  progress.value = 0
+  state.value = 'SELECTED'
+  error.value = ''
+}
 
 function chooseFromCamera() {
   uni.chooseImage({

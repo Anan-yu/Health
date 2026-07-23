@@ -29,6 +29,8 @@ class UpdateProfileRequestValidationTest {
         return new UpdateProfileRequest(
                 height,
                 weight,
+                new BigDecimal("78"),
+                new BigDecimal("-1.5"),
                 "A",
                 "balanced",
                 "none",

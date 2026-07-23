@@ -269,9 +269,9 @@ class DemoReportService:
             "KIDNEY_ELECTROLYTE": "肾脏与电解质健康",
             "HEMATOLOGY_ANEMIA": "血液与营养状态",
             "THYROID_HORMONE": "甲状腺健康",
-            "SEX_HORMONE": "内分泌健康",
+            "BODY_COMPOSITION": "体重与身体成分",
             "HPA_ADRENAL": "睡眠与恢复",
             "NUTRITION_MICRONUTRIENT": "营养状态",
             "GUT_BARRIER": "消化与肠道健康",
-            "HEAVY_METAL_EXPOSURE": "环境暴露健康",
+            "MENTAL_EMOTIONAL": "心理与情绪健康",
         }.get(model_code, "健康状态关注")

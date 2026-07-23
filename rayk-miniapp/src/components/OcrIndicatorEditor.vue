@@ -3,7 +3,7 @@
     <view class="workflow-card">
       <view class="workflow-head">
         <view>
-          <view class="eyebrow">REPORT DIGITIZATION</view>
+          <view class="eyebrow">报告数字化</view>
           <view class="workflow-title">报告数字化</view>
           <view class="workflow-copy">识别结果必须经人工核对后才能进入健康评估</view>
         </view>
@@ -125,12 +125,7 @@
       >
         确认数据并提交 AI 初评
       </button>
-      <button
-        v-else-if="!reviewSubmitted"
-        class="primary"
-        :loading="evaluating"
-        @click="evaluate"
-      >
+      <button v-else-if="!reviewSubmitted" class="primary" :loading="evaluating" @click="evaluate">
         提交 AI 初评
       </button>
       <view v-else class="submitted-hint">AI 初评已提交，结果将在医生审核后展示</view>
@@ -179,7 +174,9 @@ const displayStatus = computed(() => {
 const confidenceText = computed(() =>
   task.value?.confidence === undefined ? '--' : `${Math.round(task.value.confidence * 100)}%`,
 )
-const reviewSubmitted = computed(() => ['REVIEWING', 'PUBLISHED'].includes(report.value?.status || ''))
+const reviewSubmitted = computed(() =>
+  ['REVIEWING', 'PUBLISHED'].includes(report.value?.status || ''),
+)
 const steps = computed(() => {
   const recognized =
     task.value?.status === 'SUCCESS' || report.value?.status === 'WAITING_CONFIRMATION'

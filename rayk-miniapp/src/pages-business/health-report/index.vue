@@ -1,16 +1,11 @@
 <template>
   <view class="page">
-    <view class="eyebrow">HEALTH REPORTS</view>
+    <view class="eyebrow">健康评估报告</view>
     <view class="title">{{ patientName ? `${patientName}的健康评估报告` : '健康评估报告' }}</view>
-    <view class="subtitle">查看并下载本院已授权体检者的已发布报告</view>
+    <view class="subtitle">查看并下载已发布的健康评估报告</view>
 
     <PageState :loading="loading" :error="error" :empty="items.length === 0">
-      <view
-        v-for="item in items"
-        :key="item.id"
-        class="card report-card"
-        @click="detail(item.id)"
-      >
+      <view v-for="item in items" :key="item.id" class="card report-card" @click="detail(item.id)">
         <view class="report-head">
           <view class="section-title">{{ item.title }}</view>
           <StatusTag :status="item.status" />
@@ -64,9 +59,16 @@ const formatTime = (value?: string) =>
 </script>
 
 <style scoped>
-.title { margin-top: 8rpx; }
-.subtitle { margin-top: 10rpx; }
-.report-card { margin-top: 22rpx; padding: 28rpx; }
+.title {
+  margin-top: 8rpx;
+}
+.subtitle {
+  margin-top: 10rpx;
+}
+.report-card {
+  margin-top: 22rpx;
+  padding: 28rpx;
+}
 .report-head,
 .report-meta {
   display: flex;
@@ -74,7 +76,10 @@ const formatTime = (value?: string) =>
   justify-content: space-between;
   gap: 20rpx;
 }
-.report-summary { margin-top: 18rpx; line-height: 1.65; }
+.report-summary {
+  margin-top: 18rpx;
+  line-height: 1.65;
+}
 .report-meta {
   margin-top: 22rpx;
   padding-top: 18rpx;
@@ -82,5 +87,8 @@ const formatTime = (value?: string) =>
   color: #81918b;
   font-size: 21rpx;
 }
-.report-meta text:last-child { color: #0f7a62; font-weight: 650; }
+.report-meta text:last-child {
+  color: #0f7a62;
+  font-weight: 650;
+}
 </style>

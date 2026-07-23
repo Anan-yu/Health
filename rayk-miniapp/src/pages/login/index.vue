@@ -7,7 +7,7 @@
         <view class="logo">AI</view>
         <view>
           <view class="brand-name">Rayk AI</view>
-          <view class="brand-tag">FUNCTIONAL HEALTH</view>
+          <view class="brand-tag">功能医学健康管理</view>
         </view>
       </view>
       <view class="hero-title">让每一份健康数据<br /><text>清晰、有序、可行动</text></view>
@@ -111,8 +111,7 @@ const username = ref('doctor'),
   expired = ref(false),
   identified = ref<{ displayName: string; workbench: string } | null>(null)
 const auth = useAuthStore()
-const isDevBuild =
-  import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEVELOPMENT_LOGIN === 'true'
+const isDevBuild = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEVELOPMENT_LOGIN === 'true'
 const workbenchNames: Record<Role, string> = {
   PLATFORM_ADMIN: '平台管理工作台',
   DOCTOR: '医生工作台',

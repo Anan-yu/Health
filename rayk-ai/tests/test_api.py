@@ -85,6 +85,60 @@ def test_assessment_flags_confirmed_bilirubin_and_electrolyte_abnormalities() ->
     assert results["KIDNEY_ELECTROLYTE"]["dataCompleteness"] >= 85
 
 
+def test_mental_emotional_dimension_uses_questionnaire_context() -> None:
+    response = client.post(
+        "/api/v1/assessments/evaluate",
+        json={
+            "taskId": "TASK_MENTAL_001",
+            "patientId": "10001",
+            "modelCodes": ["MENTAL_EMOTIONAL"],
+            "indicators": [],
+            "patientContext": {
+                "stressLevel": "MEDIUM",
+                "moodStatus": "FAIR",
+                "fearLevel": "LOW",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    result = response.json()["data"]["results"][0]
+    assert result["modelCode"] == "MENTAL_EMOTIONAL"
+    assert result["status"] == "EVALUATED"
+    assert result["riskLevel"] == "ATTENTION"
+    assert result["dataCompleteness"] == 100
+    assert "压力水平：MEDIUM" in result["evidence"]
+
+
+def test_body_composition_dimension_uses_profile_and_exercise_context() -> None:
+    response = client.post(
+        "/api/v1/assessments/evaluate",
+        json={
+            "taskId": "TASK_BODY_001",
+            "patientId": "10001",
+            "modelCodes": ["BODY_COMPOSITION"],
+            "indicators": [],
+            "patientContext": {
+                "gender": "FEMALE",
+                "heightCm": 165,
+                "weightKg": 75,
+                "waistCm": 92,
+                "recentWeightChangeKg": 6,
+                "bmi": 27.5,
+                "exerciseFrequency": "RARELY",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    result = response.json()["data"]["results"][0]
+    assert result["modelCode"] == "BODY_COMPOSITION"
+    assert result["status"] == "EVALUATED"
+    assert result["riskLevel"] == "HIGH"
+    assert result["dataCompleteness"] == 100
+    assert "腰围：92 cm" in result["evidence"]
+
+
 def test_mock_ocr_returns_confirmation_state() -> None:
     response = client.post(
         "/api/v1/ocr/recognize",

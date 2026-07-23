@@ -7,9 +7,19 @@
     </view>
     <view class="card form-card">
       <view class="field-label">医院编号</view>
-      <input v-model="form.tenantCode" class="input" maxlength="50" placeholder="例如：SUZHOU_CLINIC" />
+      <input
+        v-model="form.tenantCode"
+        class="input"
+        maxlength="50"
+        placeholder="例如：SUZHOU_CLINIC"
+      />
       <view class="field-label">医院名称</view>
-      <input v-model="form.tenantName" class="input" maxlength="100" placeholder="请输入合作医院名称" />
+      <input
+        v-model="form.tenantName"
+        class="input"
+        maxlength="100"
+        placeholder="请输入合作医院名称"
+      />
       <view class="field-label">服务套餐</view>
       <input v-model="form.servicePlan" class="input" maxlength="50" placeholder="例如：STANDARD" />
       <view v-if="formError" class="form-error">{{ formError }}</view>
@@ -25,7 +35,11 @@ import type { CreatePlatformTenantPayload } from '@/types/api'
 
 const saving = ref(false)
 const formError = ref('')
-const form = reactive<CreatePlatformTenantPayload>({ tenantCode: '', tenantName: '', servicePlan: 'STANDARD' })
+const form = reactive<CreatePlatformTenantPayload>({
+  tenantCode: '',
+  tenantName: '',
+  servicePlan: 'STANDARD',
+})
 async function save() {
   const payload = {
     tenantCode: form.tenantCode.trim().toUpperCase(),
@@ -55,12 +69,33 @@ async function save() {
 </script>
 
 <style scoped>
-.admin-page { padding-top: 34rpx; }
-.page-heading { margin: 0 6rpx 28rpx; }
-.page-heading .title { margin-top: 8rpx; }
-.form-card { padding: 30rpx; }
-.field-label { margin: 25rpx 0 12rpx; color: #294a41; font-size: 25rpx; font-weight: 650; }
-.field-label:first-child { margin-top: 0; }
-.save-button { margin-top: 30rpx; }
-.form-error { margin-top: 16rpx; color: #b42318; font-size: 23rpx; }
+.admin-page {
+  padding-top: 34rpx;
+}
+.page-heading {
+  margin: 0 6rpx 28rpx;
+}
+.page-heading .title {
+  margin-top: 8rpx;
+}
+.form-card {
+  padding: 30rpx;
+}
+.field-label {
+  margin: 25rpx 0 12rpx;
+  color: #294a41;
+  font-size: 25rpx;
+  font-weight: 650;
+}
+.field-label:first-child {
+  margin-top: 0;
+}
+.save-button {
+  margin-top: 30rpx;
+}
+.form-error {
+  margin-top: 16rpx;
+  color: #b42318;
+  font-size: 23rpx;
+}
 </style>

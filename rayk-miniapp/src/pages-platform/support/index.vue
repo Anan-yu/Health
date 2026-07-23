@@ -46,10 +46,14 @@
             </view>
             <view>
               <view class="ticket-title">{{ categoryLabels[ticket.category] }}</view>
-              <view class="ticket-meta">机构 {{ ticket.tenantId }} · 用户 {{ ticket.submitterUserId }}</view>
+              <view class="ticket-meta"
+                >机构 {{ ticket.tenantId }} · 用户 {{ ticket.submitterUserId }}</view
+              >
             </view>
           </view>
-          <view :class="`status ${ticket.status.toLowerCase()}`">{{ statusLabels[ticket.status] }}</view>
+          <view :class="`status ${ticket.status.toLowerCase()}`">{{
+            statusLabels[ticket.status]
+          }}</view>
         </view>
 
         <view class="ticket-content">{{ ticket.content }}</view>
@@ -59,7 +63,9 @@
         </view>
 
         <view v-if="ticket.reply && activeReplyId !== ticket.id" class="reply-preview">
-          <view class="reply-label">{{ ticket.status === 'PROCESSING' ? '平台处理中' : '平台已回复' }}</view>
+          <view class="reply-label">{{
+            ticket.status === 'PROCESSING' ? '平台处理中' : '平台已回复'
+          }}</view>
           <view class="reply-text">{{ ticket.reply }}</view>
         </view>
 
@@ -75,7 +81,9 @@
             <text>{{ (drafts[ticket.id] || '').length }}/1000</text>
             <view class="editor-actions">
               <view class="text-action" @click="closeEditor">取消</view>
-              <view class="processing-action" @click="reply(ticket.id, 'PROCESSING')">保存处理中</view>
+              <view class="processing-action" @click="reply(ticket.id, 'PROCESSING')"
+                >保存处理中</view
+              >
               <view class="resolve-action" @click="reply(ticket.id, 'RESOLVED')">回复并解决</view>
             </view>
           </view>
@@ -83,7 +91,14 @@
 
         <view v-else class="ticket-footer">
           <view class="ticket-time">
-            工单 {{ ticket.status === 'PROCESSING' ? '平台处理中，可继续跟进' : ticket.reply ? '已处理，可继续跟进' : '等待平台受理' }}
+            工单
+            {{
+              ticket.status === 'PROCESSING'
+                ? '平台处理中，可继续跟进'
+                : ticket.reply
+                  ? '已处理，可继续跟进'
+                  : '等待平台受理'
+            }}
           </view>
           <view class="reply-trigger" @click="openEditor(ticket.id)">
             {{ ticket.reply ? '更新回复' : '开始处理' }} <text>›</text>
@@ -169,7 +184,10 @@ const reply = async (id: string, status: 'PROCESSING' | 'RESOLVED') => {
   }
   try {
     await replyPlatformSupportTicket(id, { reply: replyText, status })
-    uni.showToast({ title: status === 'RESOLVED' ? '已回复提交人' : '已保存处理中', icon: 'success' })
+    uni.showToast({
+      title: status === 'RESOLVED' ? '已回复提交人' : '已保存处理中',
+      icon: 'success',
+    })
     closeEditor()
     await load()
   } catch (cause) {
@@ -330,9 +348,18 @@ onShow(load)
   font-size: 23rpx;
   font-weight: 750;
 }
-.category-bug { background: #fff1df; color: #ab6714; }
-.category-suggestion { background: #eeeaff; color: #7050ad; }
-.category-other { background: #edf1f0; color: #62736c; }
+.category-bug {
+  background: #fff1df;
+  color: #ab6714;
+}
+.category-suggestion {
+  background: #eeeaff;
+  color: #7050ad;
+}
+.category-other {
+  background: #edf1f0;
+  color: #62736c;
+}
 .ticket-title {
   font-size: 28rpx;
   font-weight: 720;
@@ -343,7 +370,9 @@ onShow(load)
   color: #84948e;
   font-size: 20rpx;
 }
-.ticket-meta { margin-top: 6rpx; }
+.ticket-meta {
+  margin-top: 6rpx;
+}
 .status {
   flex: 0 0 auto;
   margin-left: 16rpx;
@@ -354,9 +383,15 @@ onShow(load)
   font-size: 20rpx;
   font-weight: 650;
 }
-.status.processing { background: #eaf1ff; color: #426fb2; }
+.status.processing {
+  background: #eaf1ff;
+  color: #426fb2;
+}
 .status.resolved,
-.status.closed { background: #e4f6f0; color: #0f7a62; }
+.status.closed {
+  background: #e4f6f0;
+  color: #0f7a62;
+}
 .ticket-content {
   margin-top: 22rpx;
   color: #30483f;
@@ -445,7 +480,15 @@ onShow(load)
   font-size: 20rpx;
   font-weight: 650;
 }
-.text-action { color: #71817b; }
-.processing-action { background: #e3f3ee; color: #0e765e; }
-.resolve-action { background: #0f7a62; color: #fff; }
+.text-action {
+  color: #71817b;
+}
+.processing-action {
+  background: #e3f3ee;
+  color: #0e765e;
+}
+.resolve-action {
+  background: #0f7a62;
+  color: #fff;
+}
 </style>

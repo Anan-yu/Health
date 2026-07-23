@@ -22,8 +22,15 @@ export const updatePlatformTenant = (tenantId: string, data: UpdatePlatformTenan
 export const getPlatformDoctors = (tenantId: string) =>
   request<TenantStaff[]>({ url: `/api/v1/platform/tenants/${tenantId}/doctors`, method: 'GET' })
 
-export const createPlatformDoctor = (tenantId: string, data: { displayName: string; phone: string }) =>
-  request<TenantStaff>({ url: `/api/v1/platform/tenants/${tenantId}/doctors`, method: 'POST', data })
+export const createPlatformDoctor = (
+  tenantId: string,
+  data: { displayName: string; phone: string },
+) =>
+  request<TenantStaff>({
+    url: `/api/v1/platform/tenants/${tenantId}/doctors`,
+    method: 'POST',
+    data,
+  })
 
 export const updatePlatformDoctor = (
   tenantId: string,
