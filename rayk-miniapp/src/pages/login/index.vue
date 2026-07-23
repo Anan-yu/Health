@@ -99,9 +99,7 @@ import type { AuthData, Role } from '@/types/api'
 
 const accounts = [
   { username: 'platform_admin', icon: '平', name: '平台管理员', description: '平台基础查看' },
-  { username: 'tenant_admin', icon: '机', name: '机构管理员', description: '机构与人员管理' },
-  { username: 'doctor', icon: '医', name: '医生', description: '评估审核与发布' },
-  { username: 'health_manager', icon: '健', name: '健康管理师', description: '客户、报告与随访' },
+  { username: 'doctor', icon: '医', name: '医生', description: '本院体检者查询与报告查看' },
   { username: 'customer', icon: '客', name: '普通客户', description: '个人健康中心' },
 ]
 const username = ref('doctor'),
@@ -118,9 +116,7 @@ const isDevBuild =
   import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEVELOPMENT_LOGIN === 'true'
 const workbenchNames: Record<Role, string> = {
   PLATFORM_ADMIN: '平台管理工作台',
-  TENANT_ADMIN: '机构管理工作台',
   DOCTOR: '医生工作台',
-  HEALTH_MANAGER: '健康管理工作台',
   CUSTOMER: '个人健康中心',
 }
 

@@ -60,16 +60,12 @@ import type { Role } from '@/types/api'
 const auth = useAuthStore()
 const roleNames: Record<Role, string> = {
   PLATFORM_ADMIN: '平台管理工作台',
-  TENANT_ADMIN: '机构管理工作台',
   DOCTOR: '医生工作台',
-  HEALTH_MANAGER: '健康管理工作台',
   CUSTOMER: '个人健康中心',
 }
 const roleDescriptions: Record<Role, string> = {
   PLATFORM_ADMIN: '查看平台运营、机构与关键审计信息',
-  TENANT_ADMIN: '统筹机构客户、员工与健康服务流程',
-  DOCTOR: '集中处理评估审核与健康报告发布',
-  HEALTH_MANAGER: '制定健康管理计划并持续跟进客户随访',
+  DOCTOR: '按姓名或手机号查询本院已授权体检者，并查看其健康资料和报告',
   CUSTOMER: '管理个人档案、报告、评估与随访反馈',
 }
 const workbenchName = computed(() =>

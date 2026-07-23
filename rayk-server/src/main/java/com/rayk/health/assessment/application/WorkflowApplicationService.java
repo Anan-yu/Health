@@ -12,7 +12,6 @@ import com.rayk.health.assessment.mapper.HealthAssessmentMapper;
 import com.rayk.health.assessment.vo.AssessmentVo;
 import com.rayk.health.common.exception.BusinessException;
 import com.rayk.health.common.exception.ErrorCode;
-import com.rayk.health.followup.dto.CreateFollowupRequest;
 import com.rayk.health.followup.entity.FollowupTaskEntity;
 import com.rayk.health.followup.mapper.FollowupTaskMapper;
 import com.rayk.health.followup.vo.FollowupTaskVo;
@@ -270,15 +269,8 @@ public class WorkflowApplicationService {
             auditNew(assessment, current.userId());
             assessmentMapper.insert(assessment);
 
-            AssessmentReviewEntity review = new AssessmentReviewEntity();
-            review.setTenantId(current.tenantId());
-            review.setAssessmentId(assessment.getId());
-            review.setPatientId(report.getPatientId());
-            review.setStatus("WAITING_REVIEW");
-            auditNew(review, current.userId());
-            reviewMapper.insert(review);
-
-            report.setStatus("REVIEWING");
+            publishAutomatically(assessment, patient, current);
+            report.setStatus("PUBLISHED");
             touch(report, current.userId());
             labReportMapper.updateById(report);
             return toAssessmentVo(assessment);
@@ -309,9 +301,6 @@ public class WorkflowApplicationService {
                         new LambdaQueryWrapper<HealthAssessmentEntity>()
                                 .in(HealthAssessmentEntity::getPatientId, patientIds)
                                 .orderByDesc(HealthAssessmentEntity::getCreatedAt));
-        if ("CUSTOMER".equals(CurrentUser.require().workbench())) {
-            assessments = assessments.stream().filter(this::approvedForCustomer).toList();
-        }
         return assessments.stream()
                 .map(this::toAssessmentVo)
                 .toList();
@@ -323,9 +312,6 @@ public class WorkflowApplicationService {
             throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
         }
         dataScopeService.requirePatient(entity.getPatientId());
-        if ("CUSTOMER".equals(CurrentUser.require().workbench()) && !approvedForCustomer(entity)) {
-            throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
-        }
         return toAssessmentVo(entity);
     }
 
@@ -427,24 +413,6 @@ public class WorkflowApplicationService {
         return toHealthReportVo(report);
     }
 
-    @PreAuthorize("hasAuthority('followup:manage')")
-    @Audited(operationType = "CREATE_FOLLOWUP", resourceType = "FOLLOWUP_TASK")
-    public FollowupTaskVo createFollowup(CreateFollowupRequest request) {
-        dataScopeService.requirePatient(request.patientId());
-        CurrentPrincipal current = CurrentUser.require();
-        FollowupTaskEntity task = new FollowupTaskEntity();
-        task.setTenantId(current.tenantId());
-        task.setPatientId(request.patientId());
-        task.setAssigneeId(request.assigneeId());
-        task.setTitle(request.title());
-        task.setContent(request.content());
-        task.setDueDate(request.dueDate());
-        task.setStatus("PENDING");
-        auditNew(task, current.userId());
-        followupMapper.insert(task);
-        return toFollowupVo(task);
-    }
-
     public List<FollowupTaskVo> listFollowups() {
         List<Long> patientIds = accessiblePatientIds();
         if (patientIds.isEmpty()) {
@@ -468,19 +436,6 @@ public class WorkflowApplicationService {
         return toFollowupVo(requireFollowup(id));
     }
 
-    @PreAuthorize("hasAuthority('followup:manage')")
-    public FollowupTaskVo completeFollowup(long id) {
-        FollowupTaskEntity task = requireFollowup(id);
-        if (!"PENDING".equals(task.getStatus())) {
-            throw new BusinessException(ErrorCode.FOLLOWUP_INVALID_STATUS);
-        }
-        task.setStatus("COMPLETED");
-        task.setCompletedAt(LocalDateTime.now());
-        touch(task, CurrentUser.require().userId());
-        followupMapper.updateById(task);
-        return toFollowupVo(task);
-    }
-
     @PreAuthorize("hasAuthority('self:followup') and principal.workbench == 'CUSTOMER'")
     public FollowupTaskVo feedback(long id, String feedback) {
         FollowupTaskEntity task = requireFollowup(id);
@@ -492,7 +447,22 @@ public class WorkflowApplicationService {
         task.setCompletedAt(LocalDateTime.now());
         touch(task, CurrentUser.require().userId());
         followupMapper.updateById(task);
+        createNextAiFollowup(task, CurrentUser.require());
         return toFollowupVo(task);
+    }
+
+    /** Current AI follow-up policy: a completed feedback closes this task and opens the next check-in. */
+    private void createNextAiFollowup(FollowupTaskEntity completed, CurrentPrincipal current) {
+        FollowupTaskEntity next = new FollowupTaskEntity();
+        next.setTenantId(completed.getTenantId());
+        next.setPatientId(completed.getPatientId());
+        next.setAssigneeId(null);
+        next.setTitle("AI 健康随访（下一期）");
+        next.setContent("请继续记录近两周的饮食、运动、睡眠和身体感受；提交反馈后，Rayk AI 将自动更新后续随访安排。");
+        next.setDueDate(LocalDate.now().plusDays(14));
+        next.setStatus("PENDING");
+        auditNew(next, current.userId());
+        followupMapper.insert(next);
     }
 
     private ReviewTaskVo decide(long id, String opinion, String status) {
@@ -655,13 +625,40 @@ public class WorkflowApplicationService {
                 entity.getCreatedAt());
     }
 
-    /** Customer-facing assessment data is released only after a doctor approves the review. */
-    private boolean approvedForCustomer(HealthAssessmentEntity assessment) {
-        return reviewMapper.selectCount(
-                        new LambdaQueryWrapper<AssessmentReviewEntity>()
-                                .eq(AssessmentReviewEntity::getAssessmentId, assessment.getId())
-                                .in(AssessmentReviewEntity::getStatus, "APPROVED", "PUBLISHED"))
-                > 0;
+    private void publishAutomatically(
+            HealthAssessmentEntity assessment, PatientEntity patient, CurrentPrincipal current) {
+        HealthReportEntity report = new HealthReportEntity();
+        report.setTenantId(current.tenantId());
+        report.setPatientId(patient.getId());
+        report.setAssessmentId(assessment.getId());
+        report.setReportNo("HR" + System.currentTimeMillis());
+        report.setTitle(patient.getName() + "的健康管理评估报告");
+        report.setStatus("PUBLISHED");
+        report.setSummary("AI 初评已生成，可结合健康管理计划持续跟进。");
+        report.setDoctorOpinion(null);
+        report.setDisclaimer(null);
+        report.setPublishedAt(LocalDateTime.now());
+        report.setPublishedBy(current.userId());
+        auditNew(report, current.userId());
+        healthReportMapper.insert(report);
+        pdfReportService.generateAndStore(report, assessment, patient, current.userId());
+        createAiFollowup(assessment, patient, current);
+    }
+
+    private void createAiFollowup(
+            HealthAssessmentEntity assessment, PatientEntity patient, CurrentPrincipal current) {
+        String risk = assessment.getOverallRiskLevel();
+        int days = "HIGH".equals(risk) ? 3 : "ATTENTION".equals(risk) ? 7 : 14;
+        FollowupTaskEntity task = new FollowupTaskEntity();
+        task.setTenantId(current.tenantId());
+        task.setPatientId(patient.getId());
+        task.setAssigneeId(null);
+        task.setTitle("AI 健康随访");
+        task.setContent("请结合本次健康评估，记录近期饮食、运动和身体感受；完成后提交反馈，Rayk AI 将据此生成下一步建议。");
+        task.setDueDate(LocalDate.now().plusDays(days));
+        task.setStatus("PENDING");
+        auditNew(task, current.userId());
+        followupMapper.insert(task);
     }
 
     private ReviewTaskVo toReviewVo(AssessmentReviewEntity review) {

@@ -20,6 +20,7 @@ public class PatientEntity {
     private String gender;
     private LocalDate birthDate;
     private String phoneMasked;
+    private String phoneHash;
     private Long assignedDoctorId;
     private Long assignedManagerId;
     private String status;

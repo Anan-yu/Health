@@ -34,4 +34,16 @@ public interface SysUserMapper extends BaseMapper<SysUserEntity> {
     @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT * FROM sys_user WHERE deleted = 0")
     List<SysUserEntity> selectAllIgnoringTenant();
+
+    @InterceptorIgnore(tenantLine = "true")
+    @Select(
+            """
+            SELECT DISTINCT u.* FROM sys_user u
+            INNER JOIN sys_user_role ur ON ur.user_id = u.id AND ur.deleted = 0
+            INNER JOIN sys_role r ON r.id = ur.role_id AND r.deleted = 0
+            WHERE u.tenant_id = #{tenantId} AND u.deleted = 0
+              AND r.role_code = 'DOCTOR'
+            ORDER BY u.created_at, u.id
+            """)
+    List<SysUserEntity> selectDoctorsByTenantIgnoringTenant(@Param("tenantId") long tenantId);
 }

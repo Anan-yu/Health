@@ -96,9 +96,7 @@ let refreshTimer: ReturnType<typeof globalThis.setInterval> | undefined
 const metricIcons = ['待', '报', '评', '访']
 const roleNames: Record<Role, string> = {
   PLATFORM_ADMIN: '平台管理工作台',
-  TENANT_ADMIN: '机构管理工作台',
   DOCTOR: '医生工作台',
-  HEALTH_MANAGER: '健康管理工作台',
   CUSTOMER: '个人健康中心',
 }
 
@@ -122,7 +120,7 @@ const profileCompleteness = computed(() => {
   return Math.min(100, Math.max(0, Number(value) || 0))
 })
 const pendingTaskCount = computed(() => {
-  const pendingCodes = new Set(['OCR', 'REVIEW', 'FOLLOWUP'])
+  const pendingCodes = new Set(['OCR', 'FOLLOWUP'])
   return (summary.value?.metrics || [])
     .filter((item) => pendingCodes.has(item.code))
     .reduce((total, item) => total + Math.max(0, Number(item.value) || 0), 0)
@@ -139,13 +137,7 @@ const insightProgress = computed(() => profileCompleteness.value)
 const insightRoute = computed(() =>
   isCustomer.value
     ? '/pages-customer/profile/index'
-    : auth.permissions.includes('assessment:review')
-      ? '/pages-business/review/index'
-      : auth.permissions.includes('followup:manage')
-        ? '/pages-business/followup/index'
-        : auth.permissions.includes('lab-report:manage')
-          ? '/pages-business/lab-report/index'
-          : '/pages-business/patient/index',
+    : '/pages-business/patient/index',
 )
 const dateText = computed(() => {
   const now = new Date()

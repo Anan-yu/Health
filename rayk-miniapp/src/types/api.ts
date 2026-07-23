@@ -18,7 +18,7 @@ export interface WorkbenchOption {
   name: string
 }
 
-export type Role = 'PLATFORM_ADMIN' | 'TENANT_ADMIN' | 'DOCTOR' | 'HEALTH_MANAGER' | 'CUSTOMER'
+export type Role = 'PLATFORM_ADMIN' | 'DOCTOR' | 'CUSTOMER'
 
 export interface AuthData {
   accessToken: string
@@ -306,8 +306,6 @@ export interface CreatePlatformTenantPayload {
   tenantCode: string
   tenantName: string
   servicePlan: string
-  adminName: string
-  adminPhone: string
 }
 
 export interface TenantStaff {

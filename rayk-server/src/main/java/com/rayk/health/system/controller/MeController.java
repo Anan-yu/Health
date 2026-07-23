@@ -32,7 +32,7 @@ public class MeController {
 
     @GetMapping("/health-profile")
     public ApiResponse<PatientVo> profile() {
-        return ApiResponse.success(patientService.list().stream().findFirst().orElse(null));
+        return ApiResponse.success(patientService.list(null).stream().findFirst().orElse(null));
     }
 
     @GetMapping("/lab-reports")

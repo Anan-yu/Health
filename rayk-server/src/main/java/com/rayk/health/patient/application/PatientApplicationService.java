@@ -8,6 +8,7 @@ import com.rayk.health.patient.mapper.PatientMapper;
 import com.rayk.health.patient.vo.PatientVo;
 import com.rayk.health.security.service.CurrentPrincipal;
 import com.rayk.health.security.service.CurrentUser;
+import com.rayk.health.security.wechat.PhoneIdentity;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,9 +29,18 @@ public class PatientApplicationService {
         this.dataScopeService = dataScopeService;
     }
 
-    public List<PatientVo> list() {
+    public List<PatientVo> list(String keyword) {
         LambdaQueryWrapper<PatientEntity> query =
                 dataScopeService.scopedPatients().orderByDesc(PatientEntity::getCreatedAt);
+        if (keyword != null && !keyword.isBlank()) {
+            String value = keyword.trim();
+            if (value.matches("^1[3-9]\\d{9}$")) {
+                query.eq(PatientEntity::getPhoneHash, PhoneIdentity.hash(value));
+            } else {
+                query.and(wrapper -> wrapper.like(PatientEntity::getName, value)
+                        .or().like(PatientEntity::getPhoneMasked, value));
+            }
+        }
         return patientMapper.selectList(query).stream().map(converter::toVo).toList();
     }
 
@@ -48,6 +58,8 @@ public class PatientApplicationService {
         entity.setGender(request.gender() == null ? "UNKNOWN" : request.gender());
         entity.setBirthDate(request.birthDate());
         entity.setPhoneMasked(maskPhone(request.phone()));
+        entity.setPhoneHash(request.phone() != null && request.phone().matches("^1[3-9]\\d{9}$")
+                ? PhoneIdentity.hash(request.phone()) : null);
         entity.setAssignedDoctorId(request.assignedDoctorId());
         entity.setAssignedManagerId(request.assignedManagerId());
         entity.setStatus("ACTIVE");

@@ -82,9 +82,7 @@ import type { Role } from '@/types/api'
 const auth = useAuthStore()
 const roleNames: Record<Role, string> = {
   PLATFORM_ADMIN: '平台管理员',
-  TENANT_ADMIN: '机构管理员',
   DOCTOR: '医生工作台',
-  HEALTH_MANAGER: '健康管理师',
   CUSTOMER: '个人健康中心',
 }
 const avatarText = computed(() => auth.user?.displayName?.slice(0, 1) || 'R')

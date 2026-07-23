@@ -59,7 +59,7 @@ class PlatformOverviewServiceTest {
         assertThat(result.activeTenantCount()).isEqualTo(2L);
         assertThat(result.userCount()).isEqualTo(7L);
         assertThat(result.patientCount()).isEqualTo(2L);
-        assertThat(result.pendingReviewCount()).isEqualTo(1L);
+        assertThat(result.pendingReviewCount()).isZero();
         assertThat(result.pendingFollowupCount()).isEqualTo(3L);
         assertThat(result.tenants()).singleElement().extracting(TenantSummaryVo::id).isEqualTo("20001");
     }

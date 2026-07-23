@@ -1,10 +1,7 @@
 {
   "pages": [
     { "path": "pages/login/index", "style": { "navigationBarTitleText": "登录" } },
-    {
-      "path": "pages/home/index",
-      "style": { "navigationBarTitleText": "首页", "enablePullDownRefresh": true }
-    },
+    { "path": "pages/home/index", "style": { "navigationBarTitleText": "首页", "enablePullDownRefresh": true } },
     { "path": "pages/workbench/index", "style": { "navigationBarTitleText": "工作台" } },
     { "path": "pages/message/index", "style": { "navigationBarTitleText": "消息" } },
     { "path": "pages/mine/index", "style": { "navigationBarTitleText": "我的" } },
@@ -14,75 +11,39 @@
     { "path": "pages/error/index", "style": { "navigationBarTitleText": "网络错误" } }
   ],
   "subPackages": [
-    {
-      "root": "pages-customer",
-      "pages": [
-        { "path": "profile/index", "style": { "navigationBarTitleText": "健康档案" } },
-        { "path": "profile/edit", "style": { "navigationBarTitleText": "完善健康档案" } },
-        { "path": "privacy/index", "style": { "navigationBarTitleText": "隐私授权" } },
-        { "path": "lab-report/upload", "style": { "navigationBarTitleText": "上传报告" } },
-        { "path": "lab-report/index", "style": { "navigationBarTitleText": "我的检验报告" } },
-        { "path": "lab-report/detail", "style": { "navigationBarTitleText": "报告详情" } },
-        { "path": "lab-report/confirm", "style": { "navigationBarTitleText": "确认OCR指标" } },
-        { "path": "assessment/index", "style": { "navigationBarTitleText": "AI评估结果" } },
-        { "path": "health-report/index", "style": { "navigationBarTitleText": "健康报告" } },
-        { "path": "health-report/detail", "style": { "navigationBarTitleText": "健康报告详情" } },
-        { "path": "trend/index", "style": { "navigationBarTitleText": "指标趋势" } },
-        { "path": "followup/index", "style": { "navigationBarTitleText": "我的随访" } },
-        { "path": "followup/feedback", "style": { "navigationBarTitleText": "随访反馈" } }
-      ]
-    },
-    {
-      "root": "pages-business",
-      "pages": [
-        { "path": "patient/index", "style": { "navigationBarTitleText": "客户列表" } },
-        { "path": "patient/create", "style": { "navigationBarTitleText": "创建客户" } },
-        { "path": "patient/detail", "style": { "navigationBarTitleText": "客户详情" } },
-        { "path": "lab-report/index", "style": { "navigationBarTitleText": "报告任务" } },
-        { "path": "lab-report/detail", "style": { "navigationBarTitleText": "报告详情" } },
-        { "path": "indicator/index", "style": { "navigationBarTitleText": "客户确认进度" } },
-        { "path": "assessment/index", "style": { "navigationBarTitleText": "AI评估任务" } },
-        { "path": "review/index", "style": { "navigationBarTitleText": "医生审核" } },
-        { "path": "review/detail", "style": { "navigationBarTitleText": "审核详情" } },
-        { "path": "health-report/publish", "style": { "navigationBarTitleText": "发布健康报告" } },
-        { "path": "followup/index", "style": { "navigationBarTitleText": "随访任务" } },
-        { "path": "followup/detail", "style": { "navigationBarTitleText": "随访详情" } }
-      ]
-    },
-    {
-      "root": "pages-tenant",
-      "pages": [
-        { "path": "profile/index", "style": { "navigationBarTitleText": "机构信息" } },
-        { "path": "staff/index", "style": { "navigationBarTitleText": "机构员工" } },
-        { "path": "dashboard/index", "style": { "navigationBarTitleText": "数据概览" } },
-        { "path": "dashboard/tenant-edit", "style": { "navigationBarTitleText": "编辑机构" } },
-        { "path": "dashboard/tenant-create", "style": { "navigationBarTitleText": "新建机构" } },
-        { "path": "audit/index", "style": { "navigationBarTitleText": "审计记录" } }
-      ]
-    },
-    {
-      "root": "pages-platform",
-      "pages": [
-        { "path": "support/index", "style": { "navigationBarTitleText": "反馈中心" } }
-      ]
-    }
+    { "root": "pages-customer", "pages": [
+      { "path": "profile/index", "style": { "navigationBarTitleText": "健康档案" } },
+      { "path": "profile/edit", "style": { "navigationBarTitleText": "完善健康档案" } },
+      { "path": "privacy/index", "style": { "navigationBarTitleText": "隐私授权" } },
+      { "path": "lab-report/upload", "style": { "navigationBarTitleText": "上传报告" } },
+      { "path": "lab-report/index", "style": { "navigationBarTitleText": "我的检验报告" } },
+      { "path": "lab-report/detail", "style": { "navigationBarTitleText": "报告详情" } },
+      { "path": "lab-report/confirm", "style": { "navigationBarTitleText": "确认OCR指标" } },
+      { "path": "assessment/index", "style": { "navigationBarTitleText": "AI评估结果" } },
+      { "path": "health-report/index", "style": { "navigationBarTitleText": "健康报告" } },
+      { "path": "health-report/detail", "style": { "navigationBarTitleText": "健康报告详情" } },
+      { "path": "trend/index", "style": { "navigationBarTitleText": "指标趋势" } },
+      { "path": "followup/index", "style": { "navigationBarTitleText": "AI随访" } },
+      { "path": "followup/feedback", "style": { "navigationBarTitleText": "随访反馈" } }
+    ] },
+    { "root": "pages-business", "pages": [
+      { "path": "patient/index", "style": { "navigationBarTitleText": "体检者查询" } },
+      { "path": "patient/detail", "style": { "navigationBarTitleText": "体检者详情" } },
+      { "path": "lab-report/index", "style": { "navigationBarTitleText": "检验报告" } },
+      { "path": "lab-report/detail", "style": { "navigationBarTitleText": "报告详情" } },
+      { "path": "assessment/index", "style": { "navigationBarTitleText": "AI评估" } }
+    ] },
+    { "root": "pages-tenant", "pages": [
+      { "path": "dashboard/index", "style": { "navigationBarTitleText": "医院管理" } },
+      { "path": "dashboard/tenant-edit", "style": { "navigationBarTitleText": "编辑医院" } },
+      { "path": "dashboard/tenant-create", "style": { "navigationBarTitleText": "新建医院" } }
+    ] },
+    { "root": "pages-platform", "pages": [
+      { "path": "support/index", "style": { "navigationBarTitleText": "反馈中心" } }
+    ] }
   ],
-  "tabBar": {
-    "color": "#87958f",
-    "selectedColor": "#0f7a62",
-    "backgroundColor": "#ffffff",
-    "borderStyle": "white",
-    "list": [
-      { "pagePath": "pages/home/index", "text": "首页" },
-      { "pagePath": "pages/workbench/index", "text": "工作台" },
-      { "pagePath": "pages/message/index", "text": "消息" },
-      { "pagePath": "pages/mine/index", "text": "我的" }
-    ]
-  },
-  "globalStyle": {
-    "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "Rayk AI",
-    "navigationBarBackgroundColor": "#f5faf8",
-    "backgroundColor": "#f5faf8"
-  }
+  "tabBar": { "color": "#87958f", "selectedColor": "#0f7a62", "backgroundColor": "#ffffff", "borderStyle": "white", "list": [
+    { "pagePath": "pages/home/index", "text": "首页" }, { "pagePath": "pages/workbench/index", "text": "工作台" }, { "pagePath": "pages/message/index", "text": "消息" }, { "pagePath": "pages/mine/index", "text": "我的" }
+  ] },
+  "globalStyle": { "navigationBarTextStyle": "black", "navigationBarTitleText": "Rayk AI", "navigationBarBackgroundColor": "#f5faf8", "backgroundColor": "#f5faf8" }
 }

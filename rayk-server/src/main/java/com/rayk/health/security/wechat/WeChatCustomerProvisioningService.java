@@ -112,6 +112,7 @@ public class WeChatCustomerProvisioningService {
         patient.setName(user.getDisplayName());
         patient.setGender("UNKNOWN");
         patient.setPhoneMasked(user.getPhoneMasked());
+        patient.setPhoneHash(phoneHash);
         patient.setStatus("ACTIVE");
         patient.setCreatedBy(user.getId());
         patient.setCreatedAt(now);

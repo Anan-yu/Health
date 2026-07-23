@@ -7,18 +7,6 @@ import type {
 } from '@/types/api'
 import { request } from '@/utils/request'
 
-export const getTenantProfile = () =>
-  request<TenantProfile>({ url: '/api/v1/tenant/profile', method: 'GET' })
-
-export const getTenantStaff = () =>
-  request<TenantStaff[]>({ url: '/api/v1/tenant/staff', method: 'GET' })
-
-export const createTenantStaff = (data: {
-  displayName: string
-  phone: string
-  roleCode: 'DOCTOR' | 'HEALTH_MANAGER'
-}) => request<TenantStaff>({ url: '/api/v1/tenant/staff', method: 'POST', data })
-
 export const getPlatformOverview = () =>
   request<PlatformOverview>({ url: '/api/v1/platform/overview', method: 'GET' })
 
@@ -30,3 +18,9 @@ export const createPlatformTenant = (data: CreatePlatformTenantPayload) =>
 
 export const updatePlatformTenant = (tenantId: string, data: UpdatePlatformTenantPayload) =>
   request<TenantProfile>({ url: `/api/v1/platform/tenants/${tenantId}`, method: 'PUT', data })
+
+export const getPlatformDoctors = (tenantId: string) =>
+  request<TenantStaff[]>({ url: `/api/v1/platform/tenants/${tenantId}/doctors`, method: 'GET' })
+
+export const createPlatformDoctor = (tenantId: string, data: { displayName: string; phone: string }) =>
+  request<TenantStaff>({ url: `/api/v1/platform/tenants/${tenantId}/doctors`, method: 'POST', data })

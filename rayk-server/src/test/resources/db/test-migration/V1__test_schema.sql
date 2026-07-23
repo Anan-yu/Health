@@ -60,7 +60,7 @@ CREATE TABLE sys_user_customer_scope (
 );
 
 CREATE TABLE health_patient (
-  id BIGINT NOT NULL, tenant_id BIGINT NOT NULL, user_id BIGINT NULL, name VARCHAR(50) NOT NULL, gender VARCHAR(20) NOT NULL, birth_date DATE NULL, phone_masked VARCHAR(30) NULL,
+  id BIGINT NOT NULL, tenant_id BIGINT NOT NULL, user_id BIGINT NULL, name VARCHAR(50) NOT NULL, gender VARCHAR(20) NOT NULL, birth_date DATE NULL, phone_masked VARCHAR(30) NULL, phone_hash CHAR(64) NULL,
   assigned_doctor_id BIGINT NULL, assigned_manager_id BIGINT NULL, status VARCHAR(20) NOT NULL,
   created_by BIGINT NOT NULL, created_at DATETIME NOT NULL, updated_by BIGINT NOT NULL, updated_at DATETIME NOT NULL,
   deleted TINYINT NOT NULL DEFAULT 0, version INT NOT NULL DEFAULT 0,

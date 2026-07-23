@@ -4,8 +4,11 @@ import com.rayk.health.common.api.ApiResponse;
 import com.rayk.health.platform.application.PlatformOverviewService;
 import com.rayk.health.platform.dto.UpdatePlatformTenantRequest;
 import com.rayk.health.platform.dto.CreatePlatformTenantRequest;
+import com.rayk.health.platform.dto.CreatePlatformDoctorRequest;
 import com.rayk.health.platform.vo.PlatformOverviewVo;
 import com.rayk.health.tenant.vo.TenantProfileVo;
+import com.rayk.health.tenant.vo.StaffVo;
+import java.util.List;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -48,5 +51,18 @@ public class PlatformController {
     public ApiResponse<TenantProfileVo> updateTenant(
             @PathVariable long tenantId, @Valid @RequestBody UpdatePlatformTenantRequest request) {
         return ApiResponse.success(overviewService.updateTenant(tenantId, request));
+    }
+
+    @GetMapping("/tenants/{tenantId}/doctors")
+    @PreAuthorize("hasAuthority('platform:tenant:list')")
+    public ApiResponse<List<StaffVo>> doctors(@PathVariable long tenantId) {
+        return ApiResponse.success(overviewService.doctors(tenantId));
+    }
+
+    @PostMapping("/tenants/{tenantId}/doctors")
+    @PreAuthorize("hasAuthority('platform:tenant:list')")
+    public ApiResponse<StaffVo> createDoctor(
+            @PathVariable long tenantId, @Valid @RequestBody CreatePlatformDoctorRequest request) {
+        return ApiResponse.success(overviewService.createDoctor(tenantId, request));
     }
 }

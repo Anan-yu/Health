@@ -23,7 +23,7 @@ public interface PlatformOverviewMapper {
             INNER JOIN sys_user_role ur ON ur.user_id = u.id AND ur.deleted = 0
             INNER JOIN sys_role r ON r.id = ur.role_id AND r.deleted = 0
             WHERE u.tenant_id <> 1 AND u.deleted = 0
-              AND r.role_code IN ('TENANT_ADMIN', 'DOCTOR', 'HEALTH_MANAGER')
+              AND r.role_code IN ('DOCTOR')
             """)
     long countUsers();
 
@@ -53,7 +53,7 @@ public interface PlatformOverviewMapper {
             LEFT JOIN sys_user u ON u.tenant_id = t.tenant_id AND u.deleted = 0
             LEFT JOIN sys_user_role ur ON ur.user_id = u.id AND ur.deleted = 0
             LEFT JOIN sys_role r ON r.id = ur.role_id AND r.deleted = 0
-                AND r.role_code IN ('TENANT_ADMIN', 'DOCTOR', 'HEALTH_MANAGER')
+                AND r.role_code IN ('DOCTOR')
             WHERE t.tenant_id <> 1 AND t.deleted = 0
             GROUP BY t.tenant_id, t.tenant_code, t.tenant_name, t.status, t.service_plan
             ORDER BY t.tenant_id
