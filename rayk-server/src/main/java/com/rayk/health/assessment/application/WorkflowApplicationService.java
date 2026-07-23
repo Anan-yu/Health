@@ -398,9 +398,17 @@ public class WorkflowApplicationService {
     }
 
     public List<HealthReportVo> listHealthReports() {
+        return listHealthReports(null);
+    }
+
+    public List<HealthReportVo> listHealthReports(Long patientId) {
         List<Long> patientIds = accessiblePatientIds();
         if (patientIds.isEmpty()) {
             return List.of();
+        }
+        if (patientId != null) {
+            dataScopeService.requirePatient(patientId);
+            patientIds = List.of(patientId);
         }
         return healthReportMapper
                 .selectList(

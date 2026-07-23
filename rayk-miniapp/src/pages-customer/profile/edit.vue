@@ -4,7 +4,12 @@
     ><view class="subtitle page-copy">请认真作答，作答内容将作为健康报告评估依据。</view
     ><PageState :loading="loading" :error="error" :empty="!patient"
       ><view class="questionnaire-note"><text>健康问卷</text><view>身高体重、既往情况、饮食、睡眠和情绪信息将与检验报告共同用于本次健康评估。</view></view
-      ><view class="card form-card"
+      ><view class="completion-preview"
+        ><view class="completion-header"
+          ><text>档案完整度</text><text>{{ liveCompleteness }}%</text></view
+        ><progress :percent="liveCompleteness" active-color="#176b57"
+      /></view>
+      <view class="card form-card"
         ><view class="identity-note">姓名和手机号用于医院医生按姓名或手机号查询您的健康报告。</view
         ><view class="field"
           ><text>姓名</text><input v-model="identity.name" placeholder="请输入真实姓名" /></view
@@ -32,7 +37,7 @@
           ></view
         ><view class="field"
           ><text>手机号</text
-          ><input v-model="identity.phone" type="number" maxlength="11" :placeholder="patient?.phoneMasked || '请输入 11 位手机号'" /><view class="field-tip">{{ patient?.phoneMasked ? `当前已登记：${patient.phoneMasked}` : '填写后可供医生按手机号查询健康报告' }}</view></view
+          ><input v-model="identity.phone" type="number" maxlength="11" :placeholder="patient?.phoneMasked || '请输入 11 位手机号'" /></view
         ><view class="field"
           ><text>身高（cm）</text
           ><input v-model="form.heightCm" type="digit" placeholder="例如 168" /></view
@@ -151,7 +156,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getHealthProfile, getMyProfile, updateHealthProfile, updatePatientIdentity } from '@/api/patient'
 import type { HealthProfile, Patient } from '@/types/api'
@@ -185,6 +190,34 @@ const form = reactive<Record<string, string>>({
   dyslipidemiaStatus: '',
   fattyLiverStatus: '',
   lifestyleSummary: '',
+})
+const questionnaireFields = [
+  'heightCm',
+  'weightKg',
+  'bloodType',
+  'lifestyleSummary',
+  'medicalHistory',
+  'familyHistory',
+  'allergyHistory',
+  'currentMedications',
+  'smokingStatus',
+  'alcoholStatus',
+  'exerciseFrequency',
+  'sleepQuality',
+  'sleepHours',
+  'stressLevel',
+  'moodStatus',
+  'fearLevel',
+  'dietaryPreference',
+  'recentDietaryPattern',
+  'diabetesStatus',
+  'hypertensionStatus',
+  'dyslipidemiaStatus',
+  'fattyLiverStatus',
+] as const
+const liveCompleteness = computed(() => {
+  const answered = questionnaireFields.filter((field) => form[field].trim() !== '').length
+  return Math.round((answered / questionnaireFields.length) * 100)
 })
 type SelectOption = { label: string; value: string }
 type PickerChangeEvent = { detail: { value: string | number } }
@@ -321,8 +354,11 @@ const save = async () => {
       birthDate: identity.birthDate,
       ...(identity.phone ? { phone: identity.phone } : {}),
     })
+    const questionnairePayload = Object.fromEntries(
+      Object.entries(form).map(([key, value]) => [key, value.trim() || null]),
+    )
     await updateHealthProfile(patient.value.id, {
-      ...form,
+      ...questionnairePayload,
       heightCm: form.heightCm ? height : null,
       weightKg: form.weightKg ? weight : null,
       sleepHours: form.sleepHours ? sleepHours : null,
@@ -343,6 +379,22 @@ const save = async () => {
 }
 .questionnaire-note { margin-bottom:20rpx; padding:24rpx 26rpx; border-radius:20rpx; background:#eaf8f3; color:#42685d; font-size:23rpx; line-height:1.65; }
 .questionnaire-note text { display:block; margin-bottom:6rpx; color:#0e755d; font-size:27rpx; font-weight:720; }
+.completion-preview {
+  margin-bottom: 20rpx;
+  padding: 24rpx 26rpx;
+  border: 1rpx solid #dbe9e4;
+  border-radius: 20rpx;
+  background: #fff;
+}
+.completion-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 14rpx;
+  color: #24483d;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+.completion-header text:last-child { color: #0f7a62; }
 .identity-note { margin-bottom: 4rpx; color: #55746a; font-size: 22rpx; line-height: 1.6; }
 .field {
   padding: 24rpx 0;
@@ -369,7 +421,6 @@ const save = async () => {
 .field textarea {
   min-height: 110rpx;
 }
-.field-tip { margin-top: 10rpx; color: #8b9994; font-size: 21rpx; line-height: 1.5; }
 .primary-button {
   margin-top: 26rpx;
   border-radius: 16rpx;

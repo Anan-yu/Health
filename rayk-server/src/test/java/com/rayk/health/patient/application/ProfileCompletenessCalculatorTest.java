@@ -18,4 +18,14 @@ class ProfileCompletenessCalculatorTest {
 
         assertThat(ProfileCompletenessCalculator.calculate(profile)).isEqualTo(18);
     }
+
+    @Test
+    void ignoresNullEmptyAndWhitespaceOnlyFields() {
+        HealthProfileEntity profile = new HealthProfileEntity();
+        profile.setBloodType("");
+        profile.setMedicalHistory("   ");
+        profile.setLifestyleSummary(null);
+
+        assertThat(ProfileCompletenessCalculator.calculate(profile)).isZero();
+    }
 }

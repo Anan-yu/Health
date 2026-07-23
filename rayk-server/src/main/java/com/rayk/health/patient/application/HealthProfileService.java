@@ -1,6 +1,7 @@
 package com.rayk.health.patient.application;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.rayk.health.patient.dto.UpdateProfileRequest;
 import com.rayk.health.patient.entity.HealthProfileEntity;
 import com.rayk.health.patient.mapper.HealthProfileMapper;
@@ -94,8 +95,52 @@ public class HealthProfileService {
                 || entity.getProfileCompleteness() != calculatedCompleteness;
         entity.setProfileCompleteness(calculatedCompleteness);
         if (forcePersist || changed) {
-            profileMapper.updateById(entity);
+            if (forcePersist) {
+                persistCompleteProfile(entity);
+            } else {
+                profileMapper.updateById(entity);
+            }
         }
+    }
+
+    /**
+     * MyBatis-Plus ignores null properties in updateById by default. A profile PUT is a full
+     * replacement, so every nullable questionnaire field must be written explicitly; otherwise a
+     * cleared answer reappears after reload and the derived completeness percentage becomes stale.
+     */
+    private void persistCompleteProfile(HealthProfileEntity entity) {
+        profileMapper.update(
+                null,
+                new LambdaUpdateWrapper<HealthProfileEntity>()
+                        .eq(HealthProfileEntity::getId, entity.getId())
+                        .set(HealthProfileEntity::getHeightCm, entity.getHeightCm())
+                        .set(HealthProfileEntity::getWeightKg, entity.getWeightKg())
+                        .set(HealthProfileEntity::getBmi, entity.getBmi())
+                        .set(HealthProfileEntity::getBloodType, entity.getBloodType())
+                        .set(HealthProfileEntity::getLifestyleSummary, entity.getLifestyleSummary())
+                        .set(HealthProfileEntity::getMedicalHistory, entity.getMedicalHistory())
+                        .set(HealthProfileEntity::getFamilyHistory, entity.getFamilyHistory())
+                        .set(HealthProfileEntity::getAllergyHistory, entity.getAllergyHistory())
+                        .set(HealthProfileEntity::getCurrentMedications, entity.getCurrentMedications())
+                        .set(HealthProfileEntity::getSmokingStatus, entity.getSmokingStatus())
+                        .set(HealthProfileEntity::getAlcoholStatus, entity.getAlcoholStatus())
+                        .set(HealthProfileEntity::getExerciseFrequency, entity.getExerciseFrequency())
+                        .set(HealthProfileEntity::getSleepQuality, entity.getSleepQuality())
+                        .set(HealthProfileEntity::getSleepHours, entity.getSleepHours())
+                        .set(HealthProfileEntity::getStressLevel, entity.getStressLevel())
+                        .set(HealthProfileEntity::getMoodStatus, entity.getMoodStatus())
+                        .set(HealthProfileEntity::getFearLevel, entity.getFearLevel())
+                        .set(HealthProfileEntity::getDietaryPreference, entity.getDietaryPreference())
+                        .set(HealthProfileEntity::getRecentDietaryPattern, entity.getRecentDietaryPattern())
+                        .set(HealthProfileEntity::getDiabetesStatus, entity.getDiabetesStatus())
+                        .set(HealthProfileEntity::getHypertensionStatus, entity.getHypertensionStatus())
+                        .set(HealthProfileEntity::getDyslipidemiaStatus, entity.getDyslipidemiaStatus())
+                        .set(HealthProfileEntity::getFattyLiverStatus, entity.getFattyLiverStatus())
+                        .set(
+                                HealthProfileEntity::getProfileCompleteness,
+                                entity.getProfileCompleteness())
+                        .set(HealthProfileEntity::getUpdatedBy, entity.getUpdatedBy())
+                        .set(HealthProfileEntity::getUpdatedAt, entity.getUpdatedAt()));
     }
 
     private HealthProfileEntity findOrCreate(long patientId) {

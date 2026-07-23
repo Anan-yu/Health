@@ -26,7 +26,39 @@
         </view>
         <view class="section-tip refresh-tip" @click="refresh(true)">{{ refreshLabel }}</view>
       </view>
-      <view class="metric-grid">
+      <view v-if="isCustomer" class="health-dashboard">
+        <view class="profile-gauge-panel" @click="open(profileMetric?.route || insightRoute)">
+          <view class="profile-gauge" :style="profileGaugeStyle">
+            <view class="profile-gauge-core">
+              <view class="profile-gauge-value">{{ profileCompleteness }}<text>%</text></view>
+              <view class="profile-gauge-label">档案完整度</view>
+            </view>
+          </view>
+          <view class="profile-gauge-status">{{ profileCompletenessLabel }}</view>
+          <view class="profile-gauge-action">查看健康档案 ›</view>
+        </view>
+        <view class="dashboard-stat-list">
+          <view
+            v-for="(item, index) in customerStats"
+            :key="item.code"
+            class="dashboard-stat"
+            @click="open(item.route)"
+          >
+            <view class="dashboard-stat-icon" :class="`stat-tone-${index}`">{{
+              item.code === 'REPORT' ? '报' : '访'
+            }}</view>
+            <view class="dashboard-stat-content">
+              <view class="dashboard-stat-top">
+                <view class="dashboard-stat-value">{{ item.value }}</view>
+                <text>›</text>
+              </view>
+              <view class="dashboard-stat-label">{{ item.label }}</view>
+              <view class="dashboard-stat-hint">实时更新 · 点击查看</view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view v-else class="metric-grid">
         <view
           v-for="(item, index) in summary?.metrics"
           :key="item.code"
@@ -117,6 +149,20 @@ const profileCompleteness = computed(() => {
   const value = summary.value?.metrics.find((item) => item.code === 'PROFILE')?.value ?? 0
   return Math.min(100, Math.max(0, Number(value) || 0))
 })
+const profileMetric = computed(() =>
+  summary.value?.metrics.find((item) => item.code === 'PROFILE'),
+)
+const customerStats = computed(
+  () => summary.value?.metrics.filter((item) => item.code !== 'PROFILE') ?? [],
+)
+const profileGaugeStyle = computed(() => ({
+  background: `conic-gradient(#13846a ${profileCompleteness.value * 3.6}deg, #dceee8 0deg)`,
+}))
+const profileCompletenessLabel = computed(() => {
+  if (profileCompleteness.value >= 100) return '档案已完整'
+  if (profileCompleteness.value >= 70) return '继续补充更准确'
+  return '建议优先完善档案'
+})
 const insightTitle = computed(() =>
   `健康档案已完善 ${profileCompleteness.value}%`,
 )
@@ -130,7 +176,7 @@ const dateText = computed(() => {
 })
 const refreshLabel = computed(() =>
   lastUpdatedAt.value
-    ? `更新于 ${lastUpdatedAt.value.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · 刷新`
+    ? `更新于 ${String(lastUpdatedAt.value.getHours()).padStart(2, '0')}:${String(lastUpdatedAt.value.getMinutes()).padStart(2, '0')} · 刷新`
     : '正在更新',
 )
 
@@ -259,6 +305,137 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18rpx;
+}
+.health-dashboard {
+  display: grid;
+  grid-template-columns: 0.92fr 1.08fr;
+  gap: 18rpx;
+  padding: 24rpx;
+  border: 1rpx solid #dceae5;
+  border-radius: 32rpx;
+  background: linear-gradient(145deg, #ffffff 0%, #f0faf6 100%);
+  box-shadow: 0 14rpx 34rpx rgba(24, 92, 73, 0.08);
+}
+.profile-gauge-panel {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 12rpx 4rpx;
+}
+.profile-gauge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 190rpx;
+  height: 190rpx;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1rpx rgba(19, 132, 106, 0.05);
+  transition: background 0.35s ease;
+}
+.profile-gauge-core {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  width: 148rpx;
+  height: 148rpx;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 8rpx 18rpx rgba(20, 96, 76, 0.09);
+}
+.profile-gauge-value {
+  color: #0d745d;
+  font-size: 42rpx;
+  font-weight: 780;
+  line-height: 1;
+}
+.profile-gauge-value text {
+  margin-left: 2rpx;
+  font-size: 22rpx;
+}
+.profile-gauge-label {
+  margin-top: 10rpx;
+  color: #627b73;
+  font-size: 20rpx;
+}
+.profile-gauge-status {
+  margin-top: 16rpx;
+  color: #1d4d40;
+  font-size: 22rpx;
+  font-weight: 650;
+}
+.profile-gauge-action {
+  margin-top: 8rpx;
+  color: #6c827b;
+  font-size: 19rpx;
+}
+.dashboard-stat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+.dashboard-stat {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  padding: 20rpx;
+  border: 1rpx solid #e1ece8;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.92);
+}
+.dashboard-stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 58rpx;
+  height: 58rpx;
+  margin-right: 18rpx;
+  border-radius: 19rpx;
+  background: #eaf1ff;
+  color: #4472bc;
+  font-size: 22rpx;
+  font-weight: 750;
+}
+.dashboard-stat-icon.stat-tone-1 {
+  background: #fff0d6;
+  color: #a66b0c;
+}
+.dashboard-stat-content {
+  flex: 1;
+  min-width: 0;
+}
+.dashboard-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dashboard-stat-top text {
+  color: #9aaba5;
+  font-size: 28rpx;
+}
+.dashboard-stat-value {
+  color: #0d745d;
+  font-size: 36rpx;
+  font-weight: 780;
+  line-height: 1;
+}
+.dashboard-stat-label {
+  overflow: hidden;
+  margin-top: 8rpx;
+  color: #183c33;
+  font-size: 22rpx;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-stat-hint {
+  margin-top: 6rpx;
+  color: #94a39e;
+  font-size: 17rpx;
 }
 .metric-card {
   padding: 24rpx;

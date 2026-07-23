@@ -37,7 +37,7 @@
         <view v-for="(item, index) in directions" :key="item" class="direction-item"><text>{{ index + 1 }}</text><view>{{ item }}</view></view>
       </view>
 
-      <view class="plan-card" @click="openFollowup">
+      <view v-if="isCustomer" class="plan-card" @click="openFollowup">
         <view><view class="plan-kicker">HEALTH FOLLOW-UP</view><view class="plan-title">本周健康计划已生成</view><view class="plan-copy">健康随访会根据本次重点问题安排轻量任务与反馈。</view></view><text>›</text>
       </view>
       <button class="download-button" :loading="downloading" @click="download">下载 PDF 健康报告</button>
@@ -50,6 +50,7 @@ import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getHealthReport, getHealthReportDownloadUrl } from '@/api/health-report'
 import { getApiBaseUrl, getRequestHeaders } from '@/utils/request'
+import { useAuthStore } from '@/stores/auth'
 import type { Assessment, HealthReport } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 
@@ -62,6 +63,8 @@ const labels: Record<string, string> = {
   NUTRITION_MICRONUTRIENT: '营养状态', GUT_BARRIER: '消化与肠道健康', HEAVY_METAL_EXPOSURE: '环境暴露健康',
 }
 const id = ref(''), report = ref<HealthReport | null>(null), loading = ref(true), downloading = ref(false), error = ref('')
+const auth = useAuthStore()
+const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
 const assessment = computed<Assessment | undefined>(() => report.value?.assessment)
 const evaluated = computed(() => (assessment.value?.results?.results || []).filter((item) => item.status !== 'INSUFFICIENT_DATA'))
 const concerns = computed<Focus[]>(() => evaluated.value.filter((item) => item.riskLevel === 'ATTENTION' || item.riskLevel === 'HIGH').slice(0, 3).map((item) => ({
@@ -85,7 +88,11 @@ const directions = computed(() => {
 })
 const load = async () => { if (!id.value) { error.value = '缺少健康报告编号'; loading.value = false; return }; loading.value = true; error.value = ''; try { report.value = await getHealthReport(id.value) } catch (cause) { error.value = cause instanceof Error ? cause.message : '报告加载失败' } finally { loading.value = false } }
 onLoad((options) => { id.value = options?.id || '' }); onShow(load)
-const openLabReport = () => { if (assessment.value?.reportId) uni.navigateTo({ url: `/pages-customer/lab-report/detail?id=${assessment.value.reportId}` }) }
+const openLabReport = () => {
+  if (!assessment.value?.reportId) return
+  const root = isCustomer.value ? 'pages-customer' : 'pages-business'
+  uni.navigateTo({ url: `/${root}/lab-report/detail?id=${assessment.value.reportId}` })
+}
 const openFollowup = () => uni.navigateTo({ url: '/pages-customer/followup/index' })
 const download = async () => { if (!id.value) return; downloading.value = true; try { const { downloadUrl } = await getHealthReportDownloadUrl(id.value)
   // #ifdef H5
