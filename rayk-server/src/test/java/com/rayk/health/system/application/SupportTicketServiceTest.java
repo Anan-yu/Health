@@ -113,10 +113,12 @@ class SupportTicketServiceTest {
         resolved.setCreatedAt(createdAt);
         resolved.setUpdatedAt(createdAt);
         resolved.setDeleted(0);
-        when(ticketMapper.selectList(any())).thenReturn(List.of(pending, resolved));
+        when(ticketMapper.selectMyTickets(20001L, 10005L))
+                .thenReturn(List.of(pending, resolved));
 
         List<SupportTicketVo> tickets = service.listMine();
 
+        verify(ticketMapper).selectMyTickets(20001L, 10005L);
         assertThat(tickets).hasSize(2);
         assertThat(tickets.get(0).id()).isEqualTo("2079545597569081345");
         assertThat(tickets.get(0).status()).isEqualTo("OPEN");

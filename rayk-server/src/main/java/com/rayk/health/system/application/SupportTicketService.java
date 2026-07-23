@@ -1,6 +1,5 @@
 package com.rayk.health.system.application;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.rayk.health.security.service.CurrentPrincipal;
 import com.rayk.health.security.service.CurrentUser;
 import com.rayk.health.system.aspect.Audited;
@@ -28,12 +27,7 @@ public class SupportTicketService {
     public List<SupportTicketVo> listMine() {
         CurrentPrincipal current = CurrentUser.require();
         return ticketMapper
-                .selectList(
-                        new LambdaQueryWrapper<SupportTicketEntity>()
-                                .eq(SupportTicketEntity::getTenantId, current.tenantId())
-                                .eq(SupportTicketEntity::getUserId, current.userId())
-                                .eq(SupportTicketEntity::getDeleted, 0)
-                                .orderByDesc(SupportTicketEntity::getCreatedAt))
+                .selectMyTickets(current.tenantId(), current.userId())
                 .stream()
                 .map(this::toVo)
                 .toList();

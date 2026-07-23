@@ -14,6 +14,19 @@ public interface SupportTicketMapper extends BaseMapper<SupportTicketEntity> {
     @Select(
             """
             SELECT * FROM support_ticket
+            WHERE tenant_id = #{tenantId}
+              AND user_id = #{userId}
+              AND created_by = #{userId}
+              AND deleted = 0
+            ORDER BY created_at DESC
+            """)
+    List<SupportTicketEntity> selectMyTickets(
+            @Param("tenantId") long tenantId, @Param("userId") long userId);
+
+    @InterceptorIgnore(tenantLine = "true")
+    @Select(
+            """
+            SELECT * FROM support_ticket
             WHERE deleted = 0
             ORDER BY created_at DESC
             LIMIT #{size}

@@ -115,6 +115,7 @@ const formatTime = (value: string) => value.replace('T', ' ').slice(0, 16)
 const isReplied = (ticket: SupportTicket) =>
   ['RESOLVED', 'CLOSED'].includes(ticket.status) && Boolean(ticket.reply?.trim())
 const load = async () => {
+  tickets.value = []
   try {
     tickets.value = await getMySupportTickets()
   } catch {
