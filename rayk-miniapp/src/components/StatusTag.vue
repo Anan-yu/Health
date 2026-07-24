@@ -29,7 +29,7 @@ const labels: Record<string, string> = {
   INSUFFICIENT_DATA: '数据不足',
   REVIEWING: '审核中',
   WAITING_REVIEW: '待审核',
-  PENDING: '待处理',
+  PENDING: '进行中',
 }
 const label = computed(() => labels[props.status] || props.status)
 </script>

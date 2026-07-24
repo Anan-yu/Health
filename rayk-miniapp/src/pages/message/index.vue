@@ -7,6 +7,13 @@
       >
       <view class="message-count">{{ items.length }}</view>
     </view>
+    <CareFeedbackCard
+      :title="messageFeedback.title"
+      :message="messageFeedback.message"
+      :detail="messageFeedback.detail"
+      :icon="messageFeedback.icon"
+      :tone="messageFeedback.tone"
+    />
     <PageState :loading="loading" :error="error" :empty="items.length === 0">
       <view v-for="item in items" :key="item.id" class="card notification" @click="open(item)">
         <view
@@ -32,6 +39,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { getFollowups, getMyFollowups } from '@/api/followup'
 import { getHealthReports, getMyHealthReports } from '@/api/health-report'
 import PageState from '@/components/PageState.vue'
+import CareFeedbackCard from '@/components/CareFeedbackCard.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { Followup, HealthReport } from '@/types/api'
 
@@ -54,6 +62,39 @@ const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 const scopeHint = computed(() =>
   isCustomer.value ? '仅展示本人的健康动态' : '展示全平台用户的健康动态',
 )
+const messageFeedback = computed<{
+  title: string
+  message: string
+  detail: string
+  icon: string
+  tone: 'life' | 'calm'
+}>(() => {
+  if (isCustomer.value) {
+    return {
+      title: '重要的健康进展，会在这里及时与你见面',
+      message: '报告发布、随访到期和阶段变化都会集中提醒，帮助你从容安排每一步。',
+      detail: '不用时刻惦记，按自己的节奏持续关注就好。',
+      icon: '伴',
+      tone: 'life',
+    }
+  }
+  if (isPlatform.value) {
+    return {
+      title: '看见每一份健康服务正在发生',
+      message: '已发布报告与健康随访动态在这里汇总，帮助平台及时了解服务进展。',
+      detail: '稳定连接每一次服务，让健康管理持续向前。',
+      icon: '守',
+      tone: 'calm',
+    }
+  }
+  return {
+    title: '健康动态已经为你集中整理',
+    message: '从报告到随访，及时查看用户的最新进展，让专业关注更连续。',
+    detail: '每一次耐心查看，都能让健康建议更贴近真实状态。',
+    icon: '护',
+    tone: 'calm',
+  }
+})
 const followupStatusText = (status: string) => {
   const labels: Record<string, string> = {
     PENDING: '进行中',

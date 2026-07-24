@@ -1,6 +1,13 @@
 <template>
   <view class="page">
     <view class="title">AI评估结果</view>
+    <CareFeedbackCard
+      title="每一次认真查看，都在守护一份真实的健康"
+      message="评估结果用于辅助梳理健康线索，请结合完整资料与个体差异进行专业判断。"
+      detail="让数据变得清晰，让健康建议真正可理解、可行动。"
+      icon="护"
+      tone="calm"
+    />
     <PageState :loading="loading" :empty="items.length === 0">
       <view v-for="assessment in items" :key="assessment.id" class="assessment-block">
         <view class="card assessment-head">
@@ -46,6 +53,7 @@ import type { Assessment } from '@/types/api'
 import HealthDimensionDashboard from '@/components/HealthDimensionDashboard.vue'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import CareFeedbackCard from '@/components/CareFeedbackCard.vue'
 const items = ref<Assessment[]>([]),
   loading = ref(true)
 

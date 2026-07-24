@@ -23,9 +23,15 @@
           ><text>正常范围</text></view
         >
       </view>
-      <view v-if="isProcessing" class="processing-note"
-        >系统正在自动识别并生成健康评估，无需停留本页，可退出后等待。完成后可在“我的报告”查看结果。</view
-      >
+      <view v-if="isProcessing" class="processing-note">
+        <view class="processing-pulse"><view /></view>
+        <view>
+          <view class="processing-title">正在为你整理这份健康数据</view>
+          <view class="processing-copy"
+            >识别与评估需要一点时间，你可以先离开本页。完成后可在“我的报告”查看结果。</view
+          >
+        </view>
+      </view>
       <view class="section-head"
         ><view
           ><view class="eyebrow">INDICATORS</view><view class="section-title">检验指标</view></view
@@ -116,7 +122,7 @@ function scheduleOcrPoll() {
       const task = await getOcrTask(reportId.value)
       if (task.status === 'SUCCESS') {
         stopOcrPoll()
-        uni.showToast({ title: '识别完成' })
+        uni.showToast({ title: '识别完成，报告已整理', icon: 'success' })
         globalThis.setTimeout(
           () => uni.redirectTo({ url: '/pages-customer/lab-report/index' }),
           500,
@@ -189,13 +195,48 @@ function scheduleOcrPoll() {
   background: #fff;
 }
 .processing-note {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
   margin-top: 22rpx;
-  padding: 20rpx 24rpx;
-  border-radius: 18rpx;
-  background: #eaf7f2;
-  color: #28715e;
-  font-size: 23rpx;
+  padding: 24rpx;
+  border: 1rpx solid #d6ebe3;
+  border-radius: 22rpx;
+  background: linear-gradient(135deg, #f8fffc, #e7f7f1);
+}
+.processing-pulse {
+  display: flex;
+  flex: 0 0 56rpx;
+  align-items: center;
+  justify-content: center;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 19rpx;
+  background: #d8f2e8;
+}
+.processing-pulse view {
+  width: 18rpx;
+  height: 18rpx;
+  border: 5rpx solid #85cdb7;
+  border-top-color: #08775e;
+  border-radius: 50%;
+  animation: processing-spin 1.2s linear infinite;
+}
+.processing-title {
+  color: #185447;
+  font-size: 25rpx;
+  font-weight: 720;
+}
+.processing-copy {
+  margin-top: 7rpx;
+  color: #628078;
+  font-size: 22rpx;
   line-height: 1.6;
+}
+@keyframes processing-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .indicator-summary view {
   display: flex;

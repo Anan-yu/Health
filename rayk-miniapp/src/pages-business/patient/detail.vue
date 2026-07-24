@@ -8,6 +8,13 @@
             ><view class="profile-name">{{ item?.name }}</view
             ><StatusTag :status="item?.status || ''" /></view></view
       ></view>
+      <CareFeedbackCard
+        title="健康资料已集中整理"
+        message="从检验数据、健康评估到正式报告，帮助你更完整地了解这位体检者的健康状态。"
+        detail="每一次耐心查看，都会让健康建议更贴近真实需要。"
+        icon="护"
+        tone="calm"
+      />
       <view class="section-head"
         ><view><view class="section-title">基础档案</view></view></view
       >
@@ -48,6 +55,7 @@ import { getPatient } from '@/api/patient'
 import type { Patient } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import CareFeedbackCard from '@/components/CareFeedbackCard.vue'
 const item = ref<Patient>(),
   loading = ref(true)
 const genderLabel = computed(() => {

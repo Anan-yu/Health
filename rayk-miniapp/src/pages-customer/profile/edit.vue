@@ -447,7 +447,7 @@ const save = async () => {
       recentWeightChangeKg: form.recentWeightChangeKg ? weightChange : null,
       sleepHours: form.sleepHours ? sleepHours : null,
     })
-    uni.showToast({ title: '已保存', icon: 'success' })
+    uni.showToast({ title: '健康档案已更新', icon: 'success' })
     globalThis.setTimeout(() => uni.navigateBack(), 500)
   } catch (cause) {
     uni.showToast({ title: cause instanceof Error ? cause.message : '保存失败', icon: 'none' })

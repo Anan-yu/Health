@@ -10,6 +10,15 @@
         >
       </view>
 
+      <CareFeedbackCard
+        v-if="report"
+        :title="reportFeedback.title"
+        :message="reportFeedback.message"
+        :detail="reportFeedback.detail"
+        :icon="reportFeedback.icon"
+        :tone="reportFeedback.tone"
+      />
+
       <view class="section-head"><view class="title">整体健康状态</view></view>
       <view class="card status-card">
         <view v-for="item in statusOverview" :key="item.label" class="status-row">
@@ -81,6 +90,7 @@ import { useAuthStore } from '@/stores/auth'
 import type { Assessment, HealthReport } from '@/types/api'
 import { cleanHealthText } from '@/utils/health-text'
 import PageState from '@/components/PageState.vue'
+import CareFeedbackCard from '@/components/CareFeedbackCard.vue'
 
 type Focus = {
   code: string
@@ -137,6 +147,29 @@ const overallSummary = computed(() =>
   concerns.value.length
     ? `本次发现 ${concerns.value.length} 项需要优先关注的健康方向，已生成对应的健康随访计划。`
     : '当前已确认的数据整体平稳，建议保持良好生活习惯并按需完成健康随访。',
+)
+const reportFeedback = computed<{
+  title: string
+  message: string
+  detail: string
+  icon: string
+  tone: 'life' | 'warm'
+}>(() =>
+  concerns.value.length
+    ? {
+        title: '看见需要关注的方向，是改善健康的第一步',
+        message: '不必一次改变所有事情，先从最容易执行的一项行动开始。',
+        detail: '持续记录与复评，才能更准确地看见身体状态的变化。',
+        icon: '向',
+        tone: 'warm',
+      }
+    : {
+        title: '继续保持，让良好状态成为日常',
+        message: '当前已确认的数据整体平稳，规律生活和持续记录同样重要。',
+        detail: '愿每一次了解自己，都让未来的健康更从容。',
+        icon: '心',
+        tone: 'life',
+      },
 )
 const statusOverview = computed(() => {
   const groups = [

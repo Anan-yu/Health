@@ -9,6 +9,14 @@
           <view class="cycle-tag">第 {{ task.cycleNo || 1 }} 期</view>
         </view>
 
+        <view class="feedback-progress">
+          <view>
+            <view class="progress-title">{{ progressTitle }}</view>
+            <view class="progress-copy">{{ selectedCount }}/{{ allActions.length }} 项已记录</view>
+          </view>
+          <view class="progress-value">{{ completionPreview }}<text>%</text></view>
+        </view>
+
         <view v-for="section in sections" :key="section.title" class="section-card">
           <view class="section-title">{{ section.title }}</view>
           <view
@@ -71,6 +79,7 @@ import { getFollowup, sendFeedback } from '@/api/followup'
 import type { FollowupActionFeedback } from '@/api/followup'
 import type { Followup } from '@/types/api'
 import PageState from '@/components/PageState.vue'
+import { cleanHealthText } from '@/utils/health-text'
 
 type EditableAction = {
   section: string
@@ -105,18 +114,25 @@ const sectionTitles = new Set([
 function parsePlan(content: string): EditableSection[] {
   const result: EditableSection[] = []
   let current: EditableSection | undefined
+  let skippingFocus = false
   const start = (title: string) => {
     current = { title, actions: [] }
     result.push(current)
   }
   for (const raw of (content || '').split('\n')) {
-    const line = raw.trim()
-    if (!line || line === '本周重点' || line.startsWith('本计划根据')) continue
+    const line = cleanHealthText(raw.trim())
+    if (!line || line.startsWith('本计划根据')) continue
+    if (line === '本周重点' || line.startsWith('本周重点：') || line.startsWith('本周重点:')) {
+      skippingFocus = true
+      continue
+    }
     const title = line.replace(/[：:]$/, '')
     if (sectionTitles.has(title)) {
+      skippingFocus = false
       start(title)
       continue
     }
+    if (skippingFocus) continue
     if (!current) start('健康行动')
     current?.actions.push({
       section: current.title,
@@ -129,6 +145,22 @@ function parsePlan(content: string): EditableSection[] {
 }
 
 const allActions = computed(() => sections.value.flatMap((section) => section.actions))
+const selectedCount = computed(() => allActions.value.filter((item) => item.status).length)
+const completionPreview = computed(() => {
+  if (!allActions.value.length) return 0
+  const points = allActions.value.reduce((sum, item) => {
+    if (item.status === 'COMPLETED') return sum + 100
+    if (item.status === 'PARTIAL') return sum + 50
+    return sum
+  }, 0)
+  return Math.round(points / allActions.value.length)
+})
+const progressTitle = computed(() => {
+  if (!selectedCount.value) return '认真回顾这一期的健康行动'
+  if (selectedCount.value < allActions.value.length) return '每一次真实记录都很有价值'
+  if (completionPreview.value >= 80) return '这段时间的坚持，值得被看见'
+  return '真实面对状态，才能找到适合自己的节奏'
+})
 
 onLoad(async (query) => {
   const id = String(query?.id || '')
@@ -168,11 +200,29 @@ async function submit() {
         note: item.note?.trim() || undefined,
       })),
     })
-    uni.showToast({ title: '反馈已提交', icon: 'success' })
-    globalThis.setTimeout(
-      () => uni.redirectTo({ url: '/pages-customer/followup/index' }),
-      600,
-    )
+    const rate = completionPreview.value
+    const result =
+      rate >= 100
+        ? {
+            title: '这一期完成得很好',
+            content: '每一项行动都被认真完成，你正在把健康管理变成稳定的生活习惯。',
+          }
+        : rate >= 60
+          ? {
+              title: '你已经向前走了一大步',
+              content: '已经完成的部分值得肯定，未完成的内容会帮助下一阶段更贴近你的真实节奏。',
+            }
+          : {
+              title: '真实反馈，本身就是重要进步',
+              content: '健康改变不需要一次做到完美。系统会结合这次反馈，调整下一阶段的行动安排。',
+            }
+    uni.showModal({
+      title: result.title,
+      content: result.content,
+      showCancel: false,
+      confirmText: '继续前行',
+      success: () => uni.redirectTo({ url: '/pages-customer/followup/index' }),
+    })
   } catch (cause) {
     submitError.value = cause instanceof Error ? cause.message : '反馈提交失败'
   } finally {
@@ -221,6 +271,35 @@ async function submit() {
   border-radius: 28rpx;
   background: #fff;
   box-shadow: 0 12rpx 30rpx rgba(15, 70, 57, 0.07);
+}
+.feedback-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22rpx;
+  padding: 24rpx 28rpx;
+  border: 1rpx solid #d8ebe4;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #f9fffc, #eaf8f3);
+}
+.progress-title {
+  color: #174238;
+  font-size: 25rpx;
+  font-weight: 720;
+}
+.progress-copy {
+  margin-top: 7rpx;
+  color: #82928c;
+  font-size: 21rpx;
+}
+.progress-value {
+  color: #0c7b61;
+  font-size: 38rpx;
+  font-weight: 800;
+}
+.progress-value text {
+  margin-left: 3rpx;
+  font-size: 20rpx;
 }
 .section-title {
   margin-bottom: 8rpx;

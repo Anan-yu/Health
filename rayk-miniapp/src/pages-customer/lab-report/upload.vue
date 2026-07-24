@@ -226,7 +226,7 @@ async function submit() {
       (value) => (progress.value = value),
     )
     state.value = 'OCR_PROCESSING'
-    uni.showToast({ title: '已开始识别' })
+    uni.showToast({ title: '报告已提交，正在整理', icon: 'success' })
     setTimeout(
       () =>
         uni.navigateTo({

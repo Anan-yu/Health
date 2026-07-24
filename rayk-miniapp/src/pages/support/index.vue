@@ -139,7 +139,7 @@ const submit = async () => {
     content.value = ''
     contact.value = ''
     await load()
-    uni.showToast({ title: '反馈已提交', icon: 'success' })
+    uni.showToast({ title: '感谢反馈，我们会认真查看', icon: 'success' })
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '提交失败', icon: 'none' })
   } finally {

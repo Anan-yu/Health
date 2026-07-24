@@ -6,9 +6,7 @@
         <view class="hero-top">
           <view>
             <view class="hero-date">{{ dateText }}</view>
-            <view class="hero-greeting">{{
-              summary?.greeting || `你好，${auth.user?.displayName}`
-            }}</view>
+            <view class="hero-greeting">{{ heroGreeting }}</view>
             <view class="hero-caption">{{ heroCaption }}</view>
           </view>
           <view class="avatar">{{ avatarText }}</view>
@@ -18,6 +16,16 @@
           <view class="switch-link" @click="goSwitch">切换工作台 ›</view>
         </view>
       </view>
+
+      <CareFeedbackCard
+        :title="careFeedback.title"
+        :message="careFeedback.message"
+        :detail="careFeedback.detail"
+        :icon="careFeedback.icon"
+        :tone="careFeedback.tone"
+        :action-text="careFeedback.actionText"
+        @action="open(careFeedback.route)"
+      />
 
       <view class="section-head">
         <view>
@@ -112,6 +120,7 @@
 import { computed, ref } from 'vue'
 import { onHide, onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import PageState from '@/components/PageState.vue'
+import CareFeedbackCard from '@/components/CareFeedbackCard.vue'
 import { getHomeSummary } from '@/api/workbench'
 import { menusFor } from '@/constants/menus'
 import { useAuthStore } from '@/stores/auth'
@@ -140,9 +149,29 @@ const quickMenus = computed(() =>
     .filter((item) => !item.permission || auth.permissions.includes(item.permission))
     .slice(0, 4),
 )
-const heroCaption = computed(() =>
-  isCustomer.value ? '关注趋势，完成今天的健康管理任务' : '关键任务已为你整理，及时处理更高效',
-)
+const dayGreeting = computed(() => {
+  const hour = new Date().getHours()
+  if (hour < 6) return '夜深了'
+  if (hour < 11) return '早上好'
+  if (hour < 14) return '中午好'
+  if (hour < 18) return '下午好'
+  return '晚上好'
+})
+const heroGreeting = computed(() => {
+  const name = auth.user?.displayName || ''
+  if (isCustomer.value) return `${dayGreeting.value}${name ? `，${name}` : ''}`
+  if (auth.currentWorkbench === 'DOCTOR') return `辛苦了${name ? `，${name}` : ''}`
+  return `欢迎回来${name ? `，${name}` : ''}`
+})
+const heroCaption = computed(() => {
+  if (isCustomer.value) {
+    return metricValue('FOLLOWUP') > 0
+      ? '今天的健康行动已为你整理，按自己的节奏完成'
+      : '关注长期变化，认真照顾每一天的自己'
+  }
+  if (auth.currentWorkbench === 'DOCTOR') return '健康资料已为你整理，让每一次查看更清晰'
+  return '服务进展已为你汇总，让每一次健康连接稳定发生'
+})
 const profileCompleteness = computed(() => {
   const value = summary.value?.metrics.find((item) => item.code === 'PROFILE')?.value ?? 0
   return Math.min(100, Math.max(0, Number(value) || 0))
@@ -151,6 +180,77 @@ const profileMetric = computed(() => summary.value?.metrics.find((item) => item.
 const customerStats = computed(
   () => summary.value?.metrics.filter((item) => item.code !== 'PROFILE') ?? [],
 )
+const metricValue = (code: string) =>
+  Number(summary.value?.metrics.find((item) => item.code === code)?.value || 0)
+const careFeedback = computed<{
+  title: string
+  message: string
+  detail: string
+  icon: string
+  tone: 'life' | 'warm' | 'calm'
+  actionText: string
+  route: string
+}>(() => {
+  if (isCustomer.value) {
+    const followups = metricValue('FOLLOWUP')
+    const reports = metricValue('REPORT')
+    if (followups > 0) {
+      return {
+        title: '今天，也为自己的健康留一点时间',
+        message: `你有 ${followups} 项健康随访待反馈，从最容易做到的一项开始就很好。`,
+        detail: '真实记录每一次变化，下一阶段的计划才会更适合你。',
+        icon: '爱',
+        tone: 'warm',
+        actionText: '去完成',
+        route: '/pages-customer/followup/index',
+      }
+    }
+    if (profileCompleteness.value < 100) {
+      return {
+        title: '了解自己，是照顾健康的第一步',
+        message: `健康档案已完善 ${profileCompleteness.value}%，继续补充能让评估更贴近真实状态。`,
+        detail: '每一份认真填写，都会成为长期健康趋势的重要记录。',
+        icon: '生',
+        tone: 'life',
+        actionText: '去完善',
+        route: '/pages-customer/profile/index',
+      }
+    }
+    return {
+      title: reports > 0 ? '你的健康变化，正在被持续记录' : '认真生活，也认真了解自己的身体',
+      message:
+        reports > 0
+          ? '保持规律生活，并在有新检验数据时继续记录，长期趋势比单次数字更有意义。'
+          : '健康管理不是一次完成的任务，而是每天对自己多一点了解与照顾。',
+      detail: '愿每一次记录，都帮助你更从容地走向更好的状态。',
+      icon: '心',
+      tone: 'life',
+      actionText: reports > 0 ? '看报告' : '',
+      route: reports > 0 ? '/pages-customer/health-report/index' : '/pages/home/index',
+    }
+  }
+  if (auth.currentWorkbench === 'DOCTOR') {
+    const patients = metricValue('PATIENT')
+    return {
+      title: patients > 0 ? `今天已有 ${patients} 位体检者进入健康管理` : '守护健康，从每一次耐心查看开始',
+      message: '你的每一次认真查看，都在帮助一份健康数据转化为更清晰、可行动的方向。',
+      detail: '尊重个体差异，结合完整资料，让专业判断更有温度。',
+      icon: '护',
+      tone: 'calm',
+      actionText: patients > 0 ? '查看' : '',
+      route: '/pages-business/patient/index',
+    }
+  }
+  return {
+    title: '让稳定可靠的服务，连接每一份生命与健康',
+    message: '医院、医生与健康随访的每一次顺畅协作，都在守护真实的健康体验。',
+    detail: '今天的数据与服务状态已为你汇总。',
+    icon: '守',
+    tone: 'calm',
+    actionText: '查看动态',
+    route: '/pages-tenant/dashboard/followup',
+  }
+})
 const profileGaugeStyle = computed(() => ({
   background: `conic-gradient(#13846a ${profileCompleteness.value * 3.6}deg, #dceee8 0deg)`,
 }))

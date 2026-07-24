@@ -1,7 +1,14 @@
 <template>
   <view class="page"
     ><view class="title">我的随访</view
-    ><view class="filter-row"
+    ><CareFeedbackCard
+      :title="journeyFeedback.title"
+      :message="journeyFeedback.message"
+      :detail="journeyFeedback.detail"
+      :icon="journeyFeedback.icon"
+      :tone="journeyFeedback.tone"
+    />
+    <view class="filter-row"
       ><view
         v-for="filter in filters"
         :key="filter.code"
@@ -13,7 +20,9 @@
     ><PageState :loading="loading" :error="error" :empty="filteredItems.length === 0"
       ><view v-for="item in filteredItems" :key="item.id" class="card followup-card"
         ><view class="row"
-          ><view class="section-title">{{ item.title }}</view
+          ><view
+            ><view class="section-title">{{ item.title }}</view
+            ><view class="cycle-copy">第 {{ item.cycleNo || 1 }} 期 · 每一步都算数</view></view
           ><StatusTag :status="item.status" /></view
         ><view class="plan-sections">
           <view
@@ -38,7 +47,10 @@
           @click.stop="feedback(item.id)"
         >
           填写反馈
-        </button></view
+        </button
+        ><view v-else-if="item.status === 'COMPLETED'" class="completed-note"
+          >这一期已经完成。你的真实反馈，会帮助下一阶段更贴近当前状态。</view
+        ></view
       ></PageState
     ></view
   >
@@ -50,12 +62,14 @@ import { getMyFollowups } from '@/api/followup'
 import type { Followup } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import CareFeedbackCard from '@/components/CareFeedbackCard.vue'
+import { cleanHealthText } from '@/utils/health-text'
 const items = ref<Followup[]>([]),
   loading = ref(true),
   error = ref('')
 const filters = [
   { code: 'ALL' as const, label: '全部' },
-  { code: 'PENDING' as const, label: '待处理' },
+  { code: 'PENDING' as const, label: '进行中' },
   { code: 'COMPLETED' as const, label: '已完成' },
 ]
 const activeFilter = ref<(typeof filters)[number]['code']>('ALL')
@@ -64,6 +78,36 @@ const filteredItems = computed(() =>
     ? items.value
     : items.value.filter((item) => item.status === activeFilter.value),
 )
+const completedCount = computed(() => items.value.filter((item) => item.status === 'COMPLETED').length)
+const pendingCount = computed(() => items.value.filter((item) => item.status === 'PENDING').length)
+const journeyFeedback = computed<{
+  title: string
+  message: string
+  detail: string
+  icon: string
+  tone: 'life' | 'warm'
+}>(() => {
+  if (pendingCount.value > 0) {
+    return {
+      title: '健康改变，来自一次次可以做到的小行动',
+      message: `当前有 ${pendingCount.value} 期计划等待反馈，不必追求完美，真实完成最重要。`,
+      detail: completedCount.value
+        ? `你已经完成 ${completedCount.value} 期健康随访，持续本身就是进步。`
+        : '从今天最容易做到的一项开始。',
+      icon: '行',
+      tone: 'warm',
+    }
+  }
+  return {
+    title: completedCount.value ? '你正在把健康行动变成生活习惯' : '从一个小行动开始，照顾未来的自己',
+    message: completedCount.value
+      ? `已经完成 ${completedCount.value} 期健康随访，愿每一次坚持都带来更从容的状态。`
+      : '新的健康计划会结合你的报告与反馈生成。',
+    detail: '保持记录，才能看见身体与生活方式的长期变化。',
+    icon: '心',
+    tone: 'life',
+  }
+})
 type PlanSection = { title: string; actions: string[] }
 const sectionTitles = new Set([
   '本周重点',
@@ -83,7 +127,7 @@ function planSections(content: string): PlanSection[] {
     sections.push(current)
   }
   for (const rawLine of (content || '').split('\n')) {
-    const line = rawLine.trim()
+    const line = cleanHealthText(rawLine.trim())
     if (!line || line === introToHide) continue
     const title = line.replace(/[：:]$/, '')
     if (sectionTitles.has(title)) {
@@ -154,6 +198,14 @@ const feedback = (id: string) =>
 .followup-card {
   padding: 30rpx;
 }
+.followup-card .section-title {
+  margin: 0;
+}
+.cycle-copy {
+  margin-top: 8rpx;
+  color: #8a9994;
+  font-size: 21rpx;
+}
 .plan-sections {
   margin-top: 18rpx;
 }
@@ -216,5 +268,14 @@ const feedback = (id: string) =>
 }
 .feedback-button::after {
   border: 0;
+}
+.completed-note {
+  margin-top: 10rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 16rpx;
+  background: #eaf7f2;
+  color: #34715f;
+  font-size: 22rpx;
+  line-height: 1.55;
 }
 </style>
