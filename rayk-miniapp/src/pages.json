@@ -45,10 +45,14 @@
       "root": "pages-tenant",
       "pages": [
         { "path": "dashboard/index", "style": { "navigationBarTitleText": "医院管理" } },
-        { "path": "dashboard/tenant-edit", "style": { "navigationBarTitleText": "编辑医院" } },
-        { "path": "dashboard/tenant-create", "style": { "navigationBarTitleText": "新建医院" } },
-        { "path": "dashboard/followup", "style": { "navigationBarTitleText": "健康随访动态" } }
-      ]
+          { "path": "dashboard/tenant-edit", "style": { "navigationBarTitleText": "编辑医院" } },
+          { "path": "dashboard/tenant-create", "style": { "navigationBarTitleText": "新建医院" } },
+          { "path": "dashboard/followup", "style": { "navigationBarTitleText": "健康随访动态" } },
+          {
+            "path": "dashboard/followup-detail",
+            "style": { "navigationBarTitleText": "随访任务详情" }
+          }
+        ]
     },
     {
       "root": "pages-platform",
