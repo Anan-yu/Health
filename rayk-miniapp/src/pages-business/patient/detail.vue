@@ -9,9 +9,7 @@
             ><StatusTag :status="item?.status || ''" /></view></view
       ></view>
       <view class="section-head"
-        ><view
-          ><view class="eyebrow">基础信息</view><view class="section-title">基础档案</view></view
-        ></view
+        ><view><view class="section-title">基础档案</view></view></view
       >
       <view class="card info-card"
         ><view class="info-item"
@@ -23,10 +21,7 @@
         ></view
       >
       <view class="section-head"
-        ><view
-          ><view class="eyebrow">健康资料</view
-          ><view class="section-title">健康资料查看</view></view
-        ></view
+        ><view><view class="section-title">健康资料查看</view></view></view
       >
       <view class="action-grid"
         ><view class="action-card" @click="reports"

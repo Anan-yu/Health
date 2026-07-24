@@ -2,7 +2,7 @@
   <view class="page patient-page">
     <view class="patient-header"
       ><view
-        ><view class="eyebrow">体检者查询</view><view class="title">体检者查询</view
+        ><view class="title">体检者查询</view
         ><view class="subtitle">按姓名或完整手机号查询体检者</view></view
       ></view
     >
@@ -75,9 +75,6 @@ const detail = (id: string) => uni.navigateTo({ url: `/pages-business/patient/de
 }
 .patient-header {
   margin: 0 4rpx 28rpx;
-}
-.patient-header .title {
-  margin-top: 8rpx;
 }
 .search-box {
   display: flex;

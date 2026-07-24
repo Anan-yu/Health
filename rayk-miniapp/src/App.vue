@@ -11,12 +11,15 @@ page {
   --mint: #d6f3e9;
   --ink: #17332d;
   --muted: #71817b;
-  --line: #e6eeeb;
+  --line: #dfeae6;
+  --surface: rgba(255, 255, 255, 0.97);
+  --shadow: 0 14rpx 38rpx rgba(20, 78, 63, 0.075);
   --warm: #fff7e8;
   min-height: 100%;
   background:
-    radial-gradient(circle at 90% 3%, rgba(183, 235, 218, 0.42), transparent 23%),
-    linear-gradient(180deg, #f5faf8 0%, #f3f7f6 46%, #f7f8f8 100%);
+    radial-gradient(circle at 92% 2%, rgba(167, 230, 210, 0.5), transparent 25%),
+    radial-gradient(circle at 4% 38%, rgba(224, 244, 237, 0.58), transparent 20%),
+    linear-gradient(180deg, #f6fbf9 0%, #f2f7f5 52%, #f7f9f8 100%);
   color: var(--ink);
   font-family:
     -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
@@ -26,7 +29,7 @@ page {
   box-sizing: border-box;
   width: 100%;
   min-height: 100vh;
-  padding: 30rpx 28rpx calc(54rpx + env(safe-area-inset-bottom));
+  padding: 32rpx 28rpx calc(58rpx + env(safe-area-inset-bottom));
 }
 @media screen and (min-width: 768px) {
   .page {
@@ -36,30 +39,31 @@ page {
 }
 .card {
   box-sizing: border-box;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1rpx solid rgba(220, 233, 228, 0.92);
-  border-radius: 28rpx;
-  padding: 30rpx;
+  background: var(--surface);
+  border: 1rpx solid rgba(215, 230, 224, 0.94);
+  border-radius: 30rpx;
+  padding: 30rpx 30rpx 32rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 12rpx 36rpx rgba(23, 71, 59, 0.07);
+  box-shadow: var(--shadow);
 }
 .title {
-  font-size: 40rpx;
-  line-height: 1.3;
-  font-weight: 750;
+  font-size: 42rpx;
+  line-height: 1.25;
+  font-weight: 760;
   letter-spacing: -1rpx;
-  margin-bottom: 10rpx;
+  margin-bottom: 12rpx;
 }
 .subtitle {
   color: var(--muted);
-  font-size: 26rpx;
-  line-height: 1.6;
+  font-size: 25rpx;
+  line-height: 1.65;
 }
 .section-title {
   color: var(--ink);
-  font-size: 30rpx;
-  font-weight: 700;
-  margin: 26rpx 0 18rpx;
+  font-size: 32rpx;
+  line-height: 1.35;
+  font-weight: 730;
+  margin: 28rpx 0 20rpx;
 }
 .section-label {
   color: var(--brand);
@@ -72,7 +76,7 @@ page {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 34rpx 4rpx 20rpx;
+  margin: 38rpx 4rpx 22rpx;
 }
 .section-head .section-title {
   margin: 0;
@@ -81,24 +85,26 @@ page {
   background: linear-gradient(135deg, #11856a, #0b6b57);
   color: #fff;
   border: 0;
-  border-radius: 20rpx;
-  font-weight: 650;
-  box-shadow: 0 12rpx 24rpx rgba(15, 122, 98, 0.2);
+  min-height: 90rpx;
+  border-radius: 24rpx;
+  font-weight: 680;
+  box-shadow: 0 14rpx 30rpx rgba(15, 122, 98, 0.2);
 }
 .danger {
   background: #fff;
   color: #b42318;
   border: 1rpx solid #f3d0cc;
-  border-radius: 20rpx;
+  min-height: 84rpx;
+  border-radius: 22rpx;
 }
 .input,
 .textarea {
   box-sizing: border-box;
   width: 100%;
   min-height: 88rpx;
-  background: #f7faf9;
-  border: 1rpx solid #e1ebe7;
-  border-radius: 20rpx;
+  background: rgba(250, 252, 251, 0.98);
+  border: 1rpx solid #dce8e3;
+  border-radius: 22rpx;
   padding: 22rpx 24rpx;
   margin: 16rpx 0;
 }
@@ -117,6 +123,7 @@ page {
   font-size: 48rpx;
   line-height: 1.15;
   font-weight: 760;
+  font-variant-numeric: tabular-nums;
 }
 .icon-badge {
   display: flex;
@@ -137,6 +144,7 @@ page {
   justify-content: center;
   min-height: 58rpx;
   padding: 0 24rpx;
+  border: 1rpx solid rgba(197, 226, 216, 0.75);
   border-radius: 999rpx;
   background: var(--brand-soft);
   color: var(--brand);
@@ -164,6 +172,7 @@ page {
 }
 button {
   font-size: 28rpx;
+  font-weight: 650;
 }
 button::after {
   border: 0;

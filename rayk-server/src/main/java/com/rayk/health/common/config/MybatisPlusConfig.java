@@ -53,7 +53,8 @@ public class MybatisPlusConfig {
 
                             @Override
                             public boolean ignoreTable(String tableName) {
-                                return IGNORED_TABLES.contains(tableName);
+                                return TenantContext.isReadBypassEnabled()
+                                        || IGNORED_TABLES.contains(tableName);
                             }
                         }));
         return interceptor;

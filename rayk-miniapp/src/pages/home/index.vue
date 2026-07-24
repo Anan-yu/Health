@@ -21,7 +21,6 @@
 
       <view class="section-head">
         <view>
-          <view class="eyebrow">数据概览</view>
           <view class="section-title">今日概览</view>
         </view>
         <view class="section-tip refresh-tip" @click="refresh(true)">{{ refreshLabel }}</view>
@@ -78,7 +77,6 @@
 
       <view class="section-head">
         <view>
-          <view class="eyebrow">功能服务</view>
           <view class="section-title">常用服务</view>
         </view>
         <view class="section-tip" @click="goWorkbench">全部服务 ›</view>

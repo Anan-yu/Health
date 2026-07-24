@@ -2,7 +2,6 @@
   <view class="page admin-page">
     <view class="page-heading">
       <view class="heading-copy">
-        <view class="eyebrow">平台概览</view>
         <view class="title">合作医院管理</view>
         <view class="subtitle">创建、编辑、启停合作医院，并统一预录入医生。</view>
       </view>
@@ -91,9 +90,6 @@ const editTenant = (tenantId: string) =>
   flex: 1;
   min-width: 0;
 }
-.page-heading .title {
-  margin-top: 8rpx;
-}
 .heading-actions {
   display: flex;
   flex: 0 0 auto;
@@ -103,8 +99,9 @@ const editTenant = (tenantId: string) =>
 .create-tenant,
 .refresh {
   box-sizing: border-box;
-  min-width: 112rpx;
-  padding: 14rpx 20rpx;
+  min-width: 120rpx;
+  min-height: 64rpx;
+  padding: 14rpx 22rpx;
   border-radius: 999rpx;
   background: #e4f6f0;
   color: #0d765e;
@@ -123,7 +120,8 @@ const editTenant = (tenantId: string) =>
   gap: 18rpx;
 }
 .metric-card {
-  padding: 27rpx 25rpx;
+  min-height: 142rpx;
+  padding: 28rpx 26rpx;
 }
 .metric-value {
   color: #0d765e;

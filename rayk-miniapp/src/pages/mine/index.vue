@@ -5,7 +5,7 @@
       <view class="profile-top">
         <view class="avatar">{{ avatarText }}</view>
         <view class="profile-content">
-          <view class="profile-name">{{ auth.user?.displayName || 'RayK 用户' }}</view>
+          <view class="profile-name">{{ auth.user?.displayName || '致宇用户' }}</view>
           <view class="profile-meta">{{ auth.user?.tenantName }}</view>
           <view class="role-pill">{{ workbenchName }}</view>
         </view>
@@ -25,7 +25,6 @@
 
     <view v-if="!isPlatform" class="section-head">
       <view>
-        <view class="eyebrow">账号服务</view>
         <view class="section-title">账号与服务</view>
       </view>
     </view>
@@ -41,7 +40,7 @@
     </view>
 
     <button class="logout" @click="signOut">退出当前账号</button>
-    <view class="version">Rayk AI · Version 0.1.0</view>
+    <view class="version">致宇健康 · Version 0.1.0</view>
   </view>
 </template>
 

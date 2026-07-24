@@ -1,11 +1,11 @@
 {
-  "name": "Rayk AI 功能医学健康系统",
+  "name": "致宇健康",
   "appid": "__UNI__RAYKA1",
   "description": "B端与C端共用的健康管理小程序",
   "versionName": "0.1.0",
   "versionCode": "100",
   "transformPx": false,
-  "h5": { "router": { "mode": "hash" }, "title": "Rayk AI" },
+  "h5": { "router": { "mode": "hash" }, "title": "致宇健康" },
   "mp-weixin": {
     "appid": "touristappid",
     "setting": { "urlCheck": false, "es6": true, "minified": true }

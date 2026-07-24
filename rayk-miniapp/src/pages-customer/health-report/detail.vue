@@ -10,9 +10,7 @@
         >
       </view>
 
-      <view class="section-head"
-        ><view class="eyebrow">健康概览</view><view class="title">整体健康状态</view></view
-      >
+      <view class="section-head"><view class="title">整体健康状态</view></view>
       <view class="card status-card">
         <view v-for="item in statusOverview" :key="item.label" class="status-row">
           <text>{{ item.label }}</text
@@ -127,13 +125,10 @@ const concerns = computed<Focus[]>(() =>
       title: labels[item.modelCode] || '健康状态关注',
       level: item.riskLevel === 'HIGH' ? 'high' : 'attention',
       description:
-        cleanHealthText(
-          (item.evidence || []).find((value) => !value.includes('未触发')) || '',
-        ) ||
+        cleanHealthText((item.evidence || []).find((value) => !value.includes('未触发')) || '') ||
         '本次数据提示该方向需要持续关注。',
       next:
-        cleanHealthText((item.recommendations || [])[0] || '') ||
-        '结合后续健康随访持续观察变化。',
+        cleanHealthText((item.recommendations || [])[0] || '') || '结合后续健康随访持续观察变化。',
       evidence: (item.evidence || []).map(cleanHealthText).filter(Boolean),
       recommendations: (item.recommendations || []).map(cleanHealthText).filter(Boolean),
     })),

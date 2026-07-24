@@ -2,7 +2,6 @@
   <view class="page workbench-page">
     <view class="workbench-hero">
       <view class="hero-pattern" />
-      <view class="eyebrow-light">我的工作台</view>
       <view class="hero-title">{{ workbenchName }}</view>
       <view class="hero-copy">{{ workbenchDescription }}</view>
       <view class="hero-stats">
@@ -20,7 +19,6 @@
 
     <view class="section-head">
       <view>
-        <view class="eyebrow">功能服务</view>
         <view class="section-title">全部功能</view>
       </view>
       <view class="soft-button" @click="goSwitch">切换身份</view>
@@ -109,16 +107,9 @@ const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
   border: 50rpx solid rgba(255, 255, 255, 0.05);
   border-radius: 50%;
 }
-.eyebrow-light {
-  position: relative;
-  color: #91ddc7;
-  font-size: 20rpx;
-  font-weight: 700;
-  letter-spacing: 3rpx;
-}
 .hero-title {
   position: relative;
-  margin-top: 16rpx;
+  margin-top: 0;
   font-size: 44rpx;
   font-weight: 760;
 }

@@ -6,6 +6,7 @@ import com.rayk.health.assessment.vo.AssessmentVo;
 public record HealthReportVo(
         String id,
         String patientId,
+        String patientName,
         String assessmentId,
         String reportNo,
         String title,

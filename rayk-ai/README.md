@@ -29,4 +29,4 @@ DEEPSEEK_THINKING=false
 
 Docker 开发环境默认启用 PaddleOCR CPU 模式，首次识别会下载 PP-OCRv6 小模型到独立的 `rayk_ocr_models_data` 命名卷，后续重建容器会复用模型。测试环境可将 `RAYK_OCR_MODE` 设置为 `mock`，只验证接口流程而不执行真实识别。
 
-所有评估响应均包含：**该结果仅用于系统开发测试和健康管理参考，不构成医学诊断。**
+所有评估响应均包含：**该结果仅用于健康管理参考，不构成医学诊断。**

@@ -1,6 +1,5 @@
 <template>
   <view class="page">
-    <view class="eyebrow">健康评估报告</view>
     <view class="title">{{ patientName ? `${patientName}的健康评估报告` : '健康评估报告' }}</view>
     <view class="subtitle">查看并下载已发布的健康评估报告</view>
 
@@ -59,9 +58,6 @@ const formatTime = (value?: string) =>
 </script>
 
 <style scoped>
-.title {
-  margin-top: 8rpx;
-}
 .subtitle {
   margin-top: 10rpx;
 }

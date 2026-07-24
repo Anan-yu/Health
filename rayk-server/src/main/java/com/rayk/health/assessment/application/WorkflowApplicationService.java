@@ -116,9 +116,10 @@ public class WorkflowApplicationService {
     }
 
     public List<Long> accessiblePatientIds() {
-        return patientMapper.selectList(dataScopeService.scopedPatients()).stream()
-                .map(PatientEntity::getId)
-                .toList();
+        return dataScopeService.readScoped(
+                () -> patientMapper.selectList(dataScopeService.scopedPatients()).stream()
+                        .map(PatientEntity::getId)
+                        .toList());
     }
 
     @PreAuthorize("hasAuthority('lab-report:manage') or (hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER')")
@@ -145,14 +146,15 @@ public class WorkflowApplicationService {
         if (patientIds.isEmpty()) {
             return List.of();
         }
-        return labReportMapper
-                .selectList(
-                        new LambdaQueryWrapper<LabReportEntity>()
-                                .in(LabReportEntity::getPatientId, patientIds)
-                                .orderByDesc(LabReportEntity::getCreatedAt))
-                .stream()
-                .map(this::toLabReportVo)
-                .toList();
+        return dataScopeService.readScoped(
+                () -> labReportMapper
+                        .selectList(
+                                new LambdaQueryWrapper<LabReportEntity>()
+                                        .in(LabReportEntity::getPatientId, patientIds)
+                                        .orderByDesc(LabReportEntity::getCreatedAt))
+                        .stream()
+                        .map(this::toLabReportVo)
+                        .toList());
     }
 
     public LabReportVo getLabReport(long id) {
@@ -334,23 +336,25 @@ public class WorkflowApplicationService {
         if (patientIds.isEmpty()) {
             return List.of();
         }
-        List<HealthAssessmentEntity> assessments = assessmentMapper
-                .selectList(
-                        new LambdaQueryWrapper<HealthAssessmentEntity>()
-                                .in(HealthAssessmentEntity::getPatientId, patientIds)
-                                .orderByDesc(HealthAssessmentEntity::getCreatedAt));
-        return assessments.stream()
-                .map(this::toAssessmentVo)
-                .toList();
+        return dataScopeService.readScoped(
+                () -> assessmentMapper
+                        .selectList(
+                                new LambdaQueryWrapper<HealthAssessmentEntity>()
+                                        .in(HealthAssessmentEntity::getPatientId, patientIds)
+                                        .orderByDesc(HealthAssessmentEntity::getCreatedAt))
+                        .stream()
+                        .map(this::toAssessmentVo)
+                        .toList());
     }
 
     public AssessmentVo getAssessment(long id) {
-        HealthAssessmentEntity entity = assessmentMapper.selectById(id);
+        HealthAssessmentEntity entity =
+                dataScopeService.readScoped(() -> assessmentMapper.selectById(id));
         if (entity == null) {
             throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
         }
         dataScopeService.requirePatient(entity.getPatientId());
-        return toAssessmentVo(entity);
+        return dataScopeService.readScoped(() -> toAssessmentVo(entity));
     }
 
     @PreAuthorize("hasAuthority('assessment:review')")
@@ -439,24 +443,27 @@ public class WorkflowApplicationService {
             dataScopeService.requirePatient(patientId);
             patientIds = List.of(patientId);
         }
-        return healthReportMapper
-                .selectList(
-                        new LambdaQueryWrapper<HealthReportEntity>()
-                                .in(HealthReportEntity::getPatientId, patientIds)
-                                .eq(HealthReportEntity::getStatus, "PUBLISHED")
-                                .orderByDesc(HealthReportEntity::getPublishedAt))
-                .stream()
-                .map(this::toHealthReportVo)
-                .toList();
+        List<Long> scopedPatientIds = patientIds;
+        return dataScopeService.readScoped(
+                () -> healthReportMapper
+                        .selectList(
+                                new LambdaQueryWrapper<HealthReportEntity>()
+                                        .in(HealthReportEntity::getPatientId, scopedPatientIds)
+                                        .eq(HealthReportEntity::getStatus, "PUBLISHED")
+                                        .orderByDesc(HealthReportEntity::getPublishedAt))
+                        .stream()
+                        .map(this::toHealthReportVo)
+                        .toList());
     }
 
     public HealthReportVo getHealthReport(long id) {
-        HealthReportEntity report = healthReportMapper.selectById(id);
+        HealthReportEntity report =
+                dataScopeService.readScoped(() -> healthReportMapper.selectById(id));
         if (report == null || !"PUBLISHED".equals(report.getStatus())) {
             throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
         }
         dataScopeService.requirePatient(report.getPatientId());
-        return toHealthReportVo(report);
+        return dataScopeService.readScoped(() -> toHealthReportVo(report));
     }
 
     public List<FollowupTaskVo> listFollowups() {
@@ -471,11 +478,10 @@ public class WorkflowApplicationService {
         if ("CUSTOMER".equals(CurrentUser.require().workbench())) {
             query.ne(FollowupTaskEntity::getStatus, "DRAFT");
         }
-        return followupMapper
-                .selectList(query)
-                .stream()
-                .map(this::toFollowupVo)
-                .toList();
+        return dataScopeService.readScoped(
+                () -> followupMapper.selectList(query).stream()
+                        .map(this::toFollowupVo)
+                        .toList());
     }
 
     public FollowupTaskVo getFollowup(long id) {
@@ -532,7 +538,7 @@ public class WorkflowApplicationService {
         next.setPatientId(completed.getPatientId());
         next.setAssigneeId(null);
         next.setTitle("健康随访（下一期）");
-        next.setContent("请继续记录近两周的饮食、运动、睡眠和身体感受；提交反馈后，Rayk AI 将自动更新后续随访安排。");
+        next.setContent("请继续记录近两周的饮食、运动、睡眠和身体感受；提交反馈后，致宇健康将自动更新后续随访安排。");
         next.setDueDate(LocalDate.now().plusDays(14));
         next.setStatus("PENDING");
         auditNew(next, current.userId());
@@ -570,7 +576,8 @@ public class WorkflowApplicationService {
     }
 
     private LabReportEntity requireReport(long id) {
-        LabReportEntity report = labReportMapper.selectById(id);
+        LabReportEntity report =
+                dataScopeService.readScoped(() -> labReportMapper.selectById(id));
         if (report == null) {
             throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
         }
@@ -587,7 +594,8 @@ public class WorkflowApplicationService {
     }
 
     private FollowupTaskEntity requireFollowup(long id) {
-        FollowupTaskEntity task = followupMapper.selectById(id);
+        FollowupTaskEntity task =
+                dataScopeService.readScoped(() -> followupMapper.selectById(id));
         if (task == null) {
             throw new BusinessException(ErrorCode.FOLLOWUP_NOT_FOUND);
         }
@@ -862,6 +870,7 @@ public class WorkflowApplicationService {
         return new HealthReportVo(
                 String.valueOf(report.getId()),
                 String.valueOf(report.getPatientId()),
+                patientName(report.getPatientId()),
                 String.valueOf(report.getAssessmentId()),
                 report.getReportNo(),
                 report.getTitle(),
@@ -877,12 +886,21 @@ public class WorkflowApplicationService {
         return new FollowupTaskVo(
                 String.valueOf(task.getId()),
                 String.valueOf(task.getPatientId()),
+                patientName(task.getPatientId()),
                 task.getTitle(),
                 task.getContent(),
                 task.getDueDate(),
                 task.getStatus(),
                 task.getFeedback(),
                 task.getCompletedAt());
+    }
+
+    private String patientName(Long patientId) {
+        PatientEntity patient =
+                dataScopeService.readScoped(() -> patientMapper.selectById(patientId));
+        return patient == null || patient.getName() == null || patient.getName().isBlank()
+                ? "未命名用户"
+                : patient.getName();
     }
 
     private void auditNew(Object entity, long userId) {

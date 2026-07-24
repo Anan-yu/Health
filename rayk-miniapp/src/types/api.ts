@@ -248,6 +248,8 @@ export interface ReviewTask {
 }
 export interface HealthReport {
   id: string
+  patientId: string
+  patientName?: string
   title: string
   status: string
   summary: string
@@ -259,6 +261,7 @@ export interface HealthReport {
 export interface Followup {
   id: string
   patientId: string
+  patientName?: string
   title: string
   content: string
   dueDate: string

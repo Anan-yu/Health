@@ -3,7 +3,6 @@
     <view class="dashboard-hero">
       <view class="dashboard-top">
         <view>
-          <view class="dashboard-eyebrow">健康评估总览</view>
           <view class="dashboard-title">健康维度仪表盘</view>
         </view>
         <view class="coverage-pill">已评估 {{ evaluated.length }}/{{ models.length }}</view>

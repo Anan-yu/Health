@@ -2,7 +2,6 @@
   <view class="page audit-page">
     <view class="page-heading">
       <view>
-        <view class="eyebrow">安全审计</view>
         <view class="title">跨租户审计</view>
         <view class="subtitle">受控查看全平台已脱敏操作记录</view>
       </view>

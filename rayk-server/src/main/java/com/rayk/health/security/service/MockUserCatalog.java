@@ -15,7 +15,7 @@ public class MockUserCatalog implements UserCatalog {
     private final Map<String, UserAccount> accounts = new LinkedHashMap<>();
 
     public MockUserCatalog() {
-        add(10001, 1, "Rayk平台", "platform_admin", "平台管理员", List.of("PLATFORM_ADMIN"),
+        add(10001, 1, "致宇平台", "platform_admin", "平台管理员", List.of("PLATFORM_ADMIN"),
                 List.of("platform:tenant:list"), "PLATFORM_ADMIN", "平台管理工作台");
         add(10003, 20001, "Rayk测试健康中心", "doctor", "测试医生", List.of("DOCTOR"),
                 List.of("patient:list", "assessment:list"), "DOCTOR", "医生工作台");

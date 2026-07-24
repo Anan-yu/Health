@@ -96,7 +96,7 @@ public class HealthProfileService {
         boolean changed = entity.getProfileCompleteness() == null
                 || entity.getProfileCompleteness() != calculatedCompleteness;
         entity.setProfileCompleteness(calculatedCompleteness);
-        if (forcePersist || changed) {
+        if (entity.getId() != null && (forcePersist || changed)) {
             if (forcePersist) {
                 persistCompleteProfile(entity);
             } else {
@@ -151,11 +151,16 @@ public class HealthProfileService {
 
     private HealthProfileEntity findOrCreate(long patientId) {
         CurrentPrincipal current = CurrentUser.require();
-        HealthProfileEntity entity = profileMapper.selectOne(
+        boolean customer = "CUSTOMER".equals(current.workbench());
+        LambdaQueryWrapper<HealthProfileEntity> query =
                 new LambdaQueryWrapper<HealthProfileEntity>()
-                        .eq(HealthProfileEntity::getTenantId, current.tenantId())
                         .eq(HealthProfileEntity::getPatientId, patientId)
-                        .eq(HealthProfileEntity::getDeleted, 0));
+                        .eq(HealthProfileEntity::getDeleted, 0);
+        if (customer) {
+            query.eq(HealthProfileEntity::getTenantId, current.tenantId());
+        }
+        HealthProfileEntity entity =
+                dataScopeService.readScoped(() -> profileMapper.selectOne(query));
         if (entity == null) {
             entity = new HealthProfileEntity();
             entity.setTenantId(current.tenantId());
@@ -167,7 +172,9 @@ public class HealthProfileService {
             entity.setUpdatedAt(LocalDateTime.now());
             entity.setDeleted(0);
             entity.setVersion(0);
-            profileMapper.insert(entity);
+            if (customer) {
+                profileMapper.insert(entity);
+            }
         }
         return entity;
     }

@@ -2,7 +2,7 @@
   <view class="page message-page">
     <view class="page-heading">
       <view
-        ><view class="eyebrow">消息通知</view><view class="title">消息中心</view
+        ><view class="title">消息中心</view
         ><view class="subtitle">已发布报告和用户健康随访会在这里汇总</view></view
       >
       <view class="message-count">{{ items.length }}</view>
@@ -22,58 +22,68 @@
         <view class="chevron">›</view>
       </view>
     </PageState>
-    <view v-if="items.length" class="message-footer">仅展示与你相关的业务动态</view>
+    <view v-if="items.length" class="message-footer">{{ scopeHint }}</view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getMyFollowups } from '@/api/followup'
-import { getMyHealthReports } from '@/api/health-report'
+import { getFollowups, getMyFollowups } from '@/api/followup'
+import { getHealthReports, getMyHealthReports } from '@/api/health-report'
 import PageState from '@/components/PageState.vue'
 import { useAuthStore } from '@/stores/auth'
+import type { Followup, HealthReport } from '@/types/api'
 
 type Notification = {
   id: string
   kind: 'report' | 'followup'
+  patientId?: string
   title: string
   content: string
   time: string
 }
-const reports = ref<Awaited<ReturnType<typeof getMyHealthReports>>>([])
-const followups = ref<Awaited<ReturnType<typeof getMyFollowups>>>([])
+const reports = ref<HealthReport[]>([])
+const followups = ref<Followup[]>([])
 const loading = ref(true)
 const error = ref('')
 const auth = useAuthStore()
-const isDoctor = computed(() => auth.currentWorkbench === 'DOCTOR')
+const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
+const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
+const scopeHint = computed(() =>
+  isCustomer.value ? '仅展示本人的健康动态' : '展示全平台用户的健康动态',
+)
 const items = computed<Notification[]>(() => [
   ...reports.value.map((report) => ({
     id: report.id,
+    patientId: report.patientId,
     kind: 'report' as const,
-    title: '健康报告已发布',
+    title: isCustomer.value ? '健康报告已发布' : `${report.patientName || '用户'}的健康报告已发布`,
     content: report.title,
     time: report.publishedAt || '刚刚',
   })),
   ...followups.value
-    .filter((followup) => isDoctor.value || followup.status !== 'COMPLETED')
+    .filter((followup) => !isCustomer.value || followup.status !== 'COMPLETED')
     .map((followup) => ({
       id: followup.id,
+      patientId: followup.patientId,
       kind: 'followup' as const,
-      title: isDoctor.value ? '用户健康随访任务' : '待完成健康随访',
-      content: isDoctor.value
+      title: isCustomer.value ? '待完成健康随访' : `${followup.patientName || '用户'}的健康随访`,
+      content: !isCustomer.value
         ? `${followup.title} · ${followup.status === 'COMPLETED' ? '已完成' : '进行中'}`
         : followup.title,
       time: `截止日期：${followup.dueDate}`,
     })),
 ])
 const open = (item: Notification) => {
-  if (isDoctor.value) {
+  if (!isCustomer.value) {
     uni.navigateTo({
       url:
         item.kind === 'report'
-          ? '/pages-business/lab-report/index'
-          : '/pages-business/patient/index',
+          ? `/pages-customer/health-report/detail?id=${item.id}`
+          : isPlatform.value
+            ? '/pages-tenant/dashboard/followup'
+            : `/pages-business/patient/detail?id=${item.patientId || ''}`,
     })
     return
   }
@@ -87,7 +97,16 @@ onShow(async () => {
   loading.value = true
   error.value = ''
   try {
-    ;[reports.value, followups.value] = await Promise.all([getMyHealthReports(), getMyFollowups()])
+    if (isCustomer.value) {
+      ;[reports.value, followups.value] = await Promise.all([
+        getMyHealthReports(),
+        getMyFollowups(),
+      ])
+    } else {
+      const [reportPage, followupPage] = await Promise.all([getHealthReports(), getFollowups()])
+      reports.value = reportPage.records
+      followups.value = followupPage.records
+    }
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '消息加载失败'
   } finally {
@@ -98,43 +117,53 @@ onShow(async () => {
 
 <style scoped>
 .message-page {
-  padding-top: 34rpx;
+  padding-top: 24rpx;
 }
 .page-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 6rpx 32rpx;
+  margin: 0 0 28rpx;
+  padding: 30rpx;
+  border: 1rpx solid rgba(210, 230, 223, 0.9);
+  border-radius: 32rpx;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(231, 248, 242, 0.96));
+  box-shadow: 0 14rpx 34rpx rgba(24, 92, 73, 0.08);
 }
 .page-heading .title {
-  margin-top: 8rpx;
+  margin: 0 0 8rpx;
 }
 .message-count {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 22rpx;
-  background: #e4f6f0;
-  color: #0d755d;
-  font-size: 27rpx;
-  font-weight: 750;
+  min-width: 68rpx;
+  height: 68rpx;
+  padding: 0 10rpx;
+  border: 1rpx solid rgba(151, 210, 191, 0.55);
+  border-radius: 24rpx;
+  background: linear-gradient(145deg, #e5f7f1, #d7f1e8);
+  color: #0b6f58;
+  font-size: 28rpx;
+  font-weight: 780;
+  font-variant-numeric: tabular-nums;
 }
 .notification {
   display: flex;
   align-items: center;
-  margin-bottom: 18rpx;
-  padding: 28rpx 24rpx;
+  margin-bottom: 20rpx;
+  padding: 28rpx;
+  border-color: rgba(214, 229, 223, 0.95);
+  box-shadow: 0 12rpx 32rpx rgba(27, 82, 67, 0.07);
 }
 .notification-icon {
   display: flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 76rpx;
-  height: 76rpx;
-  border-radius: 24rpx;
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 26rpx;
   font-size: 24rpx;
   font-weight: 750;
 }
@@ -152,8 +181,9 @@ onShow(async () => {
   margin-left: 22rpx;
 }
 .notification-title {
-  font-size: 28rpx;
-  font-weight: 680;
+  color: #153d33;
+  font-size: 29rpx;
+  font-weight: 720;
 }
 .notification-copy {
   overflow: hidden;
@@ -166,7 +196,7 @@ onShow(async () => {
 }
 .notification-time {
   margin-top: 12rpx;
-  color: #a0aaa6;
+  color: #93a29d;
   font-size: 20rpx;
 }
 .chevron {
@@ -175,7 +205,7 @@ onShow(async () => {
   font-size: 38rpx;
 }
 .message-footer {
-  padding: 30rpx;
+  padding: 28rpx 30rpx 10rpx;
   color: #9aa6a2;
   text-align: center;
   font-size: 21rpx;

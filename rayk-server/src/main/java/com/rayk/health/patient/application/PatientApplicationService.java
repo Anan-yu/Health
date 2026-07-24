@@ -42,7 +42,8 @@ public class PatientApplicationService {
                         .or().like(PatientEntity::getPhoneMasked, value));
             }
         }
-        return patientMapper.selectList(query).stream().map(converter::toVo).toList();
+        return dataScopeService.readScoped(
+                () -> patientMapper.selectList(query).stream().map(converter::toVo).toList());
     }
 
     public PatientVo get(long id) {

@@ -3,7 +3,6 @@
     <view class="workflow-card">
       <view class="workflow-head">
         <view>
-          <view class="eyebrow">报告数字化</view>
           <view class="workflow-title">报告数字化</view>
           <view class="workflow-copy">识别结果必须经人工核对后才能进入健康评估</view>
         </view>

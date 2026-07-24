@@ -6,8 +6,8 @@
       <view class="brand-row">
         <view class="logo">AI</view>
         <view>
-          <view class="brand-name">Rayk AI</view>
-          <view class="brand-tag">功能医学健康管理</view>
+          <view class="brand-name">致宇健康</view>
+          <view class="brand-tag">AI 智能健康管理</view>
         </view>
       </view>
       <view class="hero-title">让每一份健康数据<br /><text>清晰、有序、可行动</text></view>
@@ -23,7 +23,6 @@
 
     <!-- #ifdef MP-WEIXIN -->
     <view class="card login-card">
-      <view class="card-kicker">欢迎使用</view>
       <view class="card-title">微信授权手机号登录</view>
       <button
         class="wechat"
@@ -83,7 +82,7 @@
       </view>
       <input v-model="password" class="input password" password placeholder="测试密码" />
       <button class="primary enter-button" :loading="loading" @click="handleLogin">
-        进入 Rayk AI
+        进入致宇健康
       </button>
       <view v-if="error" class="error">{{ error }}</view>
     </view>

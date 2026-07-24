@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 public record FollowupTaskVo(
         String id,
         String patientId,
+        String patientName,
         String title,
         String content,
         LocalDate dueDate,
