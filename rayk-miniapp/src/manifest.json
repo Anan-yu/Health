@@ -7,7 +7,7 @@
   "transformPx": false,
   "h5": { "router": { "mode": "hash" }, "title": "致宇健康" },
   "mp-weixin": {
-    "appid": "touristappid",
+    "appid": "wx47c756d2ffebe0e9",
     "setting": { "urlCheck": false, "es6": true, "minified": true }
   }
 }

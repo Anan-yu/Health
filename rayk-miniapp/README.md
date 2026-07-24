@@ -13,7 +13,7 @@ npm run build:mp-weixin
 
 微信小程序联调时，运行 `npm run dev:mp-weixin` 并保持进程运行，然后让微信开发者工具导入 `dist/dev/mp-weixin`。一次性构建的默认输出目录是 `dist/build/mp-weixin`，不要在开发者工具中混用两个目录，否则真机可能继续运行旧的 API 地址。
 
-登录页已接入 `uni.login`，报告页已接入真实 PDF/JPG/PNG 文件选择与上传进度。当前使用 `touristappid` 进行本机开发；发布前需要替换正式 AppID，并配置 API 和对象存储的 HTTPS 合法域名。
+登录页已接入 `uni.login` 与微信手机号快速验证，报告页已接入真实 PDF/JPG/PNG 文件选择与上传进度。微信包已配置正式 AppID；正式发布前还需要配置对应 AppSecret、开通手机号快速验证能力，并配置 API 和对象存储的 HTTPS 合法域名。
 
 ## 当前微信双包
 

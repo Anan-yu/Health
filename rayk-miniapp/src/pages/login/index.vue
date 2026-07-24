@@ -29,9 +29,11 @@
         :loading="wechatLoading"
         :disabled="Boolean(identified)"
         open-type="getPhoneNumber"
+        hover-class="wechat-hover"
+        phone-number-no-quota-toast
         @getphonenumber="handleWeChatLogin"
       >
-        <text class="wechat-mark">微</text> 微信一键登录
+        微信一键登录
       </button>
       <view v-if="wechatLoading" class="recognizing">正在安全识别微信身份与授权手机号…</view>
       <view v-if="identified" class="identified">
@@ -124,11 +126,8 @@ onLoad((query) => {
 async function handleWeChatLogin(event: { detail?: { code?: string; errMsg?: string } }) {
   wechatLoading.value = true
   wechatError.value = ''
+  const phoneCode = event?.detail?.code
   try {
-    const phoneCode = event?.detail?.code
-    if (!phoneCode) {
-      throw new Error('需要授权手机号以识别您的服务身份')
-    }
     const result = await uni.login({ provider: 'weixin' })
     if (!result.code) throw new Error('微信未返回登录凭证')
     const data: AuthData = await auth.loginWithWeChat(result.code, phoneCode)
@@ -139,7 +138,14 @@ async function handleWeChatLogin(event: { detail?: { code?: string; errMsg?: str
     await new Promise((resolve) => setTimeout(resolve, 900))
     uni.switchTab({ url: '/pages/home/index' })
   } catch (e) {
-    wechatError.value = e instanceof Error ? e.message : '微信登录失败'
+    const phoneError = event?.detail?.errMsg ?? ''
+    if (!phoneCode && /deny|cancel/i.test(phoneError)) {
+      wechatError.value = '您取消了手机号授权，请重新点击并允许授权'
+    } else if (!phoneCode && !isDevBuild) {
+      wechatError.value = '当前小程序未取得手机号授权凭证，请确认已使用正式 AppID 并开通手机号快速验证'
+    } else {
+      wechatError.value = e instanceof Error ? e.message : '微信登录失败，请重试'
+    }
   } finally {
     wechatLoading.value = false
   }
@@ -266,24 +272,28 @@ async function handleLogin() {
   font-weight: 730;
 }
 .wechat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 92rpx;
   margin-top: 30rpx;
   background: linear-gradient(135deg, #08bd5c, #05a94f);
   color: #fff;
   border: 0;
-  border-radius: 20rpx;
-  font-weight: 650;
-  box-shadow: 0 12rpx 26rpx rgba(7, 193, 96, 0.2);
+  border-radius: 24rpx;
+  font-size: 30rpx;
+  line-height: 92rpx;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+  box-shadow: 0 14rpx 30rpx rgba(7, 193, 96, 0.24);
 }
-.wechat-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36rpx;
-  height: 36rpx;
-  margin-right: 8rpx;
-  border: 2rpx solid rgba(255, 255, 255, 0.8);
-  border-radius: 50%;
-  font-size: 20rpx;
+.wechat::after {
+  border: 0;
+}
+.wechat-hover {
+  opacity: 0.9;
+  transform: translateY(1rpx);
 }
 .agreement {
   margin-top: 18rpx;
@@ -338,7 +348,7 @@ async function handleLogin() {
   font-size: 24rpx;
 }
 .development-card {
-  padding: 34rpx;
+  padding: 34rpx 34rpx 28rpx;
 }
 .development-head {
   margin-bottom: 24rpx;
@@ -427,7 +437,21 @@ async function handleLogin() {
   margin-top: 24rpx;
 }
 .enter-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 92rpx;
   margin-top: 18rpx;
+  border-radius: 24rpx;
+  font-size: 30rpx;
+  line-height: 92rpx;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+  box-shadow: 0 14rpx 30rpx rgba(15, 122, 98, 0.2);
+}
+.enter-button::after {
+  border: 0;
 }
 .notice,
 .error {
