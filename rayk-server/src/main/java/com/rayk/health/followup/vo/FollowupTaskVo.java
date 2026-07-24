@@ -12,5 +12,13 @@ public record FollowupTaskVo(
         LocalDate dueDate,
         String status,
         String feedback,
-        LocalDateTime completedAt) {}
+        String feedbackDetail,
+        LocalDateTime completedAt,
+        Integer cycleNo,
+        Integer maxCycles,
+        Integer completionRate,
+        String decision,
+        String decisionReason,
+        Integer reminderCount,
+        LocalDateTime lastRemindedAt) {}
 

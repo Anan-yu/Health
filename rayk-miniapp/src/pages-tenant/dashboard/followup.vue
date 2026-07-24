@@ -48,8 +48,15 @@ import StatusTag from '@/components/StatusTag.vue'
 const followups = ref<PlatformFollowup[]>([])
 const loading = ref(true)
 const error = ref('')
-const statusText = (item: PlatformFollowup) =>
-  item.status === 'COMPLETED' ? '已完成' : item.feedback ? '有反馈' : '待完成'
+const statusText = (item: PlatformFollowup) => {
+  const labels: Record<string, string> = {
+    COMPLETED: '已完成',
+    PENDING: item.feedback ? '有反馈' : '待完成',
+    PAUSED: '已暂停',
+    CANCELLED: '已结束',
+  }
+  return labels[item.status] || item.status
+}
 const formatDateTime = (value: string) => value.replace('T', ' ').slice(0, 16)
 const openDetail = (id: string) =>
   uni.navigateTo({ url: `/pages-tenant/dashboard/followup-detail?id=${id}` })

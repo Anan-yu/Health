@@ -73,7 +73,7 @@ public class MeController {
     @PostMapping("/followups/{id}/feedback")
     public ApiResponse<FollowupTaskVo> feedback(
             @PathVariable long id, @Valid @RequestBody FollowupFeedbackRequest request) {
-        return ApiResponse.success(workflowService.feedback(id, request.feedback()));
+        return ApiResponse.success(workflowService.feedback(id, request));
     }
 }
 

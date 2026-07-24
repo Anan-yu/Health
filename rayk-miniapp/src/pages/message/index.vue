@@ -39,6 +39,7 @@ type Notification = {
   id: string
   kind: 'report' | 'followup'
   patientId?: string
+  status?: string
   title: string
   content: string
   time: string
@@ -53,6 +54,26 @@ const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 const scopeHint = computed(() =>
   isCustomer.value ? '仅展示本人的健康动态' : '展示全平台用户的健康动态',
 )
+const followupStatusText = (status: string) => {
+  const labels: Record<string, string> = {
+    PENDING: '进行中',
+    COMPLETED: '已完成',
+    PAUSED: '已暂停',
+    CANCELLED: '已结束',
+  }
+  return labels[status] || status
+}
+const followupReminderTitle = (followup: Followup) => {
+  if (followup.status === 'PAUSED') return '健康随访已暂停'
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const due = new Date(`${followup.dueDate}T00:00:00`)
+  const days = Math.round((due.getTime() - today.getTime()) / 86400000)
+  if (days < 0) return `健康随访已逾期 ${Math.abs(days)} 天`
+  if (days === 0) return '健康随访今天到期'
+  if (days === 1) return '健康随访明天到期'
+  return '待完成健康随访'
+}
 const items = computed<Notification[]>(() => [
   ...reports.value.map((report) => ({
     id: report.id,
@@ -63,14 +84,20 @@ const items = computed<Notification[]>(() => [
     time: report.publishedAt || '刚刚',
   })),
   ...followups.value
-    .filter((followup) => !isCustomer.value || followup.status !== 'COMPLETED')
+    .filter(
+      (followup) =>
+        !isCustomer.value || ['PENDING', 'PAUSED'].includes(followup.status),
+    )
     .map((followup) => ({
       id: followup.id,
       patientId: followup.patientId,
+      status: followup.status,
       kind: 'followup' as const,
-      title: isCustomer.value ? '待完成健康随访' : `${followup.patientName || '用户'}的健康随访`,
+      title: isCustomer.value
+        ? followupReminderTitle(followup)
+        : `${followup.patientName || '用户'}的健康随访`,
       content: !isCustomer.value
-        ? `${followup.title} · ${followup.status === 'COMPLETED' ? '已完成' : '进行中'}`
+        ? `${followup.title} · ${followupStatusText(followup.status)}`
         : followup.title,
       time: `截止日期：${followup.dueDate}`,
     })),
@@ -90,6 +117,8 @@ const open = (item: Notification) => {
   const url =
     item.kind === 'report'
       ? `/pages-customer/health-report/detail?id=${item.id}`
+      : item.status === 'PAUSED'
+        ? '/pages-customer/followup/index'
       : `/pages-customer/followup/feedback?id=${item.id}`
   uni.navigateTo({ url })
 }

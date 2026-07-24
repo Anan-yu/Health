@@ -33,7 +33,7 @@
         <view class="due-row"
           ><text>计划完成日期</text><text>{{ item.dueDate }}</text></view
         ><button
-          v-if="item.status !== 'COMPLETED'"
+          v-if="item.status === 'PENDING'"
           class="feedback-button"
           @click.stop="feedback(item.id)"
         >

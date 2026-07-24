@@ -267,7 +267,15 @@ export interface Followup {
   dueDate: string
   status: string
   feedback?: string
+  feedbackDetail?: string
   completedAt?: string
+  cycleNo?: number
+  maxCycles?: number
+  completionRate?: number
+  decision?: 'CONTINUE' | 'ADJUST' | 'TERMINATE' | 'PAUSE'
+  decisionReason?: string
+  reminderCount?: number
+  lastRemindedAt?: string
 }
 
 export interface FollowupPlan {

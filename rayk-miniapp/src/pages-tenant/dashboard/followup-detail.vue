@@ -29,6 +29,20 @@
           </view>
         </view>
 
+        <view v-if="task.completionRate !== undefined || task.decisionReason" class="card decision-card">
+          <view class="decision-top">
+            <view>
+              <view class="decision-label">本期执行结果</view>
+              <view class="decision-value">{{ task.completionRate ?? 0 }}%</view>
+            </view>
+            <view class="decision-badge">{{ decisionText(task.decision) }}</view>
+          </view>
+          <view v-if="task.cycleNo" class="decision-cycle">
+            当前第 {{ task.cycleNo }} 期，最多 {{ task.maxCycles || 4 }} 期
+          </view>
+          <view v-if="task.decisionReason" class="decision-reason">{{ task.decisionReason }}</view>
+        </view>
+
         <view class="section-heading">健康行动计划</view>
         <view class="card plan-card">
           <view
@@ -57,13 +71,28 @@
             }}</view>
           </view>
         </view>
+        <view v-if="feedbackItems.length" class="card feedback-list">
+          <view
+            v-for="(item, index) in feedbackItems"
+            :key="`${item.section}-${index}`"
+            class="feedback-item"
+          >
+            <view class="feedback-item-top">
+              <view class="feedback-action">{{ item.action }}</view>
+              <view class="feedback-status" :class="item.status.toLowerCase()">
+                {{ actionStatusText(item.status) }}
+              </view>
+            </view>
+            <view v-if="item.note" class="feedback-note">说明：{{ item.note }}</view>
+          </view>
+        </view>
       </template>
     </PageState>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getFollowup } from '@/api/followup'
 import type { Followup } from '@/types/api'
@@ -73,6 +102,21 @@ import StatusTag from '@/components/StatusTag.vue'
 const task = ref<Followup | null>(null)
 const loading = ref(true)
 const error = ref('')
+type FeedbackItem = {
+  section: string
+  action: string
+  status: 'COMPLETED' | 'PARTIAL' | 'NOT_COMPLETED'
+  note?: string
+}
+const feedbackItems = computed<FeedbackItem[]>(() => {
+  if (!task.value?.feedbackDetail) return []
+  try {
+    const parsed = JSON.parse(task.value.feedbackDetail)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+})
 
 type PlanSection = { title: string; actions: string[] }
 const sectionTitles = new Set(['本周重点', '饮食行动', '运动行动', '作息行动', '监测行动', '健康行动'])
@@ -122,7 +166,32 @@ function sectionIcon(title: string) {
   return icons[title] || '行'
 }
 
-const statusText = (status: string) => (status === 'COMPLETED' ? '已完成' : '待完成')
+const statusText = (status: string) => {
+  const labels: Record<string, string> = {
+    PENDING: '待完成',
+    COMPLETED: '已完成',
+    PAUSED: '已暂停',
+    CANCELLED: '已结束',
+  }
+  return labels[status] || status
+}
+const decisionText = (decision?: string) => {
+  const labels: Record<string, string> = {
+    CONTINUE: '继续随访',
+    ADJUST: '调整计划',
+    TERMINATE: '本轮结束',
+    PAUSE: '暂停随访',
+  }
+  return decision ? labels[decision] || decision : '等待反馈'
+}
+const actionStatusText = (status: string) => {
+  const labels: Record<string, string> = {
+    COMPLETED: '已完成',
+    PARTIAL: '部分完成',
+    NOT_COMPLETED: '未完成',
+  }
+  return labels[status] || status
+}
 const formatDateTime = (value: string) => value.replace('T', ' ').slice(0, 16)
 
 onLoad(async (query) => {
@@ -201,6 +270,48 @@ onLoad(async (query) => {
   align-items: stretch;
   margin-top: 22rpx;
   padding: 28rpx 20rpx;
+}
+.decision-card {
+  margin-top: 22rpx;
+  padding: 28rpx;
+  background: linear-gradient(145deg, #f2fbf8, #ffffff);
+}
+.decision-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.decision-label {
+  color: #71837d;
+  font-size: 22rpx;
+}
+.decision-value {
+  margin-top: 4rpx;
+  color: #08765d;
+  font-size: 46rpx;
+  font-weight: 800;
+}
+.decision-badge {
+  padding: 12rpx 20rpx;
+  border-radius: 999rpx;
+  background: #dff5ed;
+  color: #08765d;
+  font-size: 23rpx;
+  font-weight: 700;
+}
+.decision-cycle {
+  margin-top: 18rpx;
+  color: #657a73;
+  font-size: 23rpx;
+}
+.decision-reason {
+  margin-top: 12rpx;
+  padding: 18rpx;
+  border-radius: 16rpx;
+  background: #edf7f4;
+  color: #28564b;
+  font-size: 23rpx;
+  line-height: 1.6;
 }
 .overview-item {
   display: flex;
@@ -312,5 +423,52 @@ onLoad(async (query) => {
   color: #678078;
   font-size: 23rpx;
   line-height: 1.65;
+}
+.feedback-list {
+  margin-top: 16rpx;
+  padding: 8rpx 26rpx;
+}
+.feedback-item {
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid #e8efed;
+}
+.feedback-item:last-child {
+  border-bottom: 0;
+}
+.feedback-item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+.feedback-action {
+  flex: 1;
+  color: #24483f;
+  font-size: 23rpx;
+  line-height: 1.6;
+}
+.feedback-status {
+  flex: 0 0 auto;
+  padding: 7rpx 13rpx;
+  border-radius: 999rpx;
+  background: #dff5ed;
+  color: #08765d;
+  font-size: 20rpx;
+}
+.feedback-status.partial {
+  background: #fff2d7;
+  color: #996000;
+}
+.feedback-status.not_completed {
+  background: #ffebe9;
+  color: #b33a31;
+}
+.feedback-note {
+  margin-top: 10rpx;
+  padding: 14rpx;
+  border-radius: 12rpx;
+  background: #f5f8f7;
+  color: #70817b;
+  font-size: 21rpx;
 }
 </style>

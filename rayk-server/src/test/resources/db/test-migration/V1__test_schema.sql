@@ -159,8 +159,14 @@ CREATE TABLE followup_plan (
   PRIMARY KEY (id)
 );
 
-CREATE TABLE followup_task (
-  id BIGINT NOT NULL, tenant_id BIGINT NOT NULL, patient_id BIGINT NOT NULL, plan_id BIGINT NULL, assignee_id BIGINT NULL, title VARCHAR(100) NOT NULL, content VARCHAR(1000) NOT NULL, due_date DATE NOT NULL, status VARCHAR(20) NOT NULL, feedback VARCHAR(1000) NULL, completed_at DATETIME NULL,
+  CREATE TABLE followup_task (
+    id BIGINT NOT NULL, tenant_id BIGINT NOT NULL, patient_id BIGINT NOT NULL, plan_id BIGINT NULL,
+    parent_task_id BIGINT NULL, cycle_no INT NOT NULL DEFAULT 1, max_cycles INT NOT NULL DEFAULT 4,
+    assignee_id BIGINT NULL, title VARCHAR(100) NOT NULL, content VARCHAR(1000) NOT NULL,
+    due_date DATE NOT NULL, status VARCHAR(20) NOT NULL, feedback VARCHAR(1000) NULL,
+    completion_rate INT NULL, feedback_detail VARCHAR(4000) NULL, decision VARCHAR(20) NULL,
+    decision_reason VARCHAR(500) NULL, reminder_count INT NOT NULL DEFAULT 0,
+    last_reminded_at DATETIME NULL, completed_at DATETIME NULL,
   created_by BIGINT NOT NULL, created_at DATETIME NOT NULL, updated_by BIGINT NOT NULL, updated_at DATETIME NOT NULL,
   deleted TINYINT NOT NULL DEFAULT 0, version INT NOT NULL DEFAULT 0,
   PRIMARY KEY (id)

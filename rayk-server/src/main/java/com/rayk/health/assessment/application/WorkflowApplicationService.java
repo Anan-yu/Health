@@ -13,6 +13,8 @@ import com.rayk.health.assessment.vo.AssessmentVo;
 import com.rayk.health.common.exception.BusinessException;
 import com.rayk.health.common.exception.ErrorCode;
 import com.rayk.health.followup.entity.FollowupTaskEntity;
+import com.rayk.health.followup.dto.FollowupActionFeedback;
+import com.rayk.health.followup.dto.FollowupFeedbackRequest;
 import com.rayk.health.followup.mapper.FollowupTaskMapper;
 import com.rayk.health.followup.vo.FollowupTaskVo;
 import com.rayk.health.indicator.entity.IndicatorValueEntity;
@@ -49,6 +51,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -489,17 +493,42 @@ public class WorkflowApplicationService {
     }
 
     @PreAuthorize("hasAuthority('self:followup') and principal.workbench == 'CUSTOMER'")
-    public FollowupTaskVo feedback(long id, String feedback) {
+    public FollowupTaskVo feedback(long id, FollowupFeedbackRequest request) {
         FollowupTaskEntity task = requireFollowup(id);
         if (!"PENDING".equals(task.getStatus())) {
             throw new BusinessException(ErrorCode.FOLLOWUP_INVALID_STATUS);
         }
-        task.setFeedback(feedback);
+        int completionRate = calculateCompletionRate(request.actions());
+        int cycleNo = task.getCycleNo() == null ? 1 : task.getCycleNo();
+        int maxCycles = task.getMaxCycles() == null ? 4 : task.getMaxCycles();
+        boolean previousCycleReachedTarget = hasPreviousSuccessfulCycle(task);
+        String decision;
+        String reason;
+        if (cycleNo >= maxCycles) {
+            decision = "TERMINATE";
+            reason = "已达到最多" + maxCycles + "期，本轮健康随访结束。";
+        } else if (completionRate >= 80 && previousCycleReachedTarget) {
+            decision = "TERMINATE";
+            reason = "连续两期完成度达到80%，本轮健康随访目标已达成。";
+        } else if (completionRate < 60) {
+            decision = "ADJUST";
+            reason = "本期完成度低于60%，下一期将聚焦未完成行动。";
+        } else {
+            decision = "CONTINUE";
+            reason = "本期执行情况稳定，进入下一期健康随访。";
+        }
+        task.setFeedback(buildFeedbackSummary(request));
+        task.setFeedbackDetail(writeFeedbackDetail(request.actions()));
+        task.setCompletionRate(completionRate);
+        task.setDecision(decision);
+        task.setDecisionReason(reason);
         task.setStatus("COMPLETED");
         task.setCompletedAt(LocalDateTime.now());
         touch(task, CurrentUser.require().userId());
         followupMapper.updateById(task);
-        createNextAiFollowup(task, CurrentUser.require());
+        if (!"TERMINATE".equals(decision)) {
+            createNextAiFollowup(task, request.actions(), decision, CurrentUser.require());
+        }
         return toFollowupVo(task);
     }
 
@@ -532,17 +561,124 @@ public class WorkflowApplicationService {
     }
 
     /** Current AI follow-up policy: a completed feedback closes this task and opens the next check-in. */
-    private void createNextAiFollowup(FollowupTaskEntity completed, CurrentPrincipal current) {
+    private int calculateCompletionRate(List<FollowupActionFeedback> actions) {
+        return (int)
+                Math.round(
+                        actions.stream()
+                                .mapToInt(
+                                        action ->
+                                                switch (action.status()) {
+                                                    case "COMPLETED" -> 100;
+                                                    case "PARTIAL" -> 50;
+                                                    default -> 0;
+                                                })
+                                .average()
+                                .orElse(0));
+    }
+
+    private boolean hasPreviousSuccessfulCycle(FollowupTaskEntity current) {
+        List<FollowupTaskEntity> previous =
+                followupMapper.selectList(
+                        new LambdaQueryWrapper<FollowupTaskEntity>()
+                                .eq(FollowupTaskEntity::getPatientId, current.getPatientId())
+                                .eq(FollowupTaskEntity::getStatus, "COMPLETED")
+                                .ne(FollowupTaskEntity::getId, current.getId())
+                                .orderByDesc(FollowupTaskEntity::getCompletedAt)
+                                .last("LIMIT 1"));
+        return !previous.isEmpty()
+                && previous.getFirst().getCompletionRate() != null
+                && previous.getFirst().getCompletionRate() >= 80;
+    }
+
+    private String writeFeedbackDetail(List<FollowupActionFeedback> actions) {
+        try {
+            return objectMapper.writeValueAsString(actions);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Unable to serialize follow-up feedback", exception);
+        }
+    }
+
+    private String buildFeedbackSummary(FollowupFeedbackRequest request) {
+        long completed =
+                request.actions().stream()
+                        .filter(action -> "COMPLETED".equals(action.status()))
+                        .count();
+        long partial =
+                request.actions().stream()
+                        .filter(action -> "PARTIAL".equals(action.status()))
+                        .count();
+        long pending = request.actions().size() - completed - partial;
+        String summary =
+                "逐项反馈：已完成"
+                        + completed
+                        + "项，部分完成"
+                        + partial
+                        + "项，未完成"
+                        + pending
+                        + "项。";
+        return request.feedback() == null || request.feedback().isBlank()
+                ? summary
+                : summary + " 补充说明：" + request.feedback().trim();
+    }
+
+    private void createNextAiFollowup(
+            FollowupTaskEntity completed,
+            List<FollowupActionFeedback> actions,
+            String decision,
+            CurrentPrincipal current) {
+        long existingPending =
+                followupMapper.selectCount(
+                        new LambdaQueryWrapper<FollowupTaskEntity>()
+                                .eq(FollowupTaskEntity::getPatientId, completed.getPatientId())
+                                .eq(FollowupTaskEntity::getStatus, "PENDING"));
+        if (existingPending > 0) {
+            return;
+        }
         FollowupTaskEntity next = new FollowupTaskEntity();
         next.setTenantId(completed.getTenantId());
         next.setPatientId(completed.getPatientId());
+        next.setParentTaskId(completed.getId());
+        next.setCycleNo((completed.getCycleNo() == null ? 1 : completed.getCycleNo()) + 1);
+        next.setMaxCycles(completed.getMaxCycles() == null ? 4 : completed.getMaxCycles());
         next.setAssigneeId(null);
-        next.setTitle("健康随访（下一期）");
-        next.setContent("请继续记录近两周的饮食、运动、睡眠和身体感受；提交反馈后，致宇健康将自动更新后续随访安排。");
+        next.setTitle("健康随访（第" + next.getCycleNo() + "期）");
+        next.setContent(buildNextFollowupContent(actions, "ADJUST".equals(decision)));
         next.setDueDate(LocalDate.now().plusDays(14));
         next.setStatus("PENDING");
+        next.setReminderCount(0);
         auditNew(next, current.userId());
         followupMapper.insert(next);
+    }
+
+    private String buildNextFollowupContent(
+            List<FollowupActionFeedback> actions, boolean adjusted) {
+        Map<String, List<String>> grouped = new LinkedHashMap<>();
+        for (FollowupActionFeedback action : actions) {
+            if (adjusted && "COMPLETED".equals(action.status())) {
+                continue;
+            }
+            String text = action.action().trim();
+            if (adjusted) {
+                text = "优先完成：" + text;
+            }
+            grouped.computeIfAbsent(action.section().trim(), ignored -> new java.util.ArrayList<>())
+                    .add(text);
+        }
+        if (grouped.isEmpty()) {
+            grouped.put(
+                    "健康行动",
+                    List.of("保持规律饮食、适量运动和充足睡眠，并记录身体感受。"));
+        }
+        StringBuilder content = new StringBuilder();
+        grouped.forEach(
+                (section, sectionActions) -> {
+                    content.append(section).append('\n');
+                    sectionActions.stream()
+                            .distinct()
+                            .limit(4)
+                            .forEach(action -> content.append("• ").append(action).append('\n'));
+                });
+        return content.toString().trim();
     }
 
     private ReviewTaskVo decide(long id, String opinion, String status) {
@@ -758,16 +894,31 @@ public class WorkflowApplicationService {
 
     private void createAiFollowup(
             HealthAssessmentEntity assessment, PatientEntity patient, CurrentPrincipal current) {
+        List<FollowupTaskEntity> unfinished =
+                followupMapper.selectList(
+                        new LambdaQueryWrapper<FollowupTaskEntity>()
+                                .eq(FollowupTaskEntity::getPatientId, patient.getId())
+                                .eq(FollowupTaskEntity::getStatus, "PENDING"));
+        for (FollowupTaskEntity existing : unfinished) {
+            existing.setStatus("CANCELLED");
+            existing.setDecision("TERMINATE");
+            existing.setDecisionReason("检测到新的健康报告，旧计划已结束并重新评估。");
+            touch(existing, current.userId());
+            followupMapper.updateById(existing);
+        }
         String risk = assessment.getOverallRiskLevel();
         int days = "HIGH".equals(risk) ? 3 : "ATTENTION".equals(risk) ? 7 : 14;
         FollowupTaskEntity task = new FollowupTaskEntity();
         task.setTenantId(current.tenantId());
         task.setPatientId(patient.getId());
+        task.setCycleNo(1);
+        task.setMaxCycles(4);
         task.setAssigneeId(null);
         task.setTitle("本周健康计划");
         task.setContent(buildFollowupContent(assessment));
         task.setDueDate(LocalDate.now().plusDays(days));
         task.setStatus("PENDING");
+        task.setReminderCount(0);
         auditNew(task, current.userId());
         followupMapper.insert(task);
     }
@@ -892,7 +1043,15 @@ public class WorkflowApplicationService {
                 task.getDueDate(),
                 task.getStatus(),
                 task.getFeedback(),
-                task.getCompletedAt());
+                task.getFeedbackDetail(),
+                task.getCompletedAt(),
+                task.getCycleNo(),
+                task.getMaxCycles(),
+                task.getCompletionRate(),
+                task.getDecision(),
+                task.getDecisionReason(),
+                task.getReminderCount(),
+                task.getLastRemindedAt());
     }
 
     private String patientName(Long patientId) {

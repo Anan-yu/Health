@@ -4,11 +4,21 @@ export const getFollowups = () =>
   request<PageResponse<Followup>>({ url: '/api/v1/followups', method: 'GET' })
 export const getMyFollowups = () =>
   request<Followup[]>({ url: '/api/v1/me/followups', method: 'GET' })
-export const sendFeedback = (id: string, feedback: string) =>
+export interface FollowupActionFeedback {
+  section: string
+  action: string
+  status: 'COMPLETED' | 'PARTIAL' | 'NOT_COMPLETED'
+  note?: string
+}
+
+export const sendFeedback = (
+  id: string,
+  data: { feedback?: string; actions: FollowupActionFeedback[] },
+) =>
   request<Followup>({
     url: `/api/v1/me/followups/${id}/feedback`,
     method: 'POST',
-    data: { feedback },
+    data,
   })
 
 export const getFollowup = (id: string) =>

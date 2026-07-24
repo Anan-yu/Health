@@ -35,6 +35,6 @@ public class FollowupController {
     @PostMapping("/{id}/feedback")
     public ApiResponse<FollowupTaskVo> feedback(
             @PathVariable long id, @Valid @RequestBody FollowupFeedbackRequest request) {
-        return ApiResponse.success(service.feedback(id, request.feedback()));
+        return ApiResponse.success(service.feedback(id, request));
     }
 }
