@@ -156,6 +156,11 @@ public class OcrTaskService {
                                                 file.getOriginalName(),
                                                 file.getMimeType(),
                                                 downloadUrl));
+                        if (!isUsableOcrResult(result)) {
+                            transactionTemplate.executeWithoutResult(
+                                    status -> markFailed(task, report, ocrFailureReason(result)));
+                            return;
+                        }
                         transactionTemplate.executeWithoutResult(
                                 status -> {
                                     try {
@@ -176,6 +181,25 @@ public class OcrTaskService {
                                 status -> markFailed(task, report, "识别服务调用失败，请稍后重试"));
                     }
                 });
+    }
+
+    private boolean isUsableOcrResult(AiDtos.OcrRecognizeData result) {
+        return result != null
+                && !"RETRY_REQUIRED".equals(result.status())
+                && result.indicators() != null
+                && !result.indicators().isEmpty()
+                && result.confidence() != null
+                && result.confidence().compareTo(new BigDecimal("0.55")) >= 0;
+    }
+
+    private String ocrFailureReason(AiDtos.OcrRecognizeData result) {
+        if (result != null && result.warnings() != null) {
+            return result.warnings().stream()
+                    .filter(message -> message != null && !message.isBlank())
+                    .reduce((first, second) -> second)
+                    .orElse("报告识别可靠性不足，请使用清晰、完整、正向拍摄的报告重新上传");
+        }
+        return "报告识别可靠性不足，请使用清晰、完整、正向拍摄的报告重新上传";
     }
 
     private ProcessingContext prepare(long taskId, long fileId) {
