@@ -24,6 +24,19 @@ page {
   font-family:
     -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
   font-size: 28rpx;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+view,
+text,
+button,
+input,
+textarea,
+navigator,
+picker {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
 }
 .page {
   box-sizing: border-box;
@@ -52,11 +65,13 @@ page {
   font-weight: 760;
   letter-spacing: -1rpx;
   margin-bottom: 12rpx;
+  text-align: left;
 }
 .subtitle {
   color: var(--muted);
   font-size: 25rpx;
   line-height: 1.65;
+  text-align: left;
 }
 .section-title {
   color: var(--ink);
@@ -64,10 +79,12 @@ page {
   line-height: 1.35;
   font-weight: 730;
   margin: 28rpx 0 20rpx;
+  text-align: left;
 }
 .section-label {
   color: var(--brand);
   font-size: 22rpx;
+  line-height: 1.4;
   font-weight: 700;
   letter-spacing: 2rpx;
   text-transform: uppercase;
@@ -117,6 +134,7 @@ page {
 .muted {
   color: var(--muted);
   font-size: 24rpx;
+  line-height: 1.55;
 }
 .metric {
   color: var(--brand);

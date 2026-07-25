@@ -111,6 +111,7 @@ const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
   position: relative;
   margin-top: 0;
   font-size: 44rpx;
+  line-height: 1.3;
   font-weight: 760;
 }
 .hero-copy {
@@ -118,6 +119,7 @@ const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
   margin-top: 10rpx;
   color: rgba(255, 255, 255, 0.7);
   font-size: 24rpx;
+  line-height: 1.55;
 }
 .hero-stats {
   position: relative;
@@ -134,11 +136,13 @@ const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 .hero-stats text:first-child {
   margin-right: 9rpx;
   font-size: 34rpx;
+  line-height: 1;
   font-weight: 750;
 }
 .hero-stats text:last-child {
   color: rgba(255, 255, 255, 0.68);
   font-size: 21rpx;
+  line-height: 1.4;
 }
 .divider {
   width: 1rpx;
@@ -189,6 +193,7 @@ const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 .menu-title {
   margin-top: 22rpx;
   font-size: 29rpx;
+  line-height: 1.4;
   font-weight: 700;
 }
 .menu-copy {
@@ -205,6 +210,7 @@ const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
   margin-top: 16rpx;
   color: #8a9893;
   font-size: 20rpx;
+  line-height: 1.4;
 }
 .arrow {
   color: #0f7a62;
@@ -234,6 +240,7 @@ const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 .help-title {
   margin-bottom: 4rpx;
   font-size: 25rpx;
+  line-height: 1.4;
   font-weight: 650;
 }
 .help-content {

@@ -6,7 +6,7 @@
         <view class="avatar">{{ avatarText }}</view>
         <view class="profile-content">
           <view class="profile-name">{{ auth.user?.displayName || '致宇用户' }}</view>
-          <view class="profile-meta">{{ auth.user?.tenantName }}</view>
+          <view class="profile-meta">{{ tenantDisplayName }}</view>
           <view class="role-pill">{{ workbenchName }}</view>
         </view>
         <view v-if="canSwitch" class="profile-arrow">›</view>
@@ -59,6 +59,7 @@ const avatarText = computed(() => auth.user?.displayName?.slice(0, 1) || 'R')
 const workbenchName = computed(() =>
   auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '当前工作台',
 )
+const tenantDisplayName = computed(() => '致宇健康平台')
 const canSwitch = computed(() => (auth.user?.availableWorkbenches.length || 0) > 1)
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
@@ -119,12 +120,14 @@ async function signOut() {
 }
 .profile-name {
   font-size: 36rpx;
+  line-height: 1.35;
   font-weight: 750;
 }
 .profile-meta {
   margin-top: 5rpx;
   color: rgba(255, 255, 255, 0.65);
   font-size: 22rpx;
+  line-height: 1.4;
 }
 .role-pill {
   display: inline-block;
@@ -155,12 +158,14 @@ async function signOut() {
 }
 .profile-stats text:first-child {
   font-size: 32rpx;
+  line-height: 1.2;
   font-weight: 750;
 }
 .profile-stats text:last-child {
   margin-top: 5rpx;
   color: rgba(255, 255, 255, 0.6);
   font-size: 20rpx;
+  line-height: 1.4;
 }
 .settings-card {
   padding: 0 28rpx;
@@ -202,12 +207,17 @@ async function signOut() {
   color: #7453ae;
 }
 .setting-content {
+  display: flex;
+  justify-content: center;
   flex: 1;
+  min-width: 0;
+  flex-direction: column;
   margin-left: 20rpx;
 }
 .setting-title {
   margin-bottom: 4rpx;
   font-size: 27rpx;
+  line-height: 1.4;
   font-weight: 650;
 }
 .setting-arrow {

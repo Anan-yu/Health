@@ -55,6 +55,7 @@ defineProps<{ loading?: boolean; error?: string; empty?: boolean }>()
   margin-top: 24rpx;
   color: #28443c;
   font-size: 29rpx;
+  line-height: 1.4;
   font-weight: 680;
 }
 .empty-state .state-title {

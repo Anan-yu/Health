@@ -232,7 +232,10 @@ const careFeedback = computed<{
   if (auth.currentWorkbench === 'DOCTOR') {
     const patients = metricValue('PATIENT')
     return {
-      title: patients > 0 ? `今天已有 ${patients} 位体检者进入健康管理` : '守护健康，从每一次耐心查看开始',
+      title:
+        patients > 0
+          ? `今天已有 ${patients} 位体检者进入健康管理`
+          : '守护健康，从每一次耐心查看开始',
       message: '你的每一次认真查看，都在帮助一份健康数据转化为更清晰、可行动的方向。',
       detail: '尊重个体差异，结合完整资料，让专业判断更有温度。',
       icon: '护',
@@ -338,6 +341,7 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
 .hero-date {
   color: rgba(255, 255, 255, 0.7);
   font-size: 23rpx;
+  line-height: 1.45;
 }
 .hero-greeting {
   max-width: 510rpx;
@@ -351,6 +355,7 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   margin-top: 12rpx;
   color: rgba(255, 255, 255, 0.72);
   font-size: 24rpx;
+  line-height: 1.55;
 }
 .avatar {
   display: flex;
@@ -375,6 +380,7 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   display: flex;
   align-items: center;
   font-size: 23rpx;
+  line-height: 1.4;
 }
 .online-dot {
   width: 12rpx;
@@ -387,10 +393,12 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
 .switch-link {
   color: rgba(255, 255, 255, 0.82);
   font-size: 23rpx;
+  line-height: 1.4;
 }
 .section-tip {
   color: #84938e;
   font-size: 22rpx;
+  line-height: 1.4;
 }
 .refresh-tip {
   color: #0f7a62;
@@ -453,17 +461,20 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   margin-top: 10rpx;
   color: #627b73;
   font-size: 20rpx;
+  line-height: 1.4;
 }
 .profile-gauge-status {
   margin-top: 16rpx;
   color: #1d4d40;
   font-size: 22rpx;
+  line-height: 1.4;
   font-weight: 650;
 }
 .profile-gauge-action {
   margin-top: 8rpx;
   color: #6c827b;
   font-size: 19rpx;
+  line-height: 1.4;
 }
 .dashboard-stat-list {
   display: flex;
@@ -522,6 +533,7 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   margin-top: 8rpx;
   color: #183c33;
   font-size: 22rpx;
+  line-height: 1.4;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -530,6 +542,7 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   margin-top: 6rpx;
   color: #94a39e;
   font-size: 17rpx;
+  line-height: 1.4;
 }
 .metric-card {
   padding: 24rpx;
@@ -575,12 +588,14 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
 .metric-label {
   margin-top: 8rpx;
   font-size: 25rpx;
+  line-height: 1.4;
   font-weight: 650;
 }
 .metric-hint {
   margin-top: 8rpx;
   color: #9aa7a2;
   font-size: 20rpx;
+  line-height: 1.4;
 }
 .service-card {
   display: grid;
@@ -619,6 +634,7 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
 .service-name {
   overflow: hidden;
   font-size: 22rpx;
+  line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -651,11 +667,13 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
 .insight-label {
   color: #9b7731;
   font-size: 21rpx;
+  line-height: 1.4;
 }
 .insight-title {
   overflow: hidden;
   margin-top: 6rpx;
   font-size: 25rpx;
+  line-height: 1.4;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;

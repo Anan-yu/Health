@@ -100,8 +100,11 @@ const emit = defineEmits<{ action: [] }>()
   border-radius: 29rpx;
 }
 .care-content {
+  display: flex;
+  justify-content: center;
   flex: 1;
   min-width: 0;
+  flex-direction: column;
 }
 .care-title {
   color: #173f35;
@@ -119,11 +122,13 @@ const emit = defineEmits<{ action: [] }>()
   margin-top: 8rpx;
   color: #82928c;
   font-size: 20rpx;
+  line-height: 1.5;
 }
 .care-action {
   flex: 0 0 auto;
   color: #0c765e;
   font-size: 22rpx;
+  line-height: 1.4;
   font-weight: 680;
 }
 </style>

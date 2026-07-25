@@ -125,10 +125,7 @@ const items = computed<Notification[]>(() => [
     time: report.publishedAt || '刚刚',
   })),
   ...followups.value
-    .filter(
-      (followup) =>
-        !isCustomer.value || ['PENDING', 'PAUSED'].includes(followup.status),
-    )
+    .filter((followup) => !isCustomer.value || ['PENDING', 'PAUSED'].includes(followup.status))
     .map((followup) => ({
       id: followup.id,
       patientId: followup.patientId,
@@ -160,7 +157,7 @@ const open = (item: Notification) => {
       ? `/pages-customer/health-report/detail?id=${item.id}`
       : item.status === 'PAUSED'
         ? '/pages-customer/followup/index'
-      : `/pages-customer/followup/feedback?id=${item.id}`
+        : `/pages-customer/followup/feedback?id=${item.id}`
   uni.navigateTo({ url })
 }
 onShow(async () => {
@@ -200,8 +197,16 @@ onShow(async () => {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(231, 248, 242, 0.96));
   box-shadow: 0 14rpx 34rpx rgba(24, 92, 73, 0.08);
 }
+.page-heading > view:first-child {
+  flex: 1;
+  min-width: 0;
+  padding-right: 24rpx;
+}
 .page-heading .title {
   margin: 0 0 8rpx;
+}
+.page-heading .subtitle {
+  line-height: 1.55;
 }
 .message-count {
   display: flex;
@@ -215,6 +220,7 @@ onShow(async () => {
   background: linear-gradient(145deg, #e5f7f1, #d7f1e8);
   color: #0b6f58;
   font-size: 28rpx;
+  line-height: 1;
   font-weight: 780;
   font-variant-numeric: tabular-nums;
 }
@@ -246,13 +252,18 @@ onShow(async () => {
   color: #c76a32;
 }
 .notification-content {
+  display: flex;
+  justify-content: center;
   flex: 1;
   min-width: 0;
+  min-height: 80rpx;
+  flex-direction: column;
   margin-left: 22rpx;
 }
 .notification-title {
   color: #153d33;
   font-size: 29rpx;
+  line-height: 1.4;
   font-weight: 720;
 }
 .notification-copy {
@@ -268,11 +279,18 @@ onShow(async () => {
   margin-top: 12rpx;
   color: #93a29d;
   font-size: 20rpx;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
 }
 .chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28rpx;
   margin-left: 12rpx;
   color: #a4b0ac;
   font-size: 38rpx;
+  line-height: 1;
 }
 .message-footer {
   padding: 28rpx 30rpx 10rpx;
