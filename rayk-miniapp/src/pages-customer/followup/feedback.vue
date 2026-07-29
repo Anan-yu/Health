@@ -104,11 +104,21 @@ const statusOptions: Array<{ value: FollowupActionFeedback['status']; label: str
 ]
 
 const sectionTitles = new Set([
+  '营养目标',
+  '微量营养建议',
+  '补充剂安全',
+  '一周营养食谱',
   '饮食行动',
   '运动行动',
   '作息行动',
   '监测行动',
   '健康行动',
+])
+const informationalSections = new Set([
+  '营养目标',
+  '微量营养建议',
+  '补充剂安全',
+  '一周营养食谱',
 ])
 
 function parsePlan(content: string): EditableSection[] {
@@ -141,7 +151,9 @@ function parsePlan(content: string): EditableSection[] {
       note: '',
     })
   }
-  return result.filter((section) => section.actions.length)
+  return result.filter(
+    (section) => !informationalSections.has(section.title) && section.actions.length,
+  )
 }
 
 const allActions = computed(() => sections.value.flatMap((section) => section.actions))

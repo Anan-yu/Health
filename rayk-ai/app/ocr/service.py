@@ -413,7 +413,10 @@ class IndicatorRowParser:
                     parsed[item.code or item.name] = item
             if column_index < len(header_columns):
                 for item in self._parse_header_anchored_rows(column, header_columns[column_index]):
-                    parsed[item.code or item.name] = item
+                    # Header anchoring is a fallback for skewed rows. A visually grouped row is
+                    # stronger evidence and must not be overwritten by a fallback row that may
+                    # have absorbed a neighbouring value or a footer timestamp.
+                    parsed.setdefault(item.code or item.name, item)
         return list(parsed.values())
 
     def _parse_layout_row(self, row: list["LayoutToken"]) -> IndicatorInput | None:
@@ -431,14 +434,13 @@ class IndicatorRowParser:
             ),
             None,
         )
-        if name_index is None:
-            return None
-        name_token = self._clean_name(ordered[name_index].text)
-        matched = self._matched_indicator(name_token, exact=True)
+        name_token = self._clean_name(ordered[name_index].text) if name_index is not None else ""
+        matched = self._matched_indicator(name_token, exact=True) if name_token else None
+        search_start = name_index + 1 if name_index is not None else 0
         value_index = next(
             (
                 index
-                for index, token in enumerate(ordered[name_index + 1 :], start=name_index + 1)
+                for index, token in enumerate(ordered[search_start:], start=search_start)
                 if self._numeric_cell(token.text) is not None
             ),
             None,
@@ -454,27 +456,91 @@ class IndicatorRowParser:
         )
         if value_token is None:
             return None
+        parsed_value = self._decimal(value_token)
+        row_text = " ".join(token.text for token in ordered)
         if matched is not None:
             code, standard_name, standard_unit, _ = matched
             return IndicatorInput(
                 code=code,
                 name=standard_name,
-                value=self._decimal(value_token),
-                unit=self._unit(" ".join(token.text for token in ordered), standard_unit),
+                value=parsed_value,
+                unit=self._unit(row_text, standard_unit),
                 referenceLow=reference_low,
                 referenceHigh=reference_high,
             )
-        unit = self._unit(" ".join(token.text for token in ordered[1:]), "")
+        unit = self._unit(row_text, "")
+        inferred = self._infer_common_panel_indicator(
+            name_token, parsed_value, unit, reference_low, reference_high
+        )
+        if inferred is not None:
+            code, standard_name, standard_unit = inferred
+            return IndicatorInput(
+                code=code,
+                name=standard_name,
+                value=parsed_value,
+                unit=standard_unit,
+                referenceLow=reference_low,
+                referenceHigh=reference_high,
+            )
         if not name_token or not unit or reference_low is None or reference_high is None:
             return None
         return IndicatorInput(
             code="unrecognized_" + hashlib.sha1(name_token.encode()).hexdigest()[:10],
             name=name_token,
-            value=self._decimal(value_token),
+            value=parsed_value,
             unit=unit,
             referenceLow=reference_low,
             referenceHigh=reference_high,
         )
+
+    def _infer_common_panel_indicator(
+        self,
+        name: str,
+        value: Decimal,
+        unit: str,
+        reference_low: Decimal | None,
+        reference_high: Decimal | None,
+    ) -> tuple[str, str, str] | None:
+        """Recover a few strongly identifiable rows whose short Chinese name was missed.
+
+        This is deliberately limited to combined value/unit/range fingerprints that are
+        distinctive in a routine chemistry panel. It does not guess from a value alone.
+        """
+        normalized_unit = self._normalize_unit(unit)
+        # A recurring PP-OCR artifact on photographed liver panels turns “谷草转氨酶” into
+        # “各” and “U/L” into “T/n”. The combination is specific enough to recover AST, but
+        # the damaged reference interval is intentionally left empty rather than fabricated.
+        if (
+            name == "各"
+            and normalized_unit == self._normalize_unit("T/n")
+            and Decimal("5") <= value <= Decimal("80")
+        ):
+            return "ast", "天门冬氨酸氨基转移酶", "U/L"
+        if reference_low is None or reference_high is None:
+            return None
+        weak_name = not name or len(name) <= 2 or name in {"离子", "各"}
+        if not weak_name:
+            return None
+        if normalized_unit == self._normalize_unit("mmol/L"):
+            if (
+                Decimal("1.8") <= reference_low <= Decimal("2.3")
+                and Decimal("2.4") <= reference_high <= Decimal("2.8")
+                and Decimal("1.5") <= value <= Decimal("3.5")
+            ):
+                return "calcium", "钙", "mmol/L"
+            if (
+                Decimal("80") <= reference_low <= Decimal("110")
+                and Decimal("100") <= reference_high <= Decimal("125")
+                and Decimal("70") <= value <= Decimal("150")
+            ):
+                return "chloride", "氯", "mmol/L"
+        if normalized_unit == self._normalize_unit("U/L") and (
+            Decimal("10") <= reference_low <= Decimal("20")
+            and Decimal("30") <= reference_high <= Decimal("50")
+            and Decimal("5") <= value <= Decimal("80")
+        ):
+            return "ast", "天门冬氨酸氨基转移酶", "U/L"
+        return None
 
     def _parse_header_anchored_rows(
         self, tokens: list["LayoutToken"], headers: list["LayoutToken"]
@@ -814,6 +880,12 @@ class IndicatorRowParser:
 
     def _correct_common_ocr_errors(self, value: str) -> str:
         corrected = value
+        if (
+            "密度脂蛋白胆固醇" in corrected
+            and "高密度脂蛋白胆固醇" not in corrected
+            and "低密度脂蛋白胆固醇" not in corrected
+        ):
+            corrected = corrected.replace("密度脂蛋白胆固醇", "低密度脂蛋白胆固醇")
         for source, target in OCR_NAME_CORRECTIONS.items():
             if target not in corrected:
                 corrected = corrected.replace(source, target)
@@ -838,6 +910,7 @@ class OcrQualityValidator:
     MIN_COMBINED_CONFIDENCE = Decimal("0.68")
     MAX_REJECTED_RATIO = Decimal("0.20")
     MAX_UNKNOWN_RATIO = Decimal("0.35")
+    MIN_PARTIAL_ACCEPTED = 8
 
     def validate(
         self,
@@ -886,7 +959,11 @@ class OcrQualityValidator:
             or not accepted
             or text_confidence < self.MIN_TEXT_CONFIDENCE
             or combined < self.MIN_COMBINED_CONFIDENCE
-            or (rejected_count > 0 and rejected_ratio >= self.MAX_REJECTED_RATIO)
+            or (
+                rejected_count > 0
+                and rejected_ratio >= self.MAX_REJECTED_RATIO
+                and len(accepted) < self.MIN_PARTIAL_ACCEPTED
+            )
             or unknown_ratio > self.MAX_UNKNOWN_RATIO
         )
         if retry_required:
@@ -959,21 +1036,12 @@ class OcrQualityValidator:
             score += 0.15
         if item.reference_high is not None:
             score += 0.15
-        if (
-            item.reference_low is not None
-            and item.reference_high is not None
-            and item.reference_low <= item.value <= item.reference_high
-        ):
-            score += 0.30
         if self._medically_plausible(item):
             score += 0.15
-        # Prefer narrower, clinically realistic intervals when two parsers found the same row.
-        interval_width = (
-            float(item.reference_high - item.reference_low)
-            if item.reference_low is not None and item.reference_high is not None
-            else float("inf")
-        )
-        return score, -interval_width
+        # Do not reward an OCR candidate merely because it makes the result look "normal".
+        # Abnormal laboratory values are valid evidence. Equal candidates keep their input
+        # order, and PaddleOcrService deliberately supplies layout-aware rows first.
+        return score, 0.0
 
     def _structure_confidence(self, accepted: list[IndicatorInput], total_groups: int) -> Decimal:
         if not total_groups or not accepted:
@@ -1037,10 +1105,11 @@ class PaddleOcrService(OcrService):
         text_confidence = (
             Decimal(str(round(sum(scores) / len(scores), 4))) if scores else Decimal("0")
         )
-        # Keep candidates from both parsers. The validator selects the safest row for each
-        # indicator after checking units, reference intervals and broad laboratory plausibility.
+        # Prefer layout candidates when two parsers produce equally plausible rows. Sequential
+        # OCR order frequently interleaves the left and right halves of a two-column report.
+        # The validator still rejects unsafe layout rows and can fall back to sequential results.
         quality = self.validator.validate(
-            [*sequential_indicators, *layout_indicators], text_confidence, lines
+            [*layout_indicators, *sequential_indicators], text_confidence, lines
         )
         warnings: list[str] = []
         if not quality.indicators:
@@ -1111,16 +1180,22 @@ class PaddleOcrService(OcrService):
             if not isinstance(payload, dict):
                 continue
             data = payload.get("res", payload)
-            page_lines = [
-                str(item).strip()
-                for item in self._as_list(data.get("rec_texts"))
-                if str(item).strip()
-            ]
-            page_scores = [float(item) for item in self._as_list(data.get("rec_scores"))]
-            page_boxes = [self.parser._box(item) for item in self._as_list(data.get("rec_boxes"))]
-            lines.extend(page_lines)
-            scores.extend(page_scores[: len(page_lines)])
-            boxes.extend(box for box in page_boxes[: len(page_lines)] if box is not None)
+            page_texts = self._as_list(data.get("rec_texts"))
+            page_scores = self._as_list(data.get("rec_scores"))
+            page_boxes = self._as_list(data.get("rec_boxes"))
+            # Paddle occasionally emits an empty recognition result while retaining its score
+            # and box. Filtering text independently shifts every following text onto the wrong
+            # box, which is especially destructive for side-by-side laboratory tables. Keep all
+            # three arrays aligned by their original index and filter each OCR token atomically.
+            for index, raw_text in enumerate(page_texts):
+                text = str(raw_text).strip()
+                box = self.parser._box(page_boxes[index]) if index < len(page_boxes) else None
+                if not text or box is None:
+                    continue
+                score = float(page_scores[index]) if index < len(page_scores) else 0.0
+                lines.append(text)
+                scores.append(score)
+                boxes.append(box)
         return lines, scores, boxes
 
     def warm_up(self) -> None:

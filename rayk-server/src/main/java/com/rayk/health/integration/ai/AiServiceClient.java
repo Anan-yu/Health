@@ -106,4 +106,38 @@ public class AiServiceClient {
                     (System.nanoTime() - started) / 1_000_000);
         }
     }
+
+    public AiDtos.FollowupAdjustmentData adjustFollowup(
+            AiDtos.FollowupAdjustmentRequest request) {
+        long started = System.nanoTime();
+        try {
+            AiDtos.ApiEnvelope<AiDtos.FollowupAdjustmentData> response =
+                    webClient
+                            .post()
+                            .uri("/api/v1/followups/adjust")
+                            .header("X-Request-Id", MDC.get("requestId"))
+                            .bodyValue(request)
+                            .retrieve()
+                            .bodyToMono(
+                                    new ParameterizedTypeReference<
+                                            AiDtos.ApiEnvelope<
+                                                    AiDtos.FollowupAdjustmentData>>() {})
+                            .block(requestTimeout);
+            if (response == null || response.code() != 0 || response.data() == null) {
+                throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+            }
+            return response.data();
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            log.warn(
+                    "AI follow-up adjustment call failed: {}",
+                    exception.getClass().getSimpleName());
+            throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+        } finally {
+            log.info(
+                    "AI follow-up adjustment call elapsedMs={}",
+                    (System.nanoTime() - started) / 1_000_000);
+        }
+    }
 }

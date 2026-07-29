@@ -16,6 +16,7 @@ import com.rayk.health.followup.entity.FollowupTaskEntity;
 import com.rayk.health.followup.dto.FollowupActionFeedback;
 import com.rayk.health.followup.dto.FollowupFeedbackRequest;
 import com.rayk.health.followup.mapper.FollowupTaskMapper;
+import com.rayk.health.followup.application.NutritionFollowupPlanService;
 import com.rayk.health.followup.vo.FollowupTaskVo;
 import com.rayk.health.indicator.entity.IndicatorValueEntity;
 import com.rayk.health.indicator.application.AssessmentModelService;
@@ -51,10 +52,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.List;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -83,6 +84,7 @@ public class WorkflowApplicationService {
     private final PdfReportService pdfReportService;
     private final AssessmentModelService assessmentModelService;
     private final PrivacyConsentService privacyConsentService;
+    private final NutritionFollowupPlanService nutritionFollowupPlanService;
 
     public WorkflowApplicationService(
             LabReportMapper labReportMapper,
@@ -100,7 +102,8 @@ public class WorkflowApplicationService {
             ObjectMapper objectMapper,
             PdfReportService pdfReportService,
             AssessmentModelService assessmentModelService,
-            PrivacyConsentService privacyConsentService) {
+            PrivacyConsentService privacyConsentService,
+            NutritionFollowupPlanService nutritionFollowupPlanService) {
         this.labReportMapper = labReportMapper;
         this.indicatorMapper = indicatorMapper;
         this.aiTaskMapper = aiTaskMapper;
@@ -117,6 +120,7 @@ public class WorkflowApplicationService {
         this.pdfReportService = pdfReportService;
         this.assessmentModelService = assessmentModelService;
         this.privacyConsentService = privacyConsentService;
+        this.nutritionFollowupPlanService = nutritionFollowupPlanService;
     }
 
     public List<Long> accessiblePatientIds() {
@@ -286,6 +290,7 @@ public class WorkflowApplicationService {
 
             publishAutomatically(assessment, patient, current);
             report.setStatus("PUBLISHED");
+            report.setFailureReason(null);
             touch(report, current.userId());
             labReportMapper.updateById(report);
             return toAssessmentVo(assessment);
@@ -502,32 +507,32 @@ public class WorkflowApplicationService {
         int cycleNo = task.getCycleNo() == null ? 1 : task.getCycleNo();
         int maxCycles = task.getMaxCycles() == null ? 4 : task.getMaxCycles();
         boolean previousCycleReachedTarget = hasPreviousSuccessfulCycle(task);
-        String decision;
-        String reason;
+        AiDtos.FollowupAdjustmentData adjustment;
         if (cycleNo >= maxCycles) {
-            decision = "TERMINATE";
-            reason = "已达到最多" + maxCycles + "期，本轮健康随访结束。";
+            adjustment =
+                    terminalFollowupAdjustment(
+                            "已达到最多" + maxCycles + "期，本轮健康随访结束。");
         } else if (completionRate >= 80 && previousCycleReachedTarget) {
-            decision = "TERMINATE";
-            reason = "连续两期完成度达到80%，本轮健康随访目标已达成。";
-        } else if (completionRate < 60) {
-            decision = "ADJUST";
-            reason = "本期完成度低于60%，下一期将聚焦未完成行动。";
+            adjustment =
+                    terminalFollowupAdjustment(
+                            "连续两期完成度达到80%，本轮健康随访目标已达成。");
         } else {
-            decision = "CONTINUE";
-            reason = "本期执行情况稳定，进入下一期健康随访。";
+            adjustment =
+                    adjustFollowupWithAi(
+                            task, request, cycleNo, maxCycles, completionRate);
         }
         task.setFeedback(buildFeedbackSummary(request));
         task.setFeedbackDetail(writeFeedbackDetail(request.actions()));
         task.setCompletionRate(completionRate);
-        task.setDecision(decision);
-        task.setDecisionReason(reason);
+        task.setDecision(adjustment.decision());
+        task.setDecisionReason(adjustment.decisionReason());
         task.setStatus("COMPLETED");
         task.setCompletedAt(LocalDateTime.now());
         touch(task, CurrentUser.require().userId());
         followupMapper.updateById(task);
-        if (!"TERMINATE".equals(decision)) {
-            createNextAiFollowup(task, request.actions(), decision, CurrentUser.require());
+        if (!"TERMINATE".equals(adjustment.decision())) {
+            createNextAiFollowup(
+                    task, request.actions(), adjustment, CurrentUser.require());
         }
         return toFollowupVo(task);
     }
@@ -621,10 +626,174 @@ public class WorkflowApplicationService {
                 : summary + " 补充说明：" + request.feedback().trim();
     }
 
+    private AiDtos.FollowupAdjustmentData adjustFollowupWithAi(
+            FollowupTaskEntity task,
+            FollowupFeedbackRequest request,
+            int cycleNo,
+            int maxCycles,
+            int completionRate) {
+        try {
+            PatientEntity patient = dataScopeService.requirePatient(task.getPatientId());
+            HealthProfileVo profile = healthProfileService.getProfile(task.getPatientId());
+            Integer age =
+                    patient.getBirthDate() == null
+                            ? null
+                            : Period.between(patient.getBirthDate(), LocalDate.now()).getYears();
+            String gender =
+                    Set.of("MALE", "FEMALE").contains(patient.getGender())
+                            ? patient.getGender()
+                            : "UNKNOWN";
+            AiDtos.FollowupAdjustmentData result =
+                    aiServiceClient.adjustFollowup(
+                            new AiDtos.FollowupAdjustmentRequest(
+                                    toPatientContext(gender, age, profile),
+                                    cycleNo,
+                                    maxCycles,
+                                    completionRate,
+                                    request.feedback(),
+                                    request.actions().stream()
+                                            .map(
+                                                    action ->
+                                                            new AiDtos.FollowupActionFeedback(
+                                                                    action.section(),
+                                                                    action.action(),
+                                                                    action.status(),
+                                                                    action.note()))
+                                            .toList()));
+            if (!Set.of("CONTINUE", "ADJUST", "TERMINATE").contains(result.decision())) {
+                return localFollowupAdjustment(
+                        request.actions(), completionRate, request.feedback());
+            }
+            return result;
+        } catch (BusinessException exception) {
+            return localFollowupAdjustment(
+                    request.actions(), completionRate, request.feedback());
+        }
+    }
+
+    private AiDtos.FollowupAdjustmentData localFollowupAdjustment(
+            List<FollowupActionFeedback> actions, int completionRate, String feedback) {
+        boolean hasUnfinished =
+                actions.stream().anyMatch(action -> !"COMPLETED".equals(action.status()));
+        boolean adjusted =
+                completionRate < 80
+                        || hasUnfinished
+                        || containsExecutionDifficulty(actions, feedback);
+        String decision = adjusted ? "ADJUST" : "CONTINUE";
+        String reason =
+                adjusted
+                        ? "本期存在未完成行动、身体不适或执行困难，下一期将降低负担并聚焦可完成项目。"
+                        : "本期执行情况稳定，进入下一期健康随访。";
+        List<AiDtos.FollowupActionSuggestion> suggestions =
+                actions.stream()
+                        .filter(action -> !adjusted || !"COMPLETED".equals(action.status()))
+                        .map(
+                                action ->
+                                        new AiDtos.FollowupActionSuggestion(
+                                                action.section(),
+                                                adjusted
+                                                        ? adaptLocalFollowupAction(
+                                                                action, feedback)
+                                                        : action.action()))
+                        .toList();
+        return new AiDtos.FollowupAdjustmentData(
+                decision, reason, "", suggestions, "RULE_FALLBACK", null);
+    }
+
+    private boolean containsExecutionDifficulty(
+            List<FollowupActionFeedback> actions, String feedback) {
+        Stream<String> notes =
+                actions.stream()
+                        .map(FollowupActionFeedback::note)
+                        .filter(Objects::nonNull)
+                        .map(String::trim);
+        Stream<String> overall =
+                feedback == null || feedback.isBlank()
+                        ? Stream.empty()
+                        : Stream.of(feedback.trim());
+        return Stream.concat(notes, overall)
+                .anyMatch(
+                        note ->
+                                Stream.of(
+                                                "困难",
+                                                "做不到",
+                                                "没时间",
+                                                "太累",
+                                                "很累",
+                                                "疲倦",
+                                                "疲劳",
+                                                "乏力",
+                                                "体力不足",
+                                                "不舒服",
+                                                "疼",
+                                                "痛",
+                                                "头晕",
+                                                "气促",
+                                                "失眠",
+                                                "压力大",
+                                                "无法",
+                                                "没有测量工具",
+                                                "无测量工具",
+                                                "没测量工具",
+                                                "没有设备",
+                                                "无设备",
+                                                "没设备",
+                                                "没有血糖仪",
+                                                "没有血压计",
+                                                "不能测量")
+                                        .anyMatch(note::contains));
+    }
+
+    private String adaptLocalFollowupAction(
+            FollowupActionFeedback action, String overallFeedback) {
+        String context =
+                (action.note() == null ? "" : action.note())
+                        + " "
+                        + (overallFeedback == null ? "" : overallFeedback);
+        boolean lacksEquipment =
+                Stream.of(
+                                "没有测量工具",
+                                "无测量工具",
+                                "没测量工具",
+                                "没有设备",
+                                "无设备",
+                                "没设备",
+                                "没有血糖仪",
+                                "没有血压计",
+                                "无法测量",
+                                "不能测量")
+                        .anyMatch(context::contains);
+        boolean fatigued =
+                Stream.of("疲倦", "疲劳", "乏力", "体力不足", "很累", "太累", "容易累")
+                        .anyMatch(context::contains);
+
+        if (lacksEquipment && action.action().contains("血糖")) {
+            return "本期暂不要求自行测量血糖；每天记录一次三餐主食、甜食摄入和身体感受，连续完成7天。";
+        }
+        if (lacksEquipment && action.action().contains("血压")) {
+            return "本期暂不要求自行测量血压；每天记录一次作息、活动和身体感受，连续完成7天。";
+        }
+        if (lacksEquipment && action.action().contains("测量")) {
+            return "本期暂不要求使用缺少的测量工具；每天记录一次相关行动和身体感受，连续完成7天。";
+        }
+        if (fatigued && "运动行动".equals(action.section())) {
+            return "本周改为低强度步行或舒缓拉伸，每周3次，每次10至15分钟；疲倦加重时休息并记录身体感受。";
+        }
+        if (action.note() != null && !action.note().isBlank()) {
+            return "结合“" + action.note().trim() + "”，先完成原行动的简化版本：" + action.action();
+        }
+        return "先从原行动约一半的频次开始：" + action.action();
+    }
+
+    private AiDtos.FollowupAdjustmentData terminalFollowupAdjustment(String reason) {
+        return new AiDtos.FollowupAdjustmentData(
+                "TERMINATE", reason, "", List.of(), "RULE_FALLBACK", null);
+    }
+
     private void createNextAiFollowup(
             FollowupTaskEntity completed,
             List<FollowupActionFeedback> actions,
-            String decision,
+            AiDtos.FollowupAdjustmentData adjustment,
             CurrentPrincipal current) {
         long existingPending =
                 followupMapper.selectCount(
@@ -642,43 +811,19 @@ public class WorkflowApplicationService {
         next.setMaxCycles(completed.getMaxCycles() == null ? 4 : completed.getMaxCycles());
         next.setAssigneeId(null);
         next.setTitle("健康随访（第" + next.getCycleNo() + "期）");
-        next.setContent(buildNextFollowupContent(actions, "ADJUST".equals(decision)));
+        HealthProfileVo profile = healthProfileService.getProfile(completed.getPatientId());
+        next.setContent(
+                nutritionFollowupPlanService.buildNextPlan(
+                        profile,
+                        actions,
+                        adjustment.nextActions(),
+                        "ADJUST".equals(adjustment.decision()),
+                        next.getCycleNo()));
         next.setDueDate(LocalDate.now().plusDays(14));
         next.setStatus("PENDING");
         next.setReminderCount(0);
         auditNew(next, current.userId());
         followupMapper.insert(next);
-    }
-
-    private String buildNextFollowupContent(
-            List<FollowupActionFeedback> actions, boolean adjusted) {
-        Map<String, List<String>> grouped = new LinkedHashMap<>();
-        for (FollowupActionFeedback action : actions) {
-            if (adjusted && "COMPLETED".equals(action.status())) {
-                continue;
-            }
-            String text = action.action().trim();
-            if (adjusted) {
-                text = "优先完成：" + text;
-            }
-            grouped.computeIfAbsent(action.section().trim(), ignored -> new java.util.ArrayList<>())
-                    .add(text);
-        }
-        if (grouped.isEmpty()) {
-            grouped.put(
-                    "健康行动",
-                    List.of("保持规律饮食、适量运动和充足睡眠，并记录身体感受。"));
-        }
-        StringBuilder content = new StringBuilder();
-        grouped.forEach(
-                (section, sectionActions) -> {
-                    content.append(section).append('\n');
-                    sectionActions.stream()
-                            .distinct()
-                            .limit(4)
-                            .forEach(action -> content.append("• ").append(action).append('\n'));
-                });
-        return content.toString().trim();
     }
 
     private ReviewTaskVo decide(long id, String opinion, String status) {
@@ -915,96 +1060,13 @@ public class WorkflowApplicationService {
         task.setMaxCycles(4);
         task.setAssigneeId(null);
         task.setTitle("本周健康计划");
-        task.setContent(buildFollowupContent(assessment));
+        HealthProfileVo profile = healthProfileService.getProfile(patient.getId());
+        task.setContent(nutritionFollowupPlanService.buildInitialPlan(assessment, profile, 1));
         task.setDueDate(LocalDate.now().plusDays(days));
         task.setStatus("PENDING");
         task.setReminderCount(0);
         auditNew(task, current.userId());
         followupMapper.insert(task);
-    }
-
-    private String buildFollowupContent(HealthAssessmentEntity assessment) {
-        try {
-            JsonNode root = objectMapper.readTree(assessment.getResultSnapshot());
-            JsonNode results = root.path("results");
-            List<String> focuses = new java.util.ArrayList<>();
-            Set<String> focusCodes = new java.util.LinkedHashSet<>();
-            for (JsonNode item : results) {
-                if (!Set.of("ATTENTION", "HIGH").contains(item.path("riskLevel").asText())) {
-                    continue;
-                }
-                focusCodes.add(item.path("modelCode").asText());
-                if (item.path("evidence").isArray() && !item.path("evidence").isEmpty()) {
-                    String evidence = item.path("evidence").get(0).asText();
-                    if (!evidence.contains("未触发")) focuses.add(evidence);
-                }
-            }
-            focuses = focuses.stream().distinct().limit(3).toList();
-
-            List<String> dietActions = new java.util.ArrayList<>();
-            dietActions.add("每天三餐尽量定时，每餐安排蔬菜、优质蛋白和适量主食。");
-            if (focusCodes.contains("LIVER_METABOLIC")) {
-                dietActions.add("本周不饮酒，少吃油炸、肥肉、动物内脏和高糖饮料。");
-            }
-            if (focusCodes.contains("NUTRITION_MICRONUTRIENT")
-                    || focusCodes.contains("HEMATOLOGY_ANEMIA")) {
-                dietActions.add("每天至少两餐加入鱼、蛋、奶、豆制品或瘦肉中的一种。");
-            }
-            if (focusCodes.contains("GLUCOSE_METABOLISM")
-                    || focusCodes.contains("LIPID_CARDIOVASCULAR")) {
-                dietActions.add("主食优先选择燕麦、糙米或杂豆，减少甜点和夜宵。");
-            }
-
-            List<String> monitorActions = new java.util.ArrayList<>();
-            monitorActions.add("每天记录饮食、运动时长、睡眠时长和身体感受。");
-            if (!focuses.isEmpty()) {
-                monitorActions.add("复查时重点关注：" + String.join("；", focuses) + "。");
-            }
-            monitorActions.add("如正在用药，继续按医生医嘱执行，不自行增减或停药。");
-
-            StringBuilder content = new StringBuilder();
-            if (!focuses.isEmpty()) {
-                appendFollowupSection(content, "本周重点", focuses);
-            }
-            appendFollowupSection(content, "饮食行动", dietActions.stream().distinct().limit(3).toList());
-            appendFollowupSection(
-                    content,
-                    "运动行动",
-                    List.of(
-                            "在身体允许的情况下，每周5天快走或同等强度运动，每次30分钟。",
-                            "每周安排2次轻量力量训练，每次15至20分钟；不适时立即停止。"));
-            appendFollowupSection(
-                    content,
-                    "作息行动",
-                    List.of(
-                            "固定上床和起床时间，每晚争取睡足7至9小时。",
-                            "睡前1小时减少手机使用，晚餐尽量在睡前3小时完成。"));
-            appendFollowupSection(content, "监测行动", monitorActions);
-            return content.toString().trim();
-        } catch (Exception exception) {
-            return """
-                    饮食行动
-                    • 每天三餐尽量定时，每餐安排蔬菜、优质蛋白和适量主食。
-                    运动行动
-                    • 在身体允许的情况下，每周5天快走或同等强度运动，每次30分钟。
-                    作息行动
-                    • 固定上床和起床时间，每晚争取睡足7至9小时。
-                    监测行动
-                    • 每天记录饮食、运动时长、睡眠时长和身体感受。
-                    """.trim();
-        }
-    }
-
-    private void appendFollowupSection(
-            StringBuilder content, String title, List<String> actions) {
-        if (actions.isEmpty()) {
-            return;
-        }
-        if (!content.isEmpty()) {
-            content.append('\n');
-        }
-        content.append(title).append('\n');
-        actions.forEach(action -> content.append("• ").append(action).append('\n'));
     }
 
     private ReviewTaskVo toReviewVo(AssessmentReviewEntity review) {

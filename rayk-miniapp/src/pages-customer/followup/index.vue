@@ -73,10 +73,24 @@ const filters = [
   { code: 'COMPLETED' as const, label: '已完成' },
 ]
 const activeFilter = ref<(typeof filters)[number]['code']>('ALL')
+const statusOrder: Record<string, number> = {
+  PENDING: 0,
+  COMPLETED: 1,
+  CANCELLED: 2,
+  EXPIRED: 2,
+}
+const sortedItems = computed(() =>
+  [...items.value].sort((left, right) => {
+    const statusDifference =
+      (statusOrder[left.status] ?? 1) - (statusOrder[right.status] ?? 1)
+    if (statusDifference !== 0) return statusDifference
+    return right.dueDate.localeCompare(left.dueDate) || right.id.localeCompare(left.id)
+  }),
+)
 const filteredItems = computed(() =>
   activeFilter.value === 'ALL'
-    ? items.value
-    : items.value.filter((item) => item.status === activeFilter.value),
+    ? sortedItems.value
+    : sortedItems.value.filter((item) => item.status === activeFilter.value),
 )
 const completedCount = computed(() => items.value.filter((item) => item.status === 'COMPLETED').length)
 const pendingCount = computed(() => items.value.filter((item) => item.status === 'PENDING').length)
@@ -111,6 +125,10 @@ const journeyFeedback = computed<{
 type PlanSection = { title: string; actions: string[] }
 const sectionTitles = new Set([
   '本周重点',
+  '营养目标',
+  '微量营养建议',
+  '补充剂安全',
+  '一周营养食谱',
   '饮食行动',
   '运动行动',
   '作息行动',
@@ -148,11 +166,19 @@ function planSections(content: string): PlanSection[] {
     if (!current) startSection('健康行动')
     current?.actions.push(line.replace(/^[-•]\s*/, ''))
   }
-  return sections.filter((section) => section.title !== '本周重点' && section.actions.length)
+  return sections.filter(
+    (section) =>
+      section.title !== '本周重点' &&
+      section.title !== '补充剂安全' &&
+      section.actions.length,
+  )
 }
 
 function sectionIcon(title: string) {
   const icons: Record<string, string> = {
+    营养目标: '养',
+    微量营养建议: '微',
+    一周营养食谱: '餐',
     饮食行动: '食',
     运动行动: '动',
     作息行动: '眠',

@@ -4,12 +4,14 @@ from fastapi import APIRouter
 
 from app.core.constants import DISCLAIMER
 from app.core.request_context import get_request_id
+from app.followup.service import FollowupAdjustmentService
 from app.interpretation.service import InterpretationService
 from app.normalization.service import IndicatorNormalizationService
 from app.ocr.service import build_ocr_service
 from app.report.service import DemoReportService
 from app.schemas.assessment import AssessmentData, AssessmentRequest
 from app.schemas.common import ApiResponse
+from app.schemas.followup import FollowupAdjustmentData, FollowupAdjustmentRequest
 from app.schemas.indicator import NormalizationData, NormalizationRequest
 from app.schemas.ocr import OcrRecognizeData, OcrRecognizeRequest
 from app.schemas.report import ReportGenerateData, ReportGenerateRequest
@@ -20,6 +22,7 @@ ocr_service = build_ocr_service()
 normalization_service = IndicatorNormalizationService()
 rule_engine = DemoRuleEngine()
 interpretation_service = InterpretationService()
+followup_adjustment_service = FollowupAdjustmentService()
 report_service = DemoReportService()
 
 
@@ -58,3 +61,8 @@ def evaluate(request: AssessmentRequest) -> ApiResponse[object]:
 @router.post("/reports/generate", response_model=ApiResponse[ReportGenerateData])
 def generate_report(request: ReportGenerateRequest) -> ApiResponse[object]:
     return ok(report_service.generate(request))
+
+
+@router.post("/followups/adjust", response_model=ApiResponse[FollowupAdjustmentData])
+def adjust_followup(request: FollowupAdjustmentRequest) -> ApiResponse[object]:
+    return ok(followup_adjustment_service.adjust(request))

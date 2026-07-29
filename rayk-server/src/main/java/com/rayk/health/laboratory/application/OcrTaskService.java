@@ -263,7 +263,11 @@ public class OcrTaskService {
                 null,
                 new LambdaUpdateWrapper<IndicatorValueEntity>()
                         .eq(IndicatorValueEntity::getReportId, report.getId())
-                        .eq(IndicatorValueEntity::getManuallyConfirmed, 0)
+                        // A retry is a complete replacement of the OCR snapshot. The current
+                        // automatic workflow marks recognized rows as confirmed immediately, so
+                        // filtering on manuallyConfirmed would retain every prior attempt and
+                        // duplicate the report indicators.
+                        .eq(IndicatorValueEntity::getDeleted, 0)
                         .set(IndicatorValueEntity::getDeleted, 1));
         int index = 0;
         for (AiDtos.Indicator item : result.indicators()) {

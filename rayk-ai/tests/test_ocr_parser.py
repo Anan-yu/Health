@@ -1,6 +1,7 @@
 from decimal import Decimal
+from pathlib import Path
 
-from app.ocr.service import IndicatorRowParser, OcrQualityValidator
+from app.ocr.service import IndicatorRowParser, OcrQualityValidator, PaddleOcrService
 from app.schemas.indicator import IndicatorInput
 
 
@@ -100,6 +101,13 @@ def test_parser_recovers_common_ocr_character_errors() -> None:
         "urea",
         "creatinine",
     ]
+
+
+def test_parser_recovers_low_density_lipoprotein_with_missing_first_character() -> None:
+    indicators = IndicatorRowParser().parse(["密度脂蛋白胆固醇 1.21 mmol/L 1.20-4.00"])
+
+    assert len(indicators) == 1
+    assert indicators[0].code == "ldl"
 
 
 def test_parser_covers_common_liver_and_nutrition_panel() -> None:
@@ -339,6 +347,92 @@ def test_layout_parser_keeps_both_sides_of_a_repeated_table_together() -> None:
     assert indicators[1].reference_low == Decimal("9.0")
 
 
+def test_header_fallback_does_not_overwrite_visually_grouped_rows() -> None:
+    lines = [
+        "检验项目",
+        "结果",
+        "单位",
+        "参考范围",
+        "钠离子",
+        "140",
+        "mmol/L",
+        "137-147",
+        "108",
+        "mmol/L",
+        "99-110",
+        "前白蛋白",
+        "192.5",
+        "mg/L",
+        "200-400",
+        "19/04/2013 23:43",
+    ]
+    boxes = [
+        (10, 10, 80, 30),
+        (100, 10, 150, 30),
+        (175, 10, 230, 30),
+        (245, 10, 305, 30),
+        (10, 55, 80, 75),
+        (100, 55, 150, 75),
+        (175, 55, 230, 75),
+        (245, 55, 305, 75),
+        (100, 95, 150, 115),
+        (175, 95, 230, 115),
+        (245, 95, 305, 115),
+        (10, 135, 80, 155),
+        (100, 135, 150, 155),
+        (175, 135, 230, 155),
+        (245, 135, 305, 155),
+        (175, 210, 305, 230),
+    ]
+
+    indicators = IndicatorRowParser().parse_layout(lines, boxes)
+    by_code = {item.code: item for item in indicators}
+
+    assert by_code["sodium"].value == Decimal("140")
+    assert by_code["prealbumin"].value == Decimal("192.5")
+
+
+def test_layout_parser_recovers_strongly_identifiable_rows_with_damaged_names() -> None:
+    lines = [
+        "检验项目",
+        "结果",
+        "单位",
+        "参考范围",
+        "108",
+        "mmol/L",
+        "99-110",
+        "离子",
+        "2.39",
+        "mmol/L",
+        "2.08-2.60",
+        "各",
+        "19.5",
+        "T/n",
+        "1500.0",
+    ]
+    boxes = [
+        (10, 10, 80, 30),
+        (100, 10, 150, 30),
+        (175, 10, 230, 30),
+        (245, 10, 305, 30),
+        (100, 55, 150, 75),
+        (175, 55, 230, 75),
+        (245, 55, 305, 75),
+        (10, 95, 80, 115),
+        (100, 95, 150, 115),
+        (175, 95, 230, 115),
+        (245, 95, 305, 115),
+        (10, 135, 80, 155),
+        (100, 135, 150, 155),
+        (175, 135, 230, 155),
+        (245, 135, 305, 155),
+    ]
+
+    indicators = IndicatorRowParser().parse_layout(lines, boxes)
+
+    assert [item.code for item in indicators] == ["chloride", "calcium", "ast"]
+
+
 def test_parser_supports_one_sided_reference_ranges() -> None:
     indicators = IndicatorRowParser().parse(
         [
@@ -497,3 +591,65 @@ def test_quality_validator_requires_retry_when_too_many_rows_are_unsafe() -> Non
 
     assert result.status == "RETRY_REQUIRED"
     assert shifted not in result.indicators
+
+
+def test_quality_validator_keeps_large_high_confidence_partial_result() -> None:
+    validator = OcrQualityValidator()
+    valid_rows = [
+        IndicatorInput(
+            code=f"safe_{index}",
+            name=f"安全指标{index}",
+            value=Decimal("5"),
+            unit="U/L",
+            referenceLow=Decimal("1"),
+            referenceHigh=Decimal("10"),
+        )
+        for index in range(19)
+    ]
+    unsafe_rows = [
+        IndicatorInput(
+            code=f"unsafe_{index}",
+            name=f"错位指标{index}",
+            value=Decimal("5"),
+            unit="U/L",
+            referenceLow=Decimal("10"),
+            referenceHigh=Decimal("1"),
+        )
+        for index in range(7)
+    ]
+
+    result = validator.validate(
+        [*valid_rows, *unsafe_rows],
+        Decimal("0.93"),
+        ["高置信双栏检验报告"],
+    )
+
+    assert result.status == "SUCCESS"
+    assert result.indicators == valid_rows
+    assert any("已拦截 7 项" in warning for warning in result.warnings)
+
+
+def test_paddle_result_keeps_text_score_and_box_indices_aligned(monkeypatch) -> None:
+    name_box = [10, 20, 80, 40]
+    empty_box = [100, 20, 140, 40]
+    value_box = [160, 20, 220, 40]
+
+    class Pipeline:
+        def predict(self, _path: str):
+            return [
+                {
+                    "res": {
+                        "rec_texts": ["钾离子", "", "4.60"],
+                        "rec_scores": [0.96, 0.15, 0.98],
+                        "rec_boxes": [name_box, empty_box, value_box],
+                    }
+                }
+            ]
+
+    monkeypatch.setattr(PaddleOcrService, "_pipeline", staticmethod(lambda: Pipeline()))
+
+    lines, scores, boxes = PaddleOcrService()._recognize_file(Path("unused.png"))
+
+    assert lines == ["钾离子", "4.60"]
+    assert scores == [0.96, 0.98]
+    assert boxes == [(10.0, 20.0, 80.0, 40.0), (160.0, 20.0, 220.0, 40.0)]

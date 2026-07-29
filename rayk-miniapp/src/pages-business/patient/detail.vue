@@ -33,7 +33,7 @@
       <view class="action-grid"
         ><view class="action-card" @click="reports"
           ><view class="action-icon">报</view
-          ><view><text>检验报告</text><text>查看检验报告</text></view
+          ><view><text>体检报告</text><text>查看体检报告</text></view
           ><text>›</text></view
         ><view class="action-card" @click="assessments"
           ><view class="action-icon ai">AI</view

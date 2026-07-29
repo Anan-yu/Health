@@ -31,7 +31,7 @@
             ><StatusTag :status="item.status" /></view
           ><view class="client-meta"
             >{{ genderLabel(item.gender) }} · {{ item.phoneMasked || '未填写联系方式' }}</view
-          ><view class="service-row">查看健康档案、检验报告与 AI 评估</view></view
+          ><view class="service-row">查看健康档案、体检报告与 AI 评估</view></view
         ><view class="client-arrow">›</view>
       </view>
     </PageState>

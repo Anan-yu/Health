@@ -132,7 +132,7 @@ const loading = ref(true),
   error = ref('')
 const lastUpdatedAt = ref<Date | null>(null)
 let refreshTimer: ReturnType<typeof globalThis.setInterval> | undefined
-const metricIcons = ['待', '报', '评', '访']
+const metricIcons = ['待', '报', '评', '康']
 const roleNames: Record<Role, string> = {
   PLATFORM_ADMIN: '平台管理工作台',
   DOCTOR: '医生工作台',

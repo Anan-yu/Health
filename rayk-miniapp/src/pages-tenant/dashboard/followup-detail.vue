@@ -119,7 +119,18 @@ const feedbackItems = computed<FeedbackItem[]>(() => {
 })
 
 type PlanSection = { title: string; actions: string[] }
-const sectionTitles = new Set(['本周重点', '饮食行动', '运动行动', '作息行动', '监测行动', '健康行动'])
+const sectionTitles = new Set([
+  '本周重点',
+  '营养目标',
+  '微量营养建议',
+  '补充剂安全',
+  '一周营养食谱',
+  '饮食行动',
+  '运动行动',
+  '作息行动',
+  '监测行动',
+  '健康行动',
+])
 const introToHide = '本计划根据本次健康报告自动生成。'
 
 function planSections(content: string): PlanSection[] {
@@ -152,11 +163,19 @@ function planSections(content: string): PlanSection[] {
     if (!current) startSection('健康行动')
     current?.actions.push(line.replace(/^[-•]\s*/, ''))
   }
-  return sections.filter((section) => section.title !== '本周重点' && section.actions.length)
+  return sections.filter(
+    (section) =>
+      section.title !== '本周重点' &&
+      section.title !== '补充剂安全' &&
+      section.actions.length,
+  )
 }
 
 function sectionIcon(title: string) {
   const icons: Record<string, string> = {
+    营养目标: '养',
+    微量营养建议: '微',
+    一周营养食谱: '餐',
     饮食行动: '食',
     运动行动: '动',
     作息行动: '眠',

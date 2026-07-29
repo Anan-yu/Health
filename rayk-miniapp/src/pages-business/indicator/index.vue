@@ -21,7 +21,7 @@
           <view class="arrow">›</view>
         </view>
       </PageState>
-      <button class="task-button" @click="goTasks">查看全部报告任务</button>
+      <button class="task-button" @click="goTasks">查看全部体检报告</button>
     </view>
   </view>
 </template>

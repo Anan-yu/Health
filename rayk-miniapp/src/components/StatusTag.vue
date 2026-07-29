@@ -30,6 +30,8 @@ const labels: Record<string, string> = {
   REVIEWING: '审核中',
   WAITING_REVIEW: '待审核',
   PENDING: '进行中',
+  CANCELLED: '已过期',
+  EXPIRED: '已过期',
 }
 const label = computed(() => labels[props.status] || props.status)
 </script>

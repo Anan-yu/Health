@@ -75,12 +75,16 @@ public class HomeController {
                 .filter(item -> "SUCCESS".equals(item.status()))
                 .filter(item -> item.createdAt() != null && today.equals(item.createdAt().toLocalDate()))
                 .count();
-        long reports = workflowService.listHealthReports().stream()
+        long reports = workflowService.listLabReports().stream()
+                .filter(item -> item.createdAt() != null && today.equals(item.createdAt().toLocalDate()))
+                .count();
+        long healthReports = workflowService.listHealthReports().stream()
                 .filter(item -> item.publishedAt() != null && today.equals(item.publishedAt().toLocalDate()))
                 .count();
         return List.of(
                 new HomeMetric("PATIENT", "已体检者数量", patients, "/pages-business/patient/index"),
                 new HomeMetric("ASSESSMENT", "可查看 AI 评估", assessments, "/pages-business/assessment/index"),
-                new HomeMetric("REPORT", "健康报告", reports, "/pages-business/lab-report/index"));
+                new HomeMetric("REPORT", "体检报告", reports, "/pages-business/lab-report/index"),
+                new HomeMetric("HEALTH_REPORT", "健康报告", healthReports, "/pages-business/health-report/index"));
     }
 }

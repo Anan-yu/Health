@@ -2,13 +2,13 @@
   <view class="page task-page">
     <view class="task-hero">
       <view>
-        <view class="eyebrow-light">REPORT WORKFLOW</view>
-        <view class="hero-title">报告任务</view>
-        <view class="hero-copy">跟踪上传、指标确认和评估处理进度</view>
+        <view class="eyebrow-light">HEALTH CHECK REPORTS</view>
+        <view class="hero-title">体检报告</view>
+        <view class="hero-copy">查看体检者上传的报告、识别结果与当前状态</view>
       </view>
       <view class="task-total"
         ><text>{{ items.length }}</text
-        ><text>全部任务</text></view
+        ><text>全部报告</text></view
       >
     </view>
     <view class="filter-row">
@@ -37,7 +37,7 @@
           /></view>
           <view class="task-sub">客户 ID {{ item.patientId }} · {{ item.reportDate }}</view>
           <view class="task-foot"
-            ><text>{{ item.indicators.length }} 项指标</text><text>处理任务 ›</text></view
+            ><text>{{ item.indicators.length }} 项指标</text><text>查看 ›</text></view
           >
         </view>
       </view>
@@ -56,7 +56,7 @@ const items = ref<LabReport[]>([]),
   loading = ref(true)
 const filters = [
   { code: 'ALL' as const, label: '全部' },
-  { code: 'PENDING' as const, label: '待处理' },
+  { code: 'PENDING' as const, label: '识别中' },
   { code: 'COMPLETED' as const, label: '已完成' },
 ]
 const activeFilter = ref<(typeof filters)[number]['code']>('ALL')

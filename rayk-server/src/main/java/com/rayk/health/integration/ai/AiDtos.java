@@ -51,6 +51,31 @@ public final class AiDtos {
     }
   }
 
+  public record FollowupActionFeedback(
+      String section, String action, String status, String note) {}
+
+  public record FollowupAdjustmentRequest(
+      PatientContext patientContext,
+      int cycleNo,
+      int maxCycles,
+      int completionRate,
+      String feedback,
+      List<FollowupActionFeedback> actions) {}
+
+  public record FollowupActionSuggestion(String section, String action) {}
+
+  public record FollowupAdjustmentData(
+      String decision,
+      String decisionReason,
+      String feedbackSummary,
+      List<FollowupActionSuggestion> nextActions,
+      String source,
+      String model) {
+    public FollowupAdjustmentData {
+      nextActions = nextActions == null ? List.of() : nextActions;
+    }
+  }
+
     public record OcrRecognizeRequest(
       String taskId, String fileId, String objectName, String mimeType, String downloadUrl) {}
 
