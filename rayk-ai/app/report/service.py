@@ -12,6 +12,7 @@ from reportlab.pdfbase import pdfmetrics  # type: ignore[import-untyped]
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont  # type: ignore[import-untyped]
 from reportlab.pdfgen.canvas import Canvas  # type: ignore[import-untyped]
 from reportlab.platypus import (  # type: ignore[import-untyped]
+    KeepTogether,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -86,7 +87,7 @@ class DemoReportService:
             topMargin=14 * mm,
             bottomMargin=16 * mm,
             title=title,
-            author="Rayk AI",
+            author="致宇健康",
         )
         story = [
             Paragraph(self._safe(title), title_style),
@@ -98,7 +99,47 @@ class DemoReportService:
         profile_summary = self._profile_summary(request)
         if profile_summary:
             story.extend([Paragraph(profile_summary, small), Spacer(1, 2 * mm)])
-        story.append(Paragraph(self._safe(self._display_text(summary)), normal))
+        story.extend(
+            [
+                Paragraph(
+                    "<b>综合结论：</b>" + self._safe(self._display_text(summary)),
+                    normal,
+                ),
+                Spacer(1, 1.5 * mm),
+                Paragraph(
+                    "<b>本次资料覆盖：</b>" + self._safe(self._coverage_summary(request)),
+                    small,
+                ),
+                Paragraph(
+                    "<b>检验概况：</b>" + self._safe(self._indicator_summary(request)),
+                    small,
+                ),
+            ]
+        )
+        health_background = self._health_background(request)
+        if health_background:
+            story.append(
+                Paragraph(
+                    "<b>健康背景：</b>" + self._safe(health_background),
+                    small,
+                )
+            )
+        current_focus = self._current_focus(request)
+        if current_focus:
+            story.append(
+                Paragraph(
+                    "<b>当前重点：</b>" + self._safe(current_focus),
+                    small,
+                )
+            )
+        management_direction = self._management_direction(request)
+        if management_direction:
+            story.append(
+                Paragraph(
+                    "<b>健康管理方向：</b>" + self._safe(management_direction),
+                    small,
+                )
+            )
         if request.interpretation is not None:
             if request.interpretation.red_flags:
                 story.extend(
@@ -173,7 +214,7 @@ class DemoReportService:
                 )
             )
 
-        story.extend([Spacer(1, 3 * mm), Paragraph("三、重点健康问题", heading)])
+        focus_section = [Spacer(1, 3 * mm), Paragraph("三、重点健康问题", heading)]
         focus = [item for item in request.results if item.risk_level in {"ATTENTION", "HIGH"}][:3]
         if focus:
             for result in focus:
@@ -186,7 +227,7 @@ class DemoReportService:
                     else "结合后续健康随访持续观察变化"
                 )
                 level = "建议重点关注" if result.risk_level == "HIGH" else "建议改善"
-                story.extend(
+                focus_section.extend(
                     [
                         Paragraph(
                             f"<b>{self._safe(self._focus_name(result.model_code))}</b>"
@@ -199,8 +240,10 @@ class DemoReportService:
                     ]
                 )
         else:
-            story.append(Paragraph("当前已确认的数据未提示需要优先改善的健康问题。", normal))
-        story.extend(
+            focus_section.append(
+                Paragraph("当前已确认的数据未提示需要优先改善的健康问题。", normal)
+            )
+        focus_section.extend(
             [
                 Spacer(1, 3 * mm),
                 Paragraph("四、健康随访", heading),
@@ -210,6 +253,7 @@ class DemoReportService:
                 ),
             ]
         )
+        story.append(KeepTogether(focus_section))
         document.build(
             story,
             onFirstPage=self._add_page_footer,
@@ -222,7 +266,7 @@ class DemoReportService:
         canvas.saveState()
         canvas.setFont("STSong-Light", 7)
         canvas.setFillColor(colors.HexColor("#718096"))
-        canvas.drawString(document.leftMargin, 8 * mm, "Rayk AI 健康评估报告")
+        canvas.drawString(document.leftMargin, 8 * mm, "致宇健康评估报告")
         canvas.drawRightString(
             A4[0] - document.rightMargin,
             8 * mm,
@@ -293,6 +337,141 @@ class DemoReportService:
         if context.bmi is not None:
             parts.append(f"体质指数：{context.bmi}")
         return cls._safe("　".join(parts))
+
+    @classmethod
+    def _coverage_summary(cls, request: ReportGenerateRequest) -> str:
+        indicator_count = len(request.indicators)
+        evaluated_count = sum(result.status == "EVALUATED" for result in request.results)
+        focus_count = sum(
+            result.status == "EVALUATED" and result.risk_level in {"ATTENTION", "HIGH"}
+            for result in request.results
+        )
+        parts = [f"共纳入{indicator_count}项检验指标"]
+        if request.results:
+            parts.append(f"{evaluated_count}个健康维度具备有效数据")
+            parts.append(f"其中{focus_count}个方向建议持续关注")
+        if request.patient_context is not None:
+            parts.append("健康档案和问卷信息已共同纳入评估")
+        return "，".join(parts) + "。"
+
+    @staticmethod
+    def _indicator_summary(request: ReportGenerateRequest) -> str:
+        normal_count = 0
+        abnormal_count = 0
+        unclassified_count = 0
+        for indicator in request.indicators:
+            has_reference = (
+                indicator.reference_low is not None or indicator.reference_high is not None
+            )
+            if not has_reference:
+                unclassified_count += 1
+                continue
+            below = (
+                indicator.reference_low is not None and indicator.value < indicator.reference_low
+            )
+            above = (
+                indicator.reference_high is not None and indicator.value > indicator.reference_high
+            )
+            if below or above:
+                abnormal_count += 1
+            else:
+                normal_count += 1
+        parts: list[str] = []
+        if normal_count:
+            parts.append(f"{normal_count}项处于原报告参考范围")
+        if abnormal_count:
+            parts.append(f"{abnormal_count}项超出原报告参考范围")
+        if unclassified_count:
+            parts.append(f"{unclassified_count}项因缺少参考范围暂不判定")
+        return ("，".join(parts) if parts else "本次没有可用于参考范围比较的检验指标") + "。"
+
+    @classmethod
+    def _health_background(cls, request: ReportGenerateRequest) -> str:
+        context = request.patient_context
+        if context is None:
+            return ""
+        parts: list[str] = []
+        medical_history = cls._meaningful_text(context.medical_history)
+        if medical_history:
+            parts.append(f"既往情况：{medical_history}")
+        family_history = cls._meaningful_text(context.family_history, keep_none=True)
+        if family_history:
+            parts.append(f"家族史：{family_history}")
+        if not medical_history:
+            chronic_fields = (
+                ("糖尿病情况", context.diabetes_status),
+                ("高血压情况", context.hypertension_status),
+                ("血脂情况", context.dyslipidemia_status),
+                ("脂肪肝情况", context.fatty_liver_status),
+            )
+            for label, value in chronic_fields:
+                display = cls._meaningful_text(value)
+                if display:
+                    parts.append(f"{label}：{display}")
+        lifestyle_fields = (
+            ("吸烟情况", context.smoking_status),
+            ("饮酒情况", context.alcohol_status),
+            ("运动频率", context.exercise_frequency),
+            ("睡眠质量", context.sleep_quality),
+            ("压力水平", context.stress_level),
+            ("近期心情", context.mood_status),
+        )
+        for label, value in lifestyle_fields:
+            display = cls._meaningful_text(value, keep_none=label in {"吸烟情况", "饮酒情况"})
+            if display:
+                parts.append(f"{label}：{display}")
+        if context.sleep_hours is not None:
+            parts.append(f"平均睡眠：{context.sleep_hours}小时")
+        if context.recent_dietary_pattern:
+            parts.append(f"近期饮食：{cls._display_text(context.recent_dietary_pattern)}")
+        return "；".join(parts[:6]) + ("。" if parts else "")
+
+    @classmethod
+    def _meaningful_text(cls, value: object | None, keep_none: bool = False) -> str:
+        if value is None or not str(value).strip():
+            return ""
+        display = cls._display_text(str(value))
+        if not keep_none and display in {"无", "否", "未知", "未填写", "暂无"}:
+            return ""
+        return cls._without_terminal_punctuation(display)
+
+    @classmethod
+    def _current_focus(cls, request: ReportGenerateRequest) -> str:
+        if request.interpretation is not None and request.interpretation.priority_concerns:
+            concerns = [
+                cls._without_terminal_punctuation(cls._display_text(item))
+                for item in request.interpretation.priority_concerns[:3]
+                if item.strip()
+            ]
+            if concerns:
+                return "；".join(concerns) + "。"
+        evidence = [
+            cls._without_terminal_punctuation(cls._display_text(item.evidence[0]))
+            for item in request.results
+            if item.risk_level in {"ATTENTION", "HIGH"} and item.evidence
+        ][:3]
+        return "；".join(evidence) + ("。" if evidence else "")
+
+    @classmethod
+    def _management_direction(cls, request: ReportGenerateRequest) -> str:
+        if request.interpretation is not None:
+            recommendations = [
+                cls._without_terminal_punctuation(cls._display_text(item))
+                for item in request.interpretation.recommendations[:2]
+                if item.strip()
+            ]
+            if recommendations:
+                return "；".join(recommendations) + "。"
+        recommendations = [
+            cls._without_terminal_punctuation(cls._display_text(result.recommendations[0]))
+            for result in request.results
+            if result.risk_level in {"ATTENTION", "HIGH"} and result.recommendations
+        ][:2]
+        return "；".join(recommendations) + ("。" if recommendations else "")
+
+    @staticmethod
+    def _without_terminal_punctuation(value: str) -> str:
+        return re.sub(r"[。；;，,\s]+$", "", value)
 
     @staticmethod
     def _assessment_label(value: str) -> str:

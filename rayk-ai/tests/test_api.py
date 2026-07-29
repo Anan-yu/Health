@@ -4,6 +4,8 @@ from fastapi.testclient import TestClient
 
 from app.core.constants import DISCLAIMER
 from app.main import app
+from app.report.service import DemoReportService
+from app.schemas.report import ReportGenerateRequest
 
 client = TestClient(app)
 
@@ -212,3 +214,61 @@ def test_report_generation_returns_a_real_pdf() -> None:
     assert "检验指标明细" not in data["sections"]
     assert "优先改善方向" not in data["sections"]
     assert b64decode(data["pdfBase64"]).startswith(b"%PDF-")
+
+
+def test_report_overall_health_section_uses_real_coverage_and_profile_data() -> None:
+    request = ReportGenerateRequest.model_validate(
+        {
+            "assessmentId": "ASSESSMENT_002",
+            "patientDisplayName": "测试客户",
+            "reportNo": "HR_TEST_002",
+            "indicators": [
+                {
+                    "code": "total_bilirubin",
+                    "name": "总胆红素",
+                    "value": 22.7,
+                    "unit": "μmol/L",
+                    "referenceLow": 3,
+                    "referenceHigh": 22,
+                },
+                {
+                    "code": "albumin",
+                    "name": "白蛋白",
+                    "value": 48.9,
+                    "unit": "g/L",
+                    "referenceLow": 40,
+                    "referenceHigh": 55,
+                },
+            ],
+            "results": [
+                {
+                    "modelCode": "LIVER_METABOLIC",
+                    "modelName": "肝脏与代谢健康",
+                    "status": "EVALUATED",
+                    "score": 72,
+                    "riskLevel": "ATTENTION",
+                    "evidence": ["总胆红素高于参考范围"],
+                    "missingIndicators": [],
+                    "recommendations": ["结合完整资料持续观察相关指标"],
+                }
+            ],
+            "patientContext": {
+                "gender": "MALE",
+                "age": 23,
+                "bmi": 22.2,
+                "exerciseFrequency": "3_5_PER_WEEK",
+                "sleepQuality": "GOOD",
+            },
+        }
+    )
+
+    assert DemoReportService._coverage_summary(request) == (
+        "共纳入2项检验指标，1个健康维度具备有效数据，"
+        "其中1个方向建议持续关注，健康档案和问卷信息已共同纳入评估。"
+    )
+    assert DemoReportService._indicator_summary(request) == (
+        "1项处于原报告参考范围，1项超出原报告参考范围。"
+    )
+    assert DemoReportService._health_background(request) == (
+        "运动频率：每周3至5次；睡眠质量：良好。"
+    )

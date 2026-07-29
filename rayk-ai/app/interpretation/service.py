@@ -54,6 +54,9 @@ _SYSTEM_PROMPT = """
 【输出要求】
 - 只输出符合 outputSchema 的一个 JSON 对象，不要输出Markdown、解释文字或思维过程。
 - 除通用检验单位和证据编号外全部使用自然中文，不回显内部模型代码和英文状态。
+- summary应使用120至300个中文字符完整概括整体健康状态，依次说明总体判断、主要健康
+  信号、健康档案或问卷对评估的影响以及建议持续观察的方向；同时说明相对平稳的部分，
+  不得只写一句笼统结论，也不得在summary中罗列疾病名称或形成确诊结论。
 - crossModelFindings 和 diagnosticReferences 必须填写 patientFactIds 与 evidenceIds。
 - indicatorCodes、patientFactIds、evidenceIds 只能使用输入中真实存在的编号。
 - uncertainty 只记录本次数据覆盖边界，简短客观，不重复结论。
