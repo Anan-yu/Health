@@ -132,6 +132,9 @@ def test_uses_text_feedback_and_body_feeling_to_adjust_actions() -> None:
     assert fake.last_payload is not None
     prompt = json.loads(fake.last_payload["messages"][1]["content"])
     assert "膝盖疼" in json.dumps(prompt["data"], ensure_ascii=False)
+    assert prompt["knowledgeBaseVersion"] == "ZHIYU_MEDICAL_KB_2.0.0"
+    assert prompt["data"]["evidenceBundle"]["evidence"]
+    assert prompt["data"]["followupFeedback"]["feedback"]
 
 
 def test_disabled_ai_adjusts_when_notes_contain_difficulty() -> None:

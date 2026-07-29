@@ -43,6 +43,7 @@ class ClinicalContextBuilder:
 
         indicators = [
             {
+                "factId": f"LAB:{item.code}",
                 "code": item.code,
                 "name": item.name,
                 "value": str(item.value),
@@ -63,6 +64,32 @@ class ClinicalContextBuilder:
             else {}
         )
         context_payload.pop("bmi", None)
+        canonical_context_payload = (
+            context.model_dump(by_alias=False, exclude_none=True, mode="json")
+            if context is not None
+            else {}
+        )
+        canonical_context_payload.pop("bmi", None)
+        patient_facts = [
+            {
+                "factId": f"PROFILE:{key}",
+                "category": "健康档案与问卷",
+                "field": key,
+                "value": value,
+            }
+            for key, value in canonical_context_payload.items()
+        ]
+        patient_facts.extend(
+            {
+                "factId": item["factId"],
+                "category": "检验指标",
+                "field": item["code"],
+                "value": item["value"],
+                "unit": item["unit"],
+                "referenceStatus": item["referenceStatus"],
+            }
+            for item in indicators
+        )
 
         return {
             "demographics": {
@@ -79,6 +106,7 @@ class ClinicalContextBuilder:
                 ),
             },
             "healthProfileAndQuestionnaire": context_payload,
+            "patientFacts": patient_facts,
             "laboratorySnapshot": {
                 "totalCount": len(indicators),
                 "abnormalCount": len(abnormal),

@@ -59,6 +59,8 @@ class ModelResult(RaykModel):
 class CrossModelFinding(RaykModel):
     title: str = Field(min_length=1, max_length=100)
     indicator_codes: list[str] = Field(default_factory=list, alias="indicatorCodes", max_length=20)
+    patient_fact_ids: list[str] = Field(default_factory=list, alias="patientFactIds", max_length=20)
+    evidence_ids: list[str] = Field(default_factory=list, alias="evidenceIds", max_length=10)
     explanation: str = Field(min_length=1, max_length=500)
 
 
@@ -67,6 +69,8 @@ class DiagnosticReference(RaykModel):
     assessment: Literal["RISK_SIGNAL", "POSSIBLE", "PRIORITY_REVIEW"]
     rationale: str = Field(min_length=1, max_length=500)
     indicator_codes: list[str] = Field(default_factory=list, alias="indicatorCodes", max_length=20)
+    patient_fact_ids: list[str] = Field(default_factory=list, alias="patientFactIds", max_length=20)
+    evidence_ids: list[str] = Field(default_factory=list, alias="evidenceIds", max_length=10)
     supporting_evidence: list[str] = Field(
         default_factory=list, alias="supportingEvidence", max_length=10
     )

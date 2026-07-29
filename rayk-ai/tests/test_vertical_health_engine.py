@@ -75,13 +75,37 @@ def test_knowledge_retriever_returns_relevant_versioned_references() -> None:
     references = MedicalKnowledgeRetriever().retrieve(_request(), _results())
     reference_ids = {item.reference_id for item in references}
 
-    assert "GENERAL_LAB_INTERPRETATION" in reference_ids
-    assert "GLUCOSE_METABOLISM" in reference_ids
-    assert "SLEEP_STRESS_MOOD" in reference_ids
+    assert "NHC-LAB-GENERAL-001" in reference_ids
+    assert "NHC-HYPERGLYCEMIA-2024-001" in reference_ids
+    assert "WHO-MENTAL-HEALTH-001" in reference_ids
+    assert all(item.authority_level == "A" for item in references)
+    assert any(item.retrieval_score > 0 for item in references)
     assert all(
         item.to_prompt_dict()["knowledgeBaseVersion"] == KNOWLEDGE_BASE_VERSION
         for item in references
     )
+
+
+def test_knowledge_corpus_covers_all_health_dimensions() -> None:
+    retriever = MedicalKnowledgeRetriever()
+    covered_model_codes = {
+        model_code for reference in retriever.references for model_code in reference.model_codes
+    }
+
+    assert covered_model_codes >= {
+        "GLUCOSE_METABOLISM",
+        "LIPID_CARDIOVASCULAR",
+        "CHRONIC_INFLAMMATION",
+        "LIVER_METABOLIC",
+        "KIDNEY_ELECTROLYTE",
+        "HEMATOLOGY_ANEMIA",
+        "THYROID_HORMONE",
+        "BODY_COMPOSITION",
+        "HPA_ADRENAL",
+        "NUTRITION_MICRONUTRIENT",
+        "GUT_BARRIER",
+        "MENTAL_EMOTIONAL",
+    }
 
 
 def test_clinical_timeline_is_deidentified_and_calculates_bmi() -> None:
@@ -114,13 +138,16 @@ class _FakeResponse:
 
 
 class _FakeClient:
-    def __init__(self, content: dict[str, Any]) -> None:
-        self.content = content
+    def __init__(self, content: dict[str, Any] | list[dict[str, Any]]) -> None:
+        self.contents = content if isinstance(content, list) else [content]
+        self.call_count = 0
         self.last_payload: dict[str, Any] | None = None
 
     def post(self, *args: Any, **kwargs: Any) -> _FakeResponse:
         self.last_payload = kwargs["json"]
-        return _FakeResponse(self.content)
+        content = self.contents[min(self.call_count, len(self.contents) - 1)]
+        self.call_count += 1
+        return _FakeResponse(content)
 
 
 def _generated_content(summary: str = "当前存在糖代谢风险信号，建议持续观察。") -> dict[str, Any]:
@@ -131,6 +158,8 @@ def _generated_content(summary: str = "当前存在糖代谢风险信号，建�
             {
                 "title": "糖代谢指标需关注",
                 "indicatorCodes": ["fasting_glucose", "hba1c"],
+                "patientFactIds": ["LAB:fasting_glucose", "LAB:hba1c"],
+                "evidenceIds": ["NHC-HYPERGLYCEMIA-2024-001"],
                 "explanation": "空腹血糖异常，需要结合后续复测观察。",
             }
         ],
@@ -140,6 +169,8 @@ def _generated_content(summary: str = "当前存在糖代谢风险信号，建�
                 "assessment": "RISK_SIGNAL",
                 "rationale": "空腹血糖超出本次报告参考范围。",
                 "indicatorCodes": ["fasting_glucose"],
+                "patientFactIds": ["LAB:fasting_glucose", "PROFILE:family_history"],
+                "evidenceIds": ["NHC-HYPERGLYCEMIA-2024-001"],
                 "supportingEvidence": ["空腹血糖6.4 mmol/L，高于参考上限6.1 mmol/L"],
                 "contradictingEvidence": ["糖化血红蛋白仍在本次报告参考范围"],
                 "confirmationAdvice": ["按医生建议复测相关指标"],
@@ -178,7 +209,10 @@ def test_vertical_prompt_contains_grounding_without_direct_identifiers() -> None
     user_message = json.loads(fake.last_payload["messages"][1]["content"])
     serialized = json.dumps(user_message["data"], ensure_ascii=False)
     assert "healthTimeline" in user_message["data"]
-    assert "medicalKnowledge" in user_message["data"]
+    assert "evidenceBundle" in user_message["data"]
+    assert user_message["data"]["evidenceBundle"]["knowledgeBaseVersion"] == KNOWLEDGE_BASE_VERSION
+    assert user_message["data"]["evidenceBundle"]["evidence"]
+    assert "patientFacts" in user_message["data"]["healthTimeline"]
     assert "TASK_SENSITIVE" not in serialized
     assert "PATIENT_SENSITIVE" not in serialized
 
@@ -197,3 +231,44 @@ def test_internal_enums_or_unverified_bmi_label_fall_back() -> None:
 
     assert result.status == "FALLBACK"
     assert result.source == "RULE_FALLBACK"
+
+
+def test_unknown_rag_evidence_citation_falls_back() -> None:
+    content = _generated_content()
+    content["crossModelFindings"][0]["evidenceIds"] = ["UNKNOWN-EVIDENCE"]
+    fake = _FakeClient(content)
+
+    result = _service(fake).interpret(_request(), _results())
+
+    assert result.status == "FALLBACK"
+    assert result.source == "RULE_FALLBACK"
+
+
+def test_missing_diagnostic_references_are_repaired_when_labs_are_abnormal() -> None:
+    first_content = _generated_content()
+    first_content["diagnosticReferences"] = []
+    repaired_content = _generated_content()
+    fake = _FakeClient([first_content, repaired_content])
+
+    result = _service(fake).interpret(_request(), _results())
+
+    assert fake.call_count == 2
+    assert result.status == "SUCCESS"
+    assert result.diagnostic_references
+    assert fake.last_payload is not None
+    user_message = json.loads(fake.last_payload["messages"][1]["content"])
+    assert "repairInstruction" in user_message
+
+
+def test_single_abnormal_fact_can_be_reported_as_a_risk_signal() -> None:
+    content = _generated_content()
+    reference = content["diagnosticReferences"][0]
+    reference["patientFactIds"] = ["LAB:fasting_glucose"]
+    reference["indicatorCodes"] = ["fasting_glucose"]
+    reference["assessment"] = "RISK_SIGNAL"
+    fake = _FakeClient(content)
+
+    result = _service(fake).interpret(_request(), _results())
+
+    assert result.status == "SUCCESS"
+    assert result.diagnostic_references[0].assessment == "RISK_SIGNAL"

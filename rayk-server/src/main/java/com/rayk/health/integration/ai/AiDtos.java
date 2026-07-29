@@ -158,13 +158,20 @@ public final class AiDtos {
     }
   }
 
-  public record CrossModelFinding(String title, List<String> indicatorCodes, String explanation) {}
+  public record CrossModelFinding(
+      String title,
+      List<String> indicatorCodes,
+      List<String> patientFactIds,
+      List<String> evidenceIds,
+      String explanation) {}
 
   public record DiagnosticReference(
       String conditionName,
       String assessment,
       String rationale,
       List<String> indicatorCodes,
+      List<String> patientFactIds,
+      List<String> evidenceIds,
       List<String> supportingEvidence,
       List<String> contradictingEvidence,
       List<String> confirmationAdvice,
