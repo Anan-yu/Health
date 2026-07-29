@@ -58,6 +58,13 @@ const customer: MenuItem[] = [
     route: '/pages-customer/followup/index',
     permission: 'self:followup',
   },
+  {
+    title: '健康检测',
+    description: '通过面部影像完成健康检测',
+    icon: '测',
+    route: '/pages-customer/health-scan/index',
+    permission: 'self:assessment',
+  },
 ]
 
 const doctor: MenuItem[] = [

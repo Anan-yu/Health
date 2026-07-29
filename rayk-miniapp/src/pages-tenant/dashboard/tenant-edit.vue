@@ -394,19 +394,43 @@ onLoad((query) => {
 }
 .edit-actions {
   display: flex;
-  gap: 16rpx;
-  margin-top: 20rpx;
+  gap: 18rpx;
+  margin-top: 24rpx;
 }
 .edit-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: 1;
+  min-height: 84rpx;
   margin: 0;
-  font-size: 24rpx;
+  padding: 0 22rpx;
+  border-radius: 22rpx;
+  font-size: 26rpx;
+  line-height: 1;
+  font-weight: 680;
+  transition:
+    transform 0.16s ease,
+    opacity 0.16s ease;
+}
+.edit-actions button:active {
+  opacity: 0.86;
+  transform: scale(0.985);
+}
+.edit-actions button::after {
+  display: none;
 }
 .edit-cancel {
-  color: #315d51;
-  background: #eef6f3;
+  border: 1rpx solid #cfe1da;
+  background: #fff;
+  color: #46655c;
+  box-shadow: 0 6rpx 16rpx rgba(32, 78, 65, 0.04);
 }
 .edit-save {
   min-width: 0;
+  border: 1rpx solid transparent;
+  background: linear-gradient(135deg, #159173 0%, #08705a 100%);
+  color: #fff;
+  box-shadow: 0 12rpx 26rpx rgba(10, 117, 91, 0.2);
 }
 </style>
