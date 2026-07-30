@@ -1,5 +1,5 @@
 <template>
-  <view class="page report-page">
+  <view class="page report-page elder-page">
     <PageState :loading="loading" :error="error" :empty="!report">
       <view v-if="report" class="report-hero">
         <view class="eyebrow">HEALTH REPORT</view>

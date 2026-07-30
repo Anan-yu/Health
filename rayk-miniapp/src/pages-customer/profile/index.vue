@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page elder-page">
     <view class="title">我的健康档案</view>
     <PageState :loading="loading" :error="error" :empty="!patient">
       <view class="card"
@@ -22,15 +22,18 @@
           ><text>最近更新</text><text>{{ formatTime(profile?.updatedAt) }}</text></view
         ></view
       >
-      <view class="card"
+      <view class="card completion-card"
         ><view class="row"
           ><view
             ><view class="section-title">档案完整度</view
             ><view class="subtitle">补充生活习惯和健康史，帮助医生更好解读报告</view></view
           ><text class="completion">{{ profile?.profileCompleteness || 0 }}%</text></view
         ><progress :percent="profile?.profileCompleteness || 0" active-color="#176b57"
-      /></view>
-      <button class="primary-button" @click="edit">完善健康档案</button>
+        />
+        <button class="profile-action" @click="edit">
+          <text>完善健康档案</text><text class="profile-action-arrow">›</text>
+        </button>
+      </view>
     </PageState>
   </view>
 </template>
@@ -66,16 +69,62 @@ const edit = () => uni.navigateTo({ url: '/pages-customer/profile/edit' })
 </script>
 
 <style scoped>
+.card .row {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #edf2f0;
+}
+.card .row:last-child {
+  border-bottom: 0;
+}
+.card .row > text:first-child {
+  color: #506b62;
+}
+.card .row > text:last-child {
+  color: #163c32;
+  font-weight: 650;
+  text-align: right;
+}
 .completion {
   color: #0f7a62;
-  font-size: 32rpx;
+  font-size: 38rpx;
   font-weight: 750;
 }
-.primary-button {
-  margin-top: 26rpx;
-  border-radius: 16rpx;
-  background: #0f7a62;
+.completion-card {
+  padding: 22rpx 30rpx 28rpx;
+}
+.completion-card .row {
+  padding: 4rpx 0 16rpx;
+}
+.profile-action {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 88rpx;
+  margin: 26rpx 0 0;
+  padding: 0 26rpx;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 22rpx;
+  background: linear-gradient(135deg, #14866b, #0b7059);
   color: #fff;
-  font-size: 28rpx;
+  font-size: 30rpx;
+  font-weight: 720;
+  box-shadow: 0 10rpx 22rpx rgba(15, 122, 98, 0.16);
+}
+.profile-action::after {
+  display: none;
+}
+.profile-action:active {
+  background: #0b6e58;
+  box-shadow: none;
+}
+.profile-action-arrow {
+  position: absolute;
+  right: 28rpx;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 38rpx;
+  line-height: 1;
 }
 </style>

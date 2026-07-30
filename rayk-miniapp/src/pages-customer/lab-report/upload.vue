@@ -1,5 +1,5 @@
 <template>
-  <view class="page upload-page">
+  <view class="page upload-page elder-page">
     <view class="upload-hero">
       <view class="upload-hero-icon">传</view>
       <view>
@@ -290,7 +290,7 @@ function formatSize(size: number) {
 .hero-copy {
   margin-top: 8rpx;
   color: #6e827b;
-  font-size: 22rpx;
+  font-size: 27rpx;
   line-height: 1.5;
 }
 .stepper {
@@ -305,7 +305,7 @@ function formatSize(size: number) {
   width: 110rpx;
   flex-direction: column;
   color: #a1ada9;
-  font-size: 20rpx;
+  font-size: 24rpx;
   white-space: nowrap;
 }
 .step text {
@@ -347,7 +347,7 @@ function formatSize(size: number) {
   display: flex;
   align-items: center;
   margin-bottom: 26rpx;
-  font-size: 30rpx;
+  font-size: 34rpx;
   font-weight: 700;
 }
 .form-index {
@@ -359,7 +359,7 @@ function formatSize(size: number) {
 .field-label {
   margin: 22rpx 2rpx 2rpx;
   color: #587068;
-  font-size: 23rpx;
+  font-size: 28rpx;
   font-weight: 620;
 }
 .date-input {
@@ -385,17 +385,17 @@ function formatSize(size: number) {
   flex-direction: column;
 }
 .owner-name {
-  font-size: 27rpx;
+  font-size: 31rpx;
 }
 .owner-meta {
   margin-top: 6rpx;
   color: #81918b;
-  font-size: 21rpx;
+  font-size: 26rpx;
 }
 .owner-edit {
   flex: 0 0 auto;
   color: #0f7a62;
-  font-size: 22rpx;
+  font-size: 27rpx;
   font-weight: 650;
 }
 .date-input text:last-child {
@@ -406,6 +406,7 @@ function formatSize(size: number) {
   display: flex;
   align-items: center;
   flex-direction: column;
+  min-height: 250rpx;
   padding: 52rpx 24rpx;
   text-align: center;
   border: 2rpx dashed #a8cfc3;
@@ -435,7 +436,7 @@ function formatSize(size: number) {
   overflow: hidden;
   margin-top: 20rpx;
   color: #294a41;
-  font-size: 27rpx;
+  font-size: 31rpx;
   font-weight: 660;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -443,7 +444,7 @@ function formatSize(size: number) {
 .file-copy {
   margin-top: 9rpx;
   color: #879690;
-  font-size: 22rpx;
+  font-size: 27rpx;
 }
 .file-chip {
   margin-top: 18rpx;
@@ -500,8 +501,8 @@ function formatSize(size: number) {
   font-size: 20rpx;
 }
 .submit-button {
-  height: 92rpx;
-  line-height: 92rpx;
+  height: 106rpx;
+  line-height: 106rpx;
 }
 .error {
   padding: 20rpx;

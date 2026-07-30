@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page elder-page">
     <view class="title">AI评估结果</view>
     <PageState :loading="loading" :error="error" :empty="items.length === 0">
       <view v-for="assessment in items" :key="assessment.id" class="assessment-block">

@@ -1,5 +1,5 @@
 <template>
-  <view class="page support-page">
+  <view class="page support-page elder-page">
     <view class="title">帮助与反馈</view>
     <view class="subtitle page-copy">查看常见操作说明，或把问题直接反馈给平台。</view>
 

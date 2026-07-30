@@ -1,5 +1,5 @@
 <template>
-  <view class="page report-page">
+  <view class="page report-page elder-page">
     <view class="report-header">
       <view>
         <view class="eyebrow">LAB REPORTS</view>

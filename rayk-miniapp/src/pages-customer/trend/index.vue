@@ -1,5 +1,5 @@
 <template>
-  <view class="page trend-page">
+  <view class="page trend-page elder-page">
     <view class="page-heading">
       <view
         ><view class="eyebrow">HEALTH TRENDS</view><view class="title">指标趋势</view
@@ -16,7 +16,9 @@
             >
           </view>
           <view class="selector-action"
-            >{{ showSelector ? '收起' : '切换指标' }} <text>⌄</text></view
+            >{{ showSelector ? '收起' : '切换指标' }}
+            <text class="selector-arrow" :class="{ open: showSelector }"></text
+          ></view
           >
         </view>
         <view v-if="showSelector" class="selector-options">
@@ -198,15 +200,46 @@ onShow(async () => {
   font-weight: 400;
 }
 .selector-action {
-  padding: 12rpx 16rpx;
-  border-radius: 999rpx;
-  background: #e6f6f0;
+  display: flex;
+  min-width: 148rpx;
+  min-height: 68rpx;
+  padding: 0 18rpx 0 22rpx;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  border: 1rpx solid #c5e8dc;
+  border-radius: 22rpx;
+  background: linear-gradient(135deg, #edf9f5, #def3eb);
   color: #0d765e;
-  font-size: 22rpx;
+  font-size: 25rpx;
+  font-weight: 650;
+  white-space: nowrap;
+  box-shadow: 0 8rpx 18rpx rgba(15, 122, 98, 0.1);
 }
-.selector-action text {
-  margin-left: 6rpx;
-  font-size: 20rpx;
+.selector-arrow {
+  display: flex;
+  width: 30rpx;
+  height: 30rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.86);
+}
+.selector-arrow::after {
+  width: 9rpx;
+  height: 9rpx;
+  border-right: 3rpx solid #0d765e;
+  border-bottom: 3rpx solid #0d765e;
+  content: '';
+  transform: translateY(-2rpx) rotate(45deg);
+}
+.selector-arrow.open::after {
+  transform: translateY(2rpx) rotate(225deg);
+}
+.selector-main:active .selector-action {
+  border-color: #9fd8c5;
+  background: #d8efe7;
+  box-shadow: none;
 }
 .selector-options {
   padding: 0 22rpx 23rpx;

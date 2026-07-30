@@ -1,5 +1,5 @@
 <template>
-  <view class="page editor-page">
+  <view class="page editor-page elder-page">
     <OcrIndicatorEditor
       v-if="id"
       :report-id="id"

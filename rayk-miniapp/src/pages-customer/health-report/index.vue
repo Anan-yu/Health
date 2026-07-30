@@ -1,5 +1,5 @@
 <template>
-  <view class="page"
+  <view class="page elder-page"
     ><view class="title">已发布健康报告</view
     ><PageState :loading="loading" :error="error" :empty="items.length === 0"
       ><view v-for="item in items" :key="item.id" class="card report-card" @click="detail(item.id)"

@@ -44,6 +44,15 @@ picker {
   min-height: 100vh;
   padding: 32rpx 28rpx calc(58rpx + env(safe-area-inset-bottom));
 }
+.elder-page {
+  --elder-text: 32rpx;
+  --elder-muted: 27rpx;
+  --elder-title: 46rpx;
+  --elder-section: 36rpx;
+  padding: 30rpx 24rpx calc(76rpx + env(safe-area-inset-bottom));
+  font-size: var(--elder-text);
+  line-height: 1.65;
+}
 @media screen and (min-width: 768px) {
   .page {
     max-width: 920rpx;
@@ -59,6 +68,13 @@ picker {
   margin-bottom: 24rpx;
   box-shadow: var(--shadow);
 }
+.elder-page .card {
+  padding: 34rpx 32rpx 36rpx;
+  margin-bottom: 28rpx;
+  border-width: 2rpx;
+  border-radius: 32rpx;
+  box-shadow: 0 16rpx 38rpx rgba(20, 78, 63, 0.09);
+}
 .title {
   font-size: 42rpx;
   line-height: 1.25;
@@ -67,11 +83,23 @@ picker {
   margin-bottom: 12rpx;
   text-align: left;
 }
+.elder-page .title {
+  margin-bottom: 16rpx;
+  font-size: var(--elder-title);
+  line-height: 1.32;
+  letter-spacing: 0;
+}
 .subtitle {
   color: var(--muted);
   font-size: 25rpx;
   line-height: 1.65;
   text-align: left;
+}
+.elder-page .subtitle,
+.elder-page .muted {
+  color: #566d65;
+  font-size: var(--elder-muted);
+  line-height: 1.7;
 }
 .section-title {
   color: var(--ink);
@@ -80,6 +108,10 @@ picker {
   font-weight: 730;
   margin: 28rpx 0 20rpx;
   text-align: left;
+}
+.elder-page .section-title {
+  font-size: var(--elder-section);
+  line-height: 1.4;
 }
 .section-label {
   color: var(--brand);
@@ -95,6 +127,9 @@ picker {
   justify-content: space-between;
   margin: 38rpx 4rpx 22rpx;
 }
+.elder-page .section-head {
+  margin: 42rpx 4rpx 24rpx;
+}
 .section-head .section-title {
   margin: 0;
 }
@@ -106,6 +141,17 @@ picker {
   border-radius: 24rpx;
   font-weight: 680;
   box-shadow: 0 14rpx 30rpx rgba(15, 122, 98, 0.2);
+}
+.elder-page .primary,
+.elder-page .primary-button,
+.elder-page .submit-button,
+.elder-page .download-button,
+.elder-page .feedback-button {
+  min-height: 104rpx;
+  border-radius: 26rpx;
+  font-size: 32rpx;
+  line-height: 1.35;
+  font-weight: 720;
 }
 .danger {
   background: #fff;
@@ -125,11 +171,30 @@ picker {
   padding: 22rpx 24rpx;
   margin: 16rpx 0;
 }
+.elder-page .input,
+.elder-page .textarea,
+.elder-page input,
+.elder-page textarea,
+.elder-page .picker-value {
+  font-size: 30rpx;
+  line-height: 1.55;
+}
+.elder-page .input,
+.elder-page .textarea {
+  min-height: 104rpx;
+  padding: 26rpx 28rpx;
+  border-width: 2rpx;
+  border-radius: 24rpx;
+}
 .row {
   display: flex;
   justify-content: space-between;
   gap: 20rpx;
   align-items: center;
+}
+.elder-page .row {
+  min-height: 64rpx;
+  gap: 24rpx;
 }
 .muted {
   color: var(--muted);
@@ -169,6 +234,11 @@ picker {
   font-size: 24rpx;
   font-weight: 650;
 }
+.elder-page .soft-button {
+  min-height: 72rpx;
+  padding: 0 28rpx;
+  font-size: 28rpx;
+}
 .eyebrow {
   color: var(--brand);
   font-size: 23rpx;
@@ -191,6 +261,22 @@ picker {
 button {
   font-size: 28rpx;
   font-weight: 650;
+}
+.elder-page button {
+  min-height: 96rpx;
+  font-size: 32rpx;
+}
+.elder-page button[disabled] {
+  opacity: 0.58;
+}
+.elder-page .status,
+.elder-page .pill,
+.elder-page .filter {
+  font-size: 27rpx;
+}
+.elder-page .filter {
+  min-height: 70rpx;
+  padding: 0 28rpx;
 }
 button::after {
   border: 0;

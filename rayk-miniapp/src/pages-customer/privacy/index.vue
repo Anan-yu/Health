@@ -1,5 +1,5 @@
 <template>
-  <view class="page"
+  <view class="page elder-page"
     ><view class="title">隐私授权</view
     ><view class="subtitle page-copy"
       >你可以管理健康数据的使用范围；撤回后，新的相关处理将停止。</view

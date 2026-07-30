@@ -1,5 +1,5 @@
 <template>
-  <view class="page feedback-page">
+  <view class="page feedback-page elder-page">
     <view class="title">随访反馈</view>
     <PageState :loading="loading" :error="loadError" :empty="!task">
       <template v-if="task">
@@ -258,13 +258,13 @@ async function submit() {
 }
 .intro-title {
   padding-right: 100rpx;
-  font-size: 32rpx;
+  font-size: 36rpx;
   font-weight: 800;
 }
 .intro-copy {
   margin-top: 10rpx;
   color: rgba(255, 255, 255, 0.78);
-  font-size: 24rpx;
+  font-size: 28rpx;
 }
 .cycle-tag {
   position: absolute;
@@ -296,13 +296,13 @@ async function submit() {
 }
 .progress-title {
   color: #174238;
-  font-size: 25rpx;
+  font-size: 30rpx;
   font-weight: 720;
 }
 .progress-copy {
   margin-top: 7rpx;
   color: #82928c;
-  font-size: 21rpx;
+  font-size: 26rpx;
 }
 .progress-value {
   color: #0c7b61;
@@ -316,7 +316,7 @@ async function submit() {
 .section-title {
   margin-bottom: 8rpx;
   color: #0b6f58;
-  font-size: 29rpx;
+  font-size: 33rpx;
   font-weight: 800;
 }
 .action-item {
@@ -348,7 +348,7 @@ async function submit() {
 }
 .action-text {
   color: #173f36;
-  font-size: 25rpx;
+  font-size: 30rpx;
   line-height: 1.65;
 }
 .status-row {
@@ -358,13 +358,14 @@ async function submit() {
 }
 .status-option {
   flex: 1;
-  padding: 14rpx 6rpx;
+  min-height: 72rpx;
+  padding: 16rpx 8rpx;
   border: 1rpx solid #d9e5e1;
   border-radius: 16rpx;
   background: #f7faf9;
   color: #6f817b;
   text-align: center;
-  font-size: 22rpx;
+  font-size: 27rpx;
 }
 .status-option.active {
   border-color: #149170;
@@ -385,13 +386,13 @@ async function submit() {
 .note-input {
   box-sizing: border-box;
   width: 100%;
-  min-height: 108rpx;
+  min-height: 150rpx;
   margin-top: 16rpx;
   padding: 18rpx;
   border-radius: 16rpx;
   background: #f4f8f6;
   color: #23473f;
-  font-size: 23rpx;
+  font-size: 28rpx;
 }
 .summary-card {
   padding: 28rpx;
@@ -408,7 +409,7 @@ async function submit() {
   padding: 20rpx;
   border-radius: 18rpx;
   background: #f4f8f6;
-  font-size: 24rpx;
+  font-size: 29rpx;
 }
 .count {
   margin-top: 8rpx;

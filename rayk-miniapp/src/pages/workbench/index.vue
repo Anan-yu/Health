@@ -1,25 +1,33 @@
 <template>
-  <view class="page workbench-page">
+  <view class="page workbench-page" :class="{ 'elder-page': isCustomer }">
     <view class="workbench-hero">
       <view class="hero-pattern" />
       <view class="hero-title">{{ workbenchName }}</view>
       <view class="hero-copy">{{ workbenchDescription }}</view>
       <view class="hero-stats">
-        <view
-          ><text>{{ visibleMenus.length }}</text
-          ><text>项可用服务</text></view
-        >
-        <view class="divider" />
-        <view
-          ><text>{{ auth.permissions.length }}</text
-          ><text>项授权能力</text></view
-        >
+        <template v-if="isCustomer">
+          <view
+            ><text>{{ visibleMenus.length }}</text
+            ><text>项健康服务已为您整理</text></view
+          >
+        </template>
+        <template v-else>
+          <view
+            ><text>{{ visibleMenus.length }}</text
+            ><text>项可用服务</text></view
+          >
+          <view class="divider" />
+          <view
+            ><text>{{ auth.permissions.length }}</text
+            ><text>项授权能力</text></view
+          >
+        </template>
       </view>
     </view>
 
     <view class="section-head">
       <view>
-        <view class="section-title">全部功能</view>
+        <view class="section-title">{{ isCustomer ? '健康服务' : '全部功能' }}</view>
       </view>
       <view class="soft-button" @click="goSwitch">切换身份</view>
     </view>
@@ -83,6 +91,7 @@ const open = (url: string) => uni.navigateTo({ url })
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
 const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
+const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
 </script>
 
 <style scoped>
@@ -249,5 +258,53 @@ const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 .help-arrow {
   color: #7f918b;
   font-size: 38rpx;
+}
+.workbench-page.elder-page .workbench-hero {
+  padding: 42rpx 36rpx;
+}
+.workbench-page.elder-page .hero-title {
+  font-size: 46rpx;
+}
+.workbench-page.elder-page .hero-copy {
+  margin-top: 14rpx;
+  font-size: 28rpx;
+  line-height: 1.7;
+}
+.workbench-page.elder-page .hero-stats text:first-child {
+  font-size: 42rpx;
+}
+.workbench-page.elder-page .hero-stats text:last-child {
+  font-size: 27rpx;
+}
+.workbench-page.elder-page .menu-grid {
+  gap: 20rpx;
+}
+.workbench-page.elder-page .menu-card {
+  min-height: 300rpx;
+  padding: 28rpx;
+  border-width: 2rpx;
+  border-radius: 30rpx;
+}
+.workbench-page.elder-page .menu-icon {
+  width: 76rpx;
+  height: 76rpx;
+  font-size: 28rpx;
+}
+.workbench-page.elder-page .menu-title {
+  margin-top: 20rpx;
+  font-size: 32rpx;
+}
+.workbench-page.elder-page .menu-copy {
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+.workbench-page.elder-page .menu-footer {
+  font-size: 25rpx;
+}
+.workbench-page.elder-page .help-card {
+  min-height: 104rpx;
+}
+.workbench-page.elder-page .help-title {
+  font-size: 30rpx;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <view class="page mine-page">
+  <view class="page mine-page" :class="{ 'elder-page': isCustomer }">
     <view class="profile-card" :class="{ clickable: canSwitch }" @click="canSwitch && goSwitch()">
       <view class="profile-pattern" />
       <view class="profile-top">
@@ -64,6 +64,7 @@ const canSwitch = computed(() => (auth.user?.availableWorkbenches.length || 0) >
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
 const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
+const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
 async function signOut() {
   await auth.signOut()
   uni.reLaunch({ url: '/pages/login/index' })

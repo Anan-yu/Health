@@ -1,5 +1,5 @@
 <template>
-  <view class="page report-detail-page">
+  <view class="page report-detail-page elder-page">
     <PageState :loading="loading" :error="error" :empty="!report">
       <view class="report-hero">
         <view class="report-symbol">报</view>

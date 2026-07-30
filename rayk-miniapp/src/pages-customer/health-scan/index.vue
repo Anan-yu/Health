@@ -1,5 +1,5 @@
 <template>
-  <view class="page scan-page">
+  <view class="page scan-page elder-page">
     <view class="scan-stage">
       <view class="stage-glow stage-glow-top" />
       <view class="stage-glow stage-glow-bottom" />
@@ -383,41 +383,44 @@ const readyItems = [
   line-height: 1.55;
 }
 .indicator-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18rpx 12rpx;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
   margin-top: 28rpx;
 }
 .indicator-item {
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  width: calc(33.333% - 8rpx);
-  min-height: 70rpx;
-  padding: 10rpx 12rpx;
-  border-radius: 20rpx;
+  min-height: 84rpx;
+  padding: 14rpx 16rpx;
+  border: 1rpx solid #e3efea;
+  border-radius: 22rpx;
   background: #f1f8f5;
+}
+.indicator-item:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 .indicator-icon {
   display: flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 42rpx;
-  height: 42rpx;
-  margin-right: 10rpx;
-  border-radius: 14rpx;
+  width: 52rpx;
+  height: 52rpx;
+  margin-right: 14rpx;
+  border-radius: 17rpx;
   background: #d8f1e8;
   color: #08715b;
-  font-size: 18rpx;
+  font-size: 22rpx;
   font-weight: 750;
 }
 .indicator-name {
   min-width: 0;
   color: #29483f;
-  font-size: 20rpx;
-  line-height: 1.25;
-  font-weight: 650;
+  font-size: 25rpx;
+  line-height: 1.35;
+  font-weight: 680;
 }
 .ready-head {
   display: flex;

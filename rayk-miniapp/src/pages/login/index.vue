@@ -1,5 +1,5 @@
 <template>
-  <view class="page login-page">
+  <view class="page login-page elder-page">
     <view class="hero">
       <view class="orb orb-one" />
       <view class="orb orb-two" />
@@ -464,5 +464,37 @@ async function handleLogin() {
   border: 1rpx solid #f6cbc6;
   border-radius: 18rpx;
   background: #fff0ee;
+}
+.login-page.elder-page .hero {
+  margin-right: -24rpx;
+  margin-left: -24rpx;
+}
+.login-page.elder-page .brand-name {
+  font-size: 38rpx;
+}
+.login-page.elder-page .brand-tag {
+  font-size: 22rpx;
+}
+.login-page.elder-page .hero-copy {
+  font-size: 28rpx;
+  line-height: 1.65;
+}
+.login-page.elder-page .trust-row {
+  flex-wrap: wrap;
+  font-size: 26rpx;
+}
+.login-page.elder-page .card-title {
+  font-size: 38rpx;
+}
+.login-page.elder-page .wechat,
+.login-page.elder-page .enter-button {
+  height: 106rpx;
+  font-size: 34rpx;
+  line-height: 106rpx;
+}
+.login-page.elder-page .agreement,
+.login-page.elder-page .recognizing {
+  font-size: 25rpx;
+  line-height: 1.65;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <view class="page message-page">
+  <view class="page message-page" :class="{ 'elder-page': isCustomer }">
     <view class="page-heading">
       <view
         ><view class="title">消息中心</view

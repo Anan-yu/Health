@@ -1,5 +1,5 @@
 <template>
-  <view class="page"
+  <view class="page elder-page"
     ><view class="title">健康档案与问卷</view
     ><view class="subtitle page-copy">请认真作答，作答内容将作为健康报告评估依据。</view
     ><PageState :loading="loading" :error="error" :empty="!patient"
@@ -467,14 +467,14 @@ const save = async () => {
   border-radius: 20rpx;
   background: #eaf8f3;
   color: #42685d;
-  font-size: 23rpx;
+  font-size: 28rpx;
   line-height: 1.65;
 }
 .questionnaire-note text {
   display: block;
   margin-bottom: 6rpx;
   color: #0e755d;
-  font-size: 27rpx;
+  font-size: 32rpx;
   font-weight: 720;
 }
 .completion-preview {
@@ -489,7 +489,7 @@ const save = async () => {
   justify-content: space-between;
   margin-bottom: 14rpx;
   color: #24483d;
-  font-size: 25rpx;
+  font-size: 30rpx;
   font-weight: 700;
 }
 .completion-header text:last-child {
@@ -498,7 +498,7 @@ const save = async () => {
 .identity-note {
   margin-bottom: 4rpx;
   color: #55746a;
-  font-size: 22rpx;
+  font-size: 27rpx;
   line-height: 1.6;
 }
 .field {
@@ -509,7 +509,7 @@ const save = async () => {
   display: block;
   margin-bottom: 14rpx;
   color: #29483e;
-  font-size: 25rpx;
+  font-size: 29rpx;
 }
 .field input,
 .field textarea,
@@ -517,20 +517,20 @@ const save = async () => {
   width: 100%;
   box-sizing: border-box;
   color: #334b43;
-  font-size: 25rpx;
+  font-size: 30rpx;
 }
 .picker-value {
-  min-height: 42rpx;
+  min-height: 56rpx;
   color: #526b63;
 }
 .field textarea {
-  min-height: 110rpx;
+  min-height: 150rpx;
 }
 .primary-button {
   margin-top: 26rpx;
-  border-radius: 16rpx;
+  border-radius: 26rpx;
   background: #0f7a62;
   color: #fff;
-  font-size: 28rpx;
+  font-size: 32rpx;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <view class="page home-page">
+  <view class="page home-page" :class="{ 'elder-page': isCustomer }">
     <PageState :loading="loading" :error="error">
       <view class="hero-card">
         <view class="hero-glow" />
@@ -694,5 +694,113 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
 .insight-arrow {
   color: #b58d42;
   font-size: 42rpx;
+}
+.home-page.elder-page .hero-card {
+  padding: 42rpx 36rpx 36rpx;
+}
+.home-page.elder-page .hero-date,
+.home-page.elder-page .workbench-pill,
+.home-page.elder-page .switch-link {
+  font-size: 27rpx;
+}
+.home-page.elder-page .hero-greeting {
+  max-width: 500rpx;
+  font-size: 46rpx;
+}
+.home-page.elder-page .hero-caption {
+  font-size: 28rpx;
+  line-height: 1.65;
+}
+.home-page.elder-page .section-tip {
+  font-size: 26rpx;
+}
+.home-page.elder-page .health-dashboard {
+  display: block;
+  padding: 28rpx;
+  border-width: 2rpx;
+}
+.home-page.elder-page .profile-gauge-panel {
+  display: grid;
+  grid-template-columns: 210rpx 1fr;
+  grid-template-rows: auto auto;
+  justify-content: stretch;
+  padding: 4rpx 0 28rpx;
+  border-bottom: 1rpx solid #dceae5;
+  text-align: left;
+}
+.home-page.elder-page .profile-gauge {
+  grid-row: 1 / 3;
+  width: 190rpx;
+  height: 190rpx;
+}
+.home-page.elder-page .profile-gauge-status {
+  align-self: end;
+  margin-top: 0;
+  font-size: 30rpx;
+}
+.home-page.elder-page .profile-gauge-action {
+  align-self: start;
+  margin-top: 12rpx;
+  font-size: 26rpx;
+}
+.home-page.elder-page .profile-gauge-label {
+  font-size: 23rpx;
+}
+.home-page.elder-page .dashboard-stat-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+.home-page.elder-page .dashboard-stat {
+  display: block;
+  min-height: 220rpx;
+  padding: 24rpx;
+}
+.home-page.elder-page .dashboard-stat-icon {
+  width: 66rpx;
+  height: 66rpx;
+  margin: 0 0 18rpx;
+  font-size: 27rpx;
+}
+.home-page.elder-page .dashboard-stat-value {
+  font-size: 44rpx;
+}
+.home-page.elder-page .dashboard-stat-label {
+  overflow: visible;
+  font-size: 28rpx;
+  white-space: normal;
+}
+.home-page.elder-page .dashboard-stat-hint {
+  font-size: 23rpx;
+}
+.home-page.elder-page .service-card {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
+  padding: 24rpx;
+}
+.home-page.elder-page .service-item {
+  min-height: 148rpx;
+  padding: 22rpx 10rpx;
+  border-radius: 24rpx;
+  background: #f8fbfa;
+}
+.home-page.elder-page .service-icon {
+  width: 82rpx;
+  height: 82rpx;
+  font-size: 28rpx;
+}
+.home-page.elder-page .service-name {
+  overflow: visible;
+  font-size: 28rpx;
+  white-space: normal;
+}
+.home-page.elder-page .insight-label {
+  font-size: 25rpx;
+}
+.home-page.elder-page .insight-title {
+  overflow: visible;
+  font-size: 29rpx;
+  white-space: normal;
 }
 </style>

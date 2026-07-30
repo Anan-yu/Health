@@ -1,5 +1,5 @@
 <template>
-  <view class="page"
+  <view class="page elder-page"
     ><view class="title">我的随访</view
     ><CareFeedbackCard
       :title="journeyFeedback.title"
@@ -210,11 +210,15 @@ const feedback = (id: string) =>
   margin: 24rpx 0;
 }
 .filter {
-  padding: 12rpx 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72rpx;
+  padding: 0 28rpx;
   border-radius: 999rpx;
   background: #e9efed;
   color: #73827d;
-  font-size: 22rpx;
+  font-size: 28rpx;
 }
 .filter.active {
   background: #dff3ec;
@@ -230,7 +234,7 @@ const feedback = (id: string) =>
 .cycle-copy {
   margin-top: 8rpx;
   color: #8a9994;
-  font-size: 21rpx;
+  font-size: 26rpx;
 }
 .plan-sections {
   margin-top: 18rpx;
@@ -245,7 +249,7 @@ const feedback = (id: string) =>
   gap: 12rpx;
   margin-bottom: 14rpx;
   color: #173f36;
-  font-size: 27rpx;
+  font-size: 31rpx;
   font-weight: 700;
 }
 .section-icon {
@@ -264,7 +268,7 @@ const feedback = (id: string) =>
   gap: 12rpx;
   padding: 7rpx 0 7rpx 6rpx;
   color: #4d6961;
-  font-size: 24rpx;
+  font-size: 29rpx;
   line-height: 1.65;
 }
 .bullet {
@@ -279,7 +283,7 @@ const feedback = (id: string) =>
   padding: 20rpx 0;
   border-top: 1rpx solid #e8efec;
   color: #71837d;
-  font-size: 23rpx;
+  font-size: 28rpx;
 }
 .feedback-button {
   width: 100%;
@@ -301,7 +305,7 @@ const feedback = (id: string) =>
   border-radius: 16rpx;
   background: #eaf7f2;
   color: #34715f;
-  font-size: 22rpx;
+  font-size: 27rpx;
   line-height: 1.55;
 }
 </style>
