@@ -45,9 +45,48 @@ public final class AiDtos {
       String moodStatus,
       String fearLevel,
       String dietaryPreference,
-      String recentDietaryPattern) {
+      String recentDietaryPattern,
+      BigDecimal cameraHeartRate,
+      BigDecimal cameraHeartRateVariability,
+      BigDecimal cameraOxygenSaturation,
+      BigDecimal cameraRespirationRate,
+      BigDecimal cameraSystolicBloodPressure,
+      BigDecimal cameraDiastolicBloodPressure,
+      BigDecimal cameraStressHrv,
+      BigDecimal cameraVitalsQualityScore) {
     public PatientContext(String gender, Integer age) {
-      this(gender, age, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+      this(
+          gender,
+          age,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null);
     }
   }
 

@@ -18,6 +18,7 @@ import com.rayk.health.followup.dto.FollowupFeedbackRequest;
 import com.rayk.health.followup.mapper.FollowupTaskMapper;
 import com.rayk.health.followup.application.NutritionFollowupPlanService;
 import com.rayk.health.followup.vo.FollowupTaskVo;
+import com.rayk.health.healthscan.application.HealthScanContextService;
 import com.rayk.health.indicator.entity.IndicatorValueEntity;
 import com.rayk.health.indicator.application.AssessmentModelService;
 import com.rayk.health.indicator.mapper.IndicatorValueMapper;
@@ -85,6 +86,7 @@ public class WorkflowApplicationService {
     private final AssessmentModelService assessmentModelService;
     private final PrivacyConsentService privacyConsentService;
     private final NutritionFollowupPlanService nutritionFollowupPlanService;
+    private final HealthScanContextService healthScanContextService;
 
     public WorkflowApplicationService(
             LabReportMapper labReportMapper,
@@ -103,7 +105,8 @@ public class WorkflowApplicationService {
             PdfReportService pdfReportService,
             AssessmentModelService assessmentModelService,
             PrivacyConsentService privacyConsentService,
-            NutritionFollowupPlanService nutritionFollowupPlanService) {
+            NutritionFollowupPlanService nutritionFollowupPlanService,
+            HealthScanContextService healthScanContextService) {
         this.labReportMapper = labReportMapper;
         this.indicatorMapper = indicatorMapper;
         this.aiTaskMapper = aiTaskMapper;
@@ -121,6 +124,7 @@ public class WorkflowApplicationService {
         this.assessmentModelService = assessmentModelService;
         this.privacyConsentService = privacyConsentService;
         this.nutritionFollowupPlanService = nutritionFollowupPlanService;
+        this.healthScanContextService = healthScanContextService;
     }
 
     public List<Long> accessiblePatientIds() {
@@ -268,7 +272,12 @@ public class WorkflowApplicationService {
                                                             item.getReferenceHigh()))
                                     .toList(),
                             activeModelCodes,
-                            toPatientContext(gender, age, profile));
+                            toPatientContext(
+                                    gender,
+                                    age,
+                                    profile,
+                                    healthScanContextService.latest(
+                                            current.tenantId(), patient.getId())));
             AiDtos.AssessmentData aiResult = aiServiceClient.evaluate(aiRequest);
             task.setStatus("SUCCESS");
             task.setFinishedAt(LocalDateTime.now());
@@ -645,8 +654,13 @@ public class WorkflowApplicationService {
                             : "UNKNOWN";
             AiDtos.FollowupAdjustmentData result =
                     aiServiceClient.adjustFollowup(
-                            new AiDtos.FollowupAdjustmentRequest(
-                                    toPatientContext(gender, age, profile),
+                             new AiDtos.FollowupAdjustmentRequest(
+                                     toPatientContext(
+                                             gender,
+                                             age,
+                                             profile,
+                                             healthScanContextService.latest(
+                                                     task.getTenantId(), task.getPatientId())),
                                     cycleNo,
                                     maxCycles,
                                     completionRate,
@@ -990,6 +1004,15 @@ public class WorkflowApplicationService {
 
     private AiDtos.PatientContext toPatientContext(
             String gender, Integer age, HealthProfileVo profile) {
+        return toPatientContext(
+                gender, age, profile, HealthScanContextService.LatestVitals.empty());
+    }
+
+    private AiDtos.PatientContext toPatientContext(
+            String gender,
+            Integer age,
+            HealthProfileVo profile,
+            HealthScanContextService.LatestVitals latestVitals) {
         return new AiDtos.PatientContext(
                 gender,
                 age,
@@ -1013,7 +1036,15 @@ public class WorkflowApplicationService {
                 profile.moodStatus(),
                 profile.fearLevel(),
                 profile.dietaryPreference(),
-                profile.recentDietaryPattern());
+                profile.recentDietaryPattern(),
+                latestVitals.heartRate(),
+                latestVitals.heartRateVariability(),
+                latestVitals.oxygenSaturation(),
+                latestVitals.respirationRate(),
+                latestVitals.systolicBloodPressure(),
+                latestVitals.diastolicBloodPressure(),
+                latestVitals.stressHrv(),
+                latestVitals.qualityScore());
     }
 
     private HealthReportEntity publishAutomatically(

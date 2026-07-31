@@ -31,6 +31,26 @@ class PatientContext(RaykModel):
     fear_level: str | None = Field(default=None, alias="fearLevel")
     dietary_preference: str | None = Field(default=None, alias="dietaryPreference")
     recent_dietary_pattern: str | None = Field(default=None, alias="recentDietaryPattern")
+    camera_heart_rate: Decimal | None = Field(default=None, alias="cameraHeartRate")
+    camera_heart_rate_variability: Decimal | None = Field(
+        default=None, alias="cameraHeartRateVariability"
+    )
+    camera_oxygen_saturation: Decimal | None = Field(
+        default=None, alias="cameraOxygenSaturation"
+    )
+    camera_respiration_rate: Decimal | None = Field(
+        default=None, alias="cameraRespirationRate"
+    )
+    camera_systolic_blood_pressure: Decimal | None = Field(
+        default=None, alias="cameraSystolicBloodPressure"
+    )
+    camera_diastolic_blood_pressure: Decimal | None = Field(
+        default=None, alias="cameraDiastolicBloodPressure"
+    )
+    camera_stress_hrv: Decimal | None = Field(default=None, alias="cameraStressHrv")
+    camera_vitals_quality_score: Decimal | None = Field(
+        default=None, alias="cameraVitalsQualityScore"
+    )
 
 
 class AssessmentRequest(RaykModel):

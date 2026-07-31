@@ -1,4 +1,4 @@
-FROM python:3.12.10-slim AS runtime
+FROM docker.m.daocloud.io/library/python:3.12.10-slim AS runtime
 
 ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 

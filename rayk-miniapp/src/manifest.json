@@ -8,6 +8,12 @@
   "h5": { "router": { "mode": "hash" }, "title": "致宇健康" },
   "mp-weixin": {
     "appid": "wx47c756d2ffebe0e9",
-    "setting": { "urlCheck": false, "es6": true, "minified": true }
+    "setting": { "urlCheck": false, "es6": true, "minified": true },
+    "plugins": {
+      "vitals-plugin": {
+        "version": "latest",
+        "provider": "wx9ad841f52fa9bd7b"
+      }
+    }
   }
 }

@@ -34,15 +34,26 @@
         <view class="section-tip refresh-tip" @click="refresh(true)">{{ refreshLabel }}</view>
       </view>
       <view v-if="isCustomer" class="health-dashboard">
-        <view class="profile-gauge-panel" @click="open(profileMetric?.route || insightRoute)">
-          <view class="profile-gauge" :style="profileGaugeStyle">
-            <view class="profile-gauge-core">
-              <view class="profile-gauge-value">{{ profileCompleteness }}<text>%</text></view>
-              <view class="profile-gauge-label">档案完整度</view>
+        <view class="profile-progress-panel" @click="open(profileMetric?.route || insightRoute)">
+          <view class="profile-progress-head">
+            <view>
+              <view class="profile-progress-title">档案完整度</view>
+              <view class="profile-progress-status">{{ profileCompletenessLabel }}</view>
             </view>
+            <view class="profile-progress-value"
+              >{{ profileCompleteness }}<text>%</text></view
+            >
           </view>
-          <view class="profile-gauge-status">{{ profileCompletenessLabel }}</view>
-          <view class="profile-gauge-action">查看健康档案 ›</view>
+          <view class="profile-progress-track">
+            <view
+              class="profile-progress-bar"
+              :style="{ width: `${profileCompleteness}%` }"
+            />
+          </view>
+          <view class="profile-progress-action">
+            <text>查看健康档案</text>
+            <text class="profile-progress-arrow">›</text>
+          </view>
         </view>
         <view class="dashboard-stat-list">
           <view
@@ -51,17 +62,15 @@
             class="dashboard-stat"
             @click="open(item.route)"
           >
-            <view class="dashboard-stat-icon" :class="`stat-tone-${index}`">{{
-              item.code === 'REPORT' ? '报' : '访'
-            }}</view>
-            <view class="dashboard-stat-content">
-              <view class="dashboard-stat-top">
-                <view class="dashboard-stat-value">{{ item.value }}</view>
-                <text>›</text>
-              </view>
-              <view class="dashboard-stat-label">{{ item.label }}</view>
-              <view class="dashboard-stat-hint">实时更新 · 点击查看</view>
+            <view class="dashboard-stat-head">
+              <view class="dashboard-stat-icon" :class="`stat-tone-${index}`">{{
+                item.code === 'REPORT' ? '报' : '访'
+              }}</view>
+              <text class="dashboard-stat-arrow">›</text>
             </view>
+            <view class="dashboard-stat-value">{{ item.value }}</view>
+            <view class="dashboard-stat-label">{{ item.label }}</view>
+            <view class="dashboard-stat-hint">点击查看详情</view>
           </view>
         </view>
       </view>
@@ -254,9 +263,6 @@ const careFeedback = computed<{
     route: '/pages-tenant/dashboard/followup',
   }
 })
-const profileGaugeStyle = computed(() => ({
-  background: `conic-gradient(#13846a ${profileCompleteness.value * 3.6}deg, #dceee8 0deg)`,
-}))
 const profileCompletenessLabel = computed(() => {
   if (profileCompleteness.value >= 100) return '档案已完整'
   if (profileCompleteness.value >= 70) return '继续补充更准确'
@@ -409,87 +415,89 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   gap: 18rpx;
 }
 .health-dashboard {
-  display: grid;
-  grid-template-columns: 0.92fr 1.08fr;
-  gap: 18rpx;
-  padding: 24rpx;
+  padding: 26rpx;
   border: 1rpx solid #dceae5;
   border-radius: 32rpx;
-  background: linear-gradient(145deg, #ffffff 0%, #f0faf6 100%);
+  background: linear-gradient(145deg, #ffffff 0%, #f3faf7 100%);
   box-shadow: 0 14rpx 34rpx rgba(24, 92, 73, 0.08);
 }
-.profile-gauge-panel {
+.profile-progress-panel {
+  padding: 4rpx 2rpx 26rpx;
+  border-bottom: 1rpx solid #dceae5;
+}
+.profile-progress-head {
   display: flex;
   align-items: center;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 0;
-  padding: 12rpx 4rpx;
+  justify-content: space-between;
 }
-.profile-gauge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 190rpx;
-  height: 190rpx;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1rpx rgba(19, 132, 106, 0.05);
-  transition: background 0.35s ease;
+.profile-progress-title {
+  color: #183c33;
+  font-size: 27rpx;
+  line-height: 1.4;
+  font-weight: 720;
 }
-.profile-gauge-core {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  justify-content: center;
-  width: 148rpx;
-  height: 148rpx;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 8rpx 18rpx rgba(20, 96, 76, 0.09);
+.profile-progress-status {
+  margin-top: 5rpx;
+  color: #6f827c;
+  font-size: 21rpx;
+  line-height: 1.4;
 }
-.profile-gauge-value {
+.profile-progress-value {
   color: #0d745d;
-  font-size: 42rpx;
+  font-size: 46rpx;
   font-weight: 780;
   line-height: 1;
 }
-.profile-gauge-value text {
+.profile-progress-value text {
   margin-left: 2rpx;
-  font-size: 22rpx;
+  font-size: 24rpx;
 }
-.profile-gauge-label {
-  margin-top: 10rpx;
-  color: #627b73;
-  font-size: 20rpx;
-  line-height: 1.4;
+.profile-progress-track {
+  height: 12rpx;
+  margin-top: 22rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  background: #dceee8;
 }
-.profile-gauge-status {
-  margin-top: 16rpx;
-  color: #1d4d40;
+.profile-progress-bar {
+  height: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #0d745d 0%, #35b18d 100%);
+  box-shadow: 0 3rpx 10rpx rgba(18, 133, 104, 0.2);
+  transition: width 0.35s ease;
+}
+.profile-progress-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18rpx;
+  color: #0f7a62;
   font-size: 22rpx;
   line-height: 1.4;
   font-weight: 650;
 }
-.profile-gauge-action {
-  margin-top: 8rpx;
-  color: #6c827b;
-  font-size: 19rpx;
-  line-height: 1.4;
+.profile-progress-arrow {
+  font-size: 32rpx;
+  line-height: 1;
 }
 .dashboard-stat-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14rpx;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+  margin-top: 24rpx;
 }
 .dashboard-stat {
-  display: flex;
-  align-items: center;
-  flex: 1;
   min-width: 0;
-  padding: 20rpx;
+  padding: 22rpx;
   border: 1rpx solid #e1ece8;
   border-radius: 24rpx;
   background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 8rpx 18rpx rgba(28, 88, 71, 0.04);
+}
+.dashboard-stat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .dashboard-stat-icon {
   display: flex;
@@ -498,7 +506,6 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   flex: 0 0 auto;
   width: 58rpx;
   height: 58rpx;
-  margin-right: 18rpx;
   border-radius: 19rpx;
   background: #eaf1ff;
   color: #4472bc;
@@ -509,22 +516,15 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   background: #fff0d6;
   color: #a66b0c;
 }
-.dashboard-stat-content {
-  flex: 1;
-  min-width: 0;
-}
-.dashboard-stat-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.dashboard-stat-top text {
+.dashboard-stat-arrow {
   color: #9aaba5;
-  font-size: 28rpx;
+  font-size: 32rpx;
+  line-height: 1;
 }
 .dashboard-stat-value {
+  margin-top: 22rpx;
   color: #0d745d;
-  font-size: 36rpx;
+  font-size: 42rpx;
   font-weight: 780;
   line-height: 1;
 }
@@ -715,40 +715,23 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   font-size: 26rpx;
 }
 .home-page.elder-page .health-dashboard {
-  display: block;
   padding: 28rpx;
   border-width: 2rpx;
 }
-.home-page.elder-page .profile-gauge-panel {
-  display: grid;
-  grid-template-columns: 210rpx 1fr;
-  grid-template-rows: auto auto;
-  justify-content: stretch;
-  padding: 4rpx 0 28rpx;
-  border-bottom: 1rpx solid #dceae5;
-  text-align: left;
+.home-page.elder-page .profile-progress-panel {
+  padding-bottom: 28rpx;
 }
-.home-page.elder-page .profile-gauge {
-  grid-row: 1 / 3;
-  width: 190rpx;
-  height: 190rpx;
-}
-.home-page.elder-page .profile-gauge-status {
-  align-self: end;
-  margin-top: 0;
+.home-page.elder-page .profile-progress-title {
   font-size: 30rpx;
 }
-.home-page.elder-page .profile-gauge-action {
-  align-self: start;
-  margin-top: 12rpx;
+.home-page.elder-page .profile-progress-status,
+.home-page.elder-page .profile-progress-action {
   font-size: 26rpx;
 }
-.home-page.elder-page .profile-gauge-label {
-  font-size: 23rpx;
+.home-page.elder-page .profile-progress-value {
+  font-size: 52rpx;
 }
 .home-page.elder-page .dashboard-stat-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 16rpx;
   margin-top: 24rpx;
 }

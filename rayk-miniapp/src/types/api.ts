@@ -99,6 +99,35 @@ export interface HealthProfile {
   updatedAt?: string
 }
 
+export interface HealthScanSession {
+  taskId: string
+  appId: string
+  timestamp: number
+  outUserId: string
+  sign: string
+  serverUrl?: string
+  pluginProvider: string
+  pluginVersion?: string
+}
+
+export interface HealthScanResult {
+  id: string
+  status: 'CREATED' | 'UPLOADING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED'
+  statusLabel: string
+  vendorDetectId?: string
+  heartRate?: number
+  heartRateVariability?: number
+  oxygenSaturation?: number
+  respirationRate?: number
+  systolicBloodPressure?: number
+  diastolicBloodPressure?: number
+  stressHrv?: number
+  qualityScore?: number
+  failureMessage?: string
+  createdAt: string
+  completedAt?: string
+}
+
 export interface SupportTicket {
   id: string
   category: 'USAGE' | 'BUG' | 'SUGGESTION' | 'OTHER'

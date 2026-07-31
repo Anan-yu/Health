@@ -93,6 +93,18 @@ rayk:
     processing-timeout-minutes: ${RAYK_TASK_PROCESSING_TIMEOUT_MINUTES:10}
     pending-timeout-minutes: ${RAYK_TASK_PENDING_TIMEOUT_MINUTES:2}
     recovery-interval-ms: ${RAYK_TASK_RECOVERY_INTERVAL_MS:60000}
+  health-shot:
+    enabled: ${HEALTH_SHOT_ENABLED:false}
+    app-id: ${HEALTH_SHOT_APP_ID:}
+    key: ${HEALTH_SHOT_KEY:}
+    api-base-url: ${HEALTH_SHOT_API_BASE_URL:https://api-uat.utours.cn}
+    upload-path: ${HEALTH_SHOT_UPLOAD_PATH:/open-service/face-detect/upload-video}
+    environment: ${HEALTH_SHOT_ENVIRONMENT:UAT}
+    plugin-provider: ${HEALTH_SHOT_PLUGIN_PROVIDER:wx9ad841f52fa9bd7b}
+    plugin-version: ${HEALTH_SHOT_PLUGIN_VERSION:latest}
+    plugin-server-url: ${HEALTH_SHOT_PLUGIN_SERVER_URL:}
+    connect-timeout-seconds: ${HEALTH_SHOT_CONNECT_TIMEOUT_SECONDS:10}
+    read-timeout-seconds: ${HEALTH_SHOT_READ_TIMEOUT_SECONDS:120}
 
 logging:
   pattern:
