@@ -172,6 +172,17 @@ NON_FINDING_METADATA_CONTAINS = tuple(
 def is_non_finding_metadata_name(name: str) -> bool:
     compact = re.sub(r"[\s:：|/]+", "", (name or "")).casefold()
     return not compact or any(marker in compact for marker in NON_FINDING_METADATA_CONTAINS)
+
+
+def is_non_finding_metadata(item: str, result: str) -> bool:
+    """Reject administrative rows split by OCR without discarding medical prose."""
+    if is_non_finding_metadata_name(item):
+        return True
+    combined = re.sub(r"[\s:：|/]+", "", f"{item or ''}{result or ''}").casefold()
+    marker_count = sum(marker in combined for marker in set(NON_FINDING_METADATA_CONTAINS))
+    return marker_count >= 2
+
+
 OCR_NAME_CORRECTIONS = {
     "呷离子": "钾离子",
     "内离子": "钠离子",
@@ -1768,7 +1779,7 @@ class PaddleOcrService(OcrService):
             status=quality.status,
             confidence=quality.confidence,
             indicators=quality.indicators,
-            findings=pdf_findings,
+            findings=self._merge_findings(pdf_findings, []),
             raw_lines=native_lines if native_lines else lines,
             warnings=warnings,
         )
@@ -2071,7 +2082,7 @@ class PaddleOcrService(OcrService):
         exact_seen: set[tuple[str, str, str]] = set()
         source_items: set[tuple[str, str]] = set()
         for item in primary:
-            if is_non_finding_metadata_name(item.item):
+            if is_non_finding_metadata(item.item, item.result):
                 continue
             section = item.section.strip()
             name = item.item.strip()
@@ -2083,7 +2094,7 @@ class PaddleOcrService(OcrService):
             source_items.add((section, name))
             merged.append(item)
         for item in supplemental:
-            if is_non_finding_metadata_name(item.item):
+            if is_non_finding_metadata(item.item, item.result):
                 continue
             section = item.section.strip()
             name = item.item.strip()

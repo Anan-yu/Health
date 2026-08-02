@@ -1015,7 +1015,7 @@ public class WorkflowApplicationService {
                         String result = node.path("result").asText("").trim();
                         if (!item.isBlank()
                                 && !result.isBlank()
-                                && LabIndicatorVisibility.isFindingVisible(item)) {
+                                && LabIndicatorVisibility.isFindingVisible(item, result)) {
                             values.add(
                                     new OcrFindingVo(
                                             section.isBlank() ? "体检结果" : section,
@@ -1067,8 +1067,11 @@ public class WorkflowApplicationService {
                 profile.waistCm(),
                 profile.recentWeightChangeKg(),
                 profile.bmi(),
+                profile.lifestyleSummary(),
                 profile.medicalHistory(),
                 profile.familyHistory(),
+                profile.allergyHistory(),
+                profile.currentMedications(),
                 profile.diabetesStatus(),
                 profile.hypertensionStatus(),
                 profile.dyslipidemiaStatus(),

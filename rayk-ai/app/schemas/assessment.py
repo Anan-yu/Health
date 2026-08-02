@@ -16,8 +16,11 @@ class PatientContext(RaykModel):
     waist_cm: Decimal | None = Field(default=None, alias="waistCm")
     recent_weight_change_kg: Decimal | None = Field(default=None, alias="recentWeightChangeKg")
     bmi: Decimal | None = None
+    lifestyle_summary: str | None = Field(default=None, alias="lifestyleSummary")
     medical_history: str | None = Field(default=None, alias="medicalHistory")
     family_history: str | None = Field(default=None, alias="familyHistory")
+    allergy_history: str | None = Field(default=None, alias="allergyHistory")
+    current_medications: str | None = Field(default=None, alias="currentMedications")
     diabetes_status: str | None = Field(default=None, alias="diabetesStatus")
     hypertension_status: str | None = Field(default=None, alias="hypertensionStatus")
     dyslipidemia_status: str | None = Field(default=None, alias="dyslipidemiaStatus")

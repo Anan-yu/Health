@@ -31,4 +31,18 @@ class LabIndicatorVisibilityTest {
         assertThat(LabIndicatorVisibility.isFindingVisible("胆囊")).isTrue();
         assertThat(LabIndicatorVisibility.isFindingVisible("检查小结")).isTrue();
     }
+
+    @Test
+    void removesAdministrativeRowsSplitAcrossFindingColumns() {
+        assertThat(
+                        LabIndicatorVisibility.isFindingVisible(
+                                "姓", "名 张某 性 别 男 年 龄 60 岁 检查日期 2026年07月25日"))
+                .isFalse();
+        assertThat(
+                        LabIndicatorVisibility.isFindingVisible(
+                                "检查所见", "甲状腺形态正常，建议结合年龄变化定期随访"))
+                .isTrue();
+        assertThat(LabIndicatorVisibility.isFindingVisible("检查小结", "未见明显异常"))
+                .isTrue();
+    }
 }

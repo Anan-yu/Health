@@ -65,6 +65,29 @@ def test_finding_merge_preserves_source_and_rejects_cloud_rewrites() -> None:
     ]
 
 
+def test_finding_merge_rejects_split_identity_row_without_removing_medical_prose() -> None:
+    findings = [
+        OcrFinding(
+            section="甲状腺",
+            item="姓",
+            result="名 张某 性 别 男 年 龄 60 岁 检查日期 2026年07月25日",
+        ),
+        OcrFinding(
+            section="甲状腺",
+            item="检查所见",
+            result="甲状腺形态正常，建议结合年龄变化定期随访",
+        ),
+        OcrFinding(section="甲状腺", item="检查小结", result="未见明显异常"),
+    ]
+
+    merged = PaddleOcrService._merge_findings(findings, [])
+
+    assert [(item.item, item.result) for item in merged] == [
+        ("检查所见", "甲状腺形态正常，建议结合年龄变化定期随访"),
+        ("检查小结", "未见明显异常"),
+    ]
+
+
 def test_parser_supports_english_aliases() -> None:
     indicators = IndicatorRowParser().parse(["HbA1c 5.8 % 4.0~6.0", "LDL-C 3.4 mmol/L 0-3.37"])
 

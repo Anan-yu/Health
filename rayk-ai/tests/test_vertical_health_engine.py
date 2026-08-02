@@ -59,7 +59,10 @@ def _request() -> AssessmentRequest:
             age=38,
             heightCm=Decimal("165"),
             weightKg=Decimal("66"),
+            lifestyleSummary="久坐办公，工作日常在外就餐",
             familyHistory="父亲有糖尿病",
+            allergyHistory="青霉素过敏",
+            currentMedications="正在服用医生开具的降压药",
             sleepQuality="POOR",
             stressLevel="MEDIUM",
         ),
@@ -130,6 +133,13 @@ def test_clinical_timeline_is_deidentified_and_calculates_bmi() -> None:
     assert timeline["anthropometrics"]["calculatedBmi"] == "24.2"
     assert timeline["laboratorySnapshot"]["abnormalCount"] == 1
     assert timeline["laboratorySnapshot"]["indicators"][0]["referenceStatus"] == "HIGH"
+    assert timeline["healthProfileAndQuestionnaire"]["lifestyleSummary"] == (
+        "久坐办公，工作日常在外就餐"
+    )
+    assert timeline["healthProfileAndQuestionnaire"]["allergyHistory"] == "青霉素过敏"
+    assert timeline["healthProfileAndQuestionnaire"]["currentMedications"] == (
+        "正在服用医生开具的降压药"
+    )
     assert timeline["examinationSnapshot"]["sectionCount"] == 1
     assert timeline["examinationSnapshot"]["observationCount"] == 1
     assert timeline["examinationSnapshot"]["summaryCount"] == 1
@@ -232,6 +242,10 @@ def test_vertical_prompt_contains_grounding_without_direct_identifiers() -> None
     assert user_message["data"]["evidenceBundle"]["evidence"]
     assert "patientFacts" in user_message["data"]["healthTimeline"]
     assert "examinationSnapshot" in user_message["data"]["healthTimeline"]
+    assert "久坐办公，工作日常在外就餐" in serialized
+    assert "青霉素过敏" in serialized
+    assert "正在服用医生开具的降压药" in serialized
+    assert "上腹部彩超（肝胆胰脾）" in serialized
     assert "肝实质回声细密增强" in serialized
     assert "考虑息肉样变" in serialized
     assert "TASK_SENSITIVE" not in serialized

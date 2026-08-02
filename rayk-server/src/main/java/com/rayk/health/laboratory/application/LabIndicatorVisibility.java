@@ -57,6 +57,22 @@ public final class LabIndicatorVisibility {
                 && FINDING_METADATA.stream().noneMatch(compact::contains);
     }
 
+    /**
+     * OCR may split one administrative row across the item and result columns, for example
+     * {@code 姓 | 名 张某 性别 男 年龄 60 岁 检查日期 ...}. Keep a single incidental metadata
+     * word in a legitimate medical sentence, but reject rows that reconstruct at least two
+     * administrative labels when both columns are joined.
+     */
+    public static boolean isFindingVisible(String item, String result) {
+        if (!isFindingVisible(item)) {
+            return false;
+        }
+        String combined = normalize(item) + normalize(result);
+        long metadataMarkers =
+                FINDING_METADATA.stream().filter(combined::contains).distinct().count();
+        return metadataMarkers < 2;
+    }
+
     private static String normalize(String value) {
         if (value == null) {
             return "";
