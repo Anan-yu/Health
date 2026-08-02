@@ -1,146 +1,144 @@
 # 致宇健康
 
-### 以医学数据为基础，以人工智能为引擎的全周期数字健康管理平台
+致宇健康是一套面向体检后健康管理的智能化平台。系统把分散在体检报告、个人档案、健康问卷、日常体征和随访反馈中的信息连接起来，通过结构化 OCR、医学知识检索、AI 综合评估和持续健康随访，形成从“一次体检”到“长期健康行动”的数字化闭环。
 
-**致宇健康**面向医院、体检中心、医生与个人用户，融合医学文档智能识别、多源健康数据治理、循证知识检索、多维健康评估、大模型综合解读和持续健康随访能力，构建从“数据采集”到“健康洞察”，再到“行动改善”的智能闭环。
+平台不是简单的报告阅读器，而是一套可持续演进的健康智能基础设施：它保留原始医学证据，建立可追踪的个人健康画像，将复杂指标转化为清晰、温暖、可执行的行动建议，并为医生提供统一的健康报告和趋势参考。
 
-平台以体检报告、健康档案、生活方式、饮食运动、睡眠情绪、疾病史及家族健康史等多维数据为基础，通过 OCR 结构化识别、指标标准化、规则计算、RAG 检索与大模型推理，将分散、复杂的健康数据转化为**可理解、可追踪、可行动**的个人健康洞察。系统不仅呈现当下的健康状态，更持续记录指标变化、识别潜在风险并生成个性化健康计划，让每一次体检都成为长期健康管理的起点。
+> 系统用于健康管理与辅助参考，不替代临床诊断、医生面诊或医疗设备测量。
 
-> **让每一份健康数据，清晰、有序、可行动。**
+## 产品角色
 
-## 核心能力
+系统当前只包含三个角色：
 
-- **医学数据智能化：** 自动识别 PDF、扫描件和手机拍摄的体检报告，通过多版式解析、指标别名归一和质量容错，将非结构化医学文档转化为可计算、可追踪的标准健康指标。
-- **多源健康数据融合：** 汇聚检验指标、基础档案、健康问卷、生活方式、疾病史与家族史，形成持续演化的个人健康画像。
-- **多维健康智能评估：** 结合十二维规则引擎、版本化医学知识库、混合 RAG 检索与大模型推理，从代谢、心血管、肝肾功能、营养、睡眠、心理、体重及生活方式等维度进行综合分析。
-- **可视化健康洞察：** 通过健康仪表盘、重点健康问题、趋势变化和结构化报告，帮助用户与医生快速掌握核心信息。
-- **个性化健康随访：** 根据评估结果生成饮食、运动、作息、微量营养建议和一周食谱；结合逐项完成情况、文字反馈、身体感受与困难原因，自动决定继续、调整或终止下一期计划。
-- **医院协同服务：** 支持合作医院管理、医生预录入、体检者查询及健康报告查看，让人工智能成为医院健康服务能力的数字化延伸。
-- **可信技术底座：** 采用 Java 业务中台、Python AI 引擎与容器化基础设施，实现业务权限、数据隔离、对象存储和智能计算的分层治理。
+| 角色 | 主要能力 |
+| --- | --- |
+| 平台管理员 | 管理合作医院和医生预录入；查看全平台健康报告、原体检报告及随访动态；回复问题反馈 |
+| 医生 | 按姓名或手机号筛选体检者；查看档案、体检报告、AI 评估、健康报告和随访；下载 PDF 报告 |
+| 普通客户 | 维护个人健康资料；上传报告；查看评估、报告和趋势；进行健康检测；完成随访和提醒设置 |
 
-> **健康管理声明：** 该结果仅用于健康管理参考，不构成医学诊断。
+当前试运行阶段医生为全平台体检者只读；正式上线前可按业务要求调整为医院隔离。普通客户始终只能访问本人数据。
 
-## 当前版本进展
-
-截至 **2026-07-29**，项目已形成可运行、可持续迭代的主体版本：
-
-| 模块 | 当前状态 |
-|---|---|
-| 微信身份体系 | 已完成微信身份、手机号匹配、角色自动识别与开发调试登录；正式手机号能力仍取决于微信主体资质和平台配置 |
-| 体检报告 OCR | 已完成 PDF/JPG/PNG 上传、MinIO 私有存储、异步识别、任务恢复、多栏表格解析、指标别名归一、参考区间提取和质量容错 |
-| 健康档案与问卷 | 已覆盖姓名、手机号、性别、出生日期、身高体重、生活方式、睡眠情绪、疾病史、家族史等数据，并按真实填写情况计算完整度 |
-| 智能健康评估 | 已完成十二个健康维度、有效维度过滤、健康仪表盘、重点问题、可能疾病辅助参考和中英文数据展示治理 |
-| 医学知识与 RAG | 已升级至 `ZHIYU_MEDICAL_KB_2.0.0`，支持结构化命中、中文关键词与字符向量相似度混合检索，评估和随访共用可追溯证据包 |
-| 健康报告 | 已完成用户与医生一致视图、整体健康状态、可能疾病与诊断参考、重点健康问题、PDF 生成、私有下载与原报告查看 |
-| 动态健康随访 | 已完成分类行动、逐项反馈、营养建议、一周食谱、下一期自适应调整、最大周期控制、到期提醒与终止规则 |
-| 平台与医院协同 | 已完成合作医院创建/编辑/启停、医生预录入/修改/删除、反馈处理、全平台健康报告和健康随访概览及详情 |
-| 面部健康检测 | 已完成小程序入口和采集交互页面；健康拍 API/SDK 的鉴权、计费、回调和结果映射仍待供应商资料后接入 |
-| 多端构建 | H5、微信开发包和局域网生产验收包保持同步构建；正式上线包需改用 HTTPS 合法域名并关闭调试入口 |
-
-## 单小程序承载 B 端和 C 端
-
-机构人员与普通客户使用同一套 uni-app 小程序和同一登录入口。账号可拥有一个或多个工作台；工作台决定首页摘要、卡片菜单、页面与按钮展示。真正的权限、租户和客户数据范围始终由 Java 服务端校验。
-
-固定 TabBar：**首页 / 工作台 / 消息 / 我的**。业务页面按 C 端、机构业务端、机构管理端分包，避免主包膨胀。
-
-## 系统架构
-
-```mermaid
-flowchart TB
-  USER[微信小程序 / H5] --> NGINX[Nginx 容器 :80 / 本机开发 :8088]
-  NGINX --> JAVA[Spring Boot 3 / Java 21 :8080]
-  NGINX --> PY[FastAPI / Python 3.12 :8000]
-  NGINX --> MINIO[MinIO :9000]
-  JAVA --> MYSQL[(MySQL 8.4 :3306)]
-  JAVA --> REDIS[(Redis 7 :6379)]
-  JAVA --> MINIO
-  JAVA -->|HTTP JSON + RequestId| PY
-  PY --> KB[(版本化医学知识库)]
-  PY -->|RAG 证据约束| LLM[DeepSeek]
-  JAVA -.待接入.-> SCAN[健康拍面部健康检测 API]
-  PY -.不访问业务数据库.-> MYSQL
-```
-
-Java 是核心业务、权限控制和数据一致性的唯一入口；Python 承载 PaddleOCR、健康指标标准化、多维规则计算、医学知识检索、大模型综合解读与智能随访能力，不直接访问业务数据库。健康拍等第三方服务必须由 Java 服务端统一鉴权和审计，密钥不得进入小程序。
-
-## 角色与工作台
-
-| 账号角色 | 默认工作台 | 一期能力 |
-|---|---|---|
-| `PLATFORM_ADMIN` | 平台管理工作台 | 合作医院管理、医生预录入与维护、平台反馈处理、全平台健康报告和健康随访概览及详情 |
-| `DOCTOR` | 医生工作台 | 按姓名或手机号查询体检者，查看原体检报告、健康评估与 PDF 健康报告，了解健康随访执行情况 |
-| `CUSTOMER` | 个人健康中心 | 健康档案与问卷、体检报告上传、AI 健康评估、健康报告、指标趋势、健康随访与反馈、面部健康检测入口 |
-
-医生身份同时具备个人用户能力，可在医生工作台和个人健康中心之间切换。
-
-## 技术栈
-
-- 小程序：uni-app、Vue 3、TypeScript、Pinia、Vite、uni-ui、ECharts 依赖、ESLint、Prettier
-- 业务端：Java 21、Spring Boot 3、Spring Security、JWT、Redis、MyBatis-Plus、Flyway、WebClient、MapStruct、Actuator、Springdoc
-- AI 端：Python 3.12、FastAPI、Pydantic、PaddleOCR、PaddlePaddle、NumPy、Pandas、scikit-learn、Pytest、Ruff、Black、MyPy
-- 基础设施：MySQL 8.4、Redis 7、MinIO、Nginx、Docker Compose
-
-## 目录
+## 核心业务闭环
 
 ```text
-.
-├─ rayk-server/          Java 核心业务服务
-├─ rayk-ai/              Python AI HTTP 服务
-├─ rayk-miniapp/         B/C 端统一小程序
-├─ database/             Flyway 迁移与数据库说明
-├─ deploy/nginx/         统一入口配置
-├─ docs/                 架构、权限、API 与路线图
-├─ scripts/              启停、构建、备份和恢复脚本
-├─ backups/              仓库内备用占位（实际默认备份到 E 盘）
-├─ compose.yml           通用服务定义
-├─ compose.dev.yml       开发端口覆盖
-└─ compose.prod.yml      生产端口覆盖
+微信身份进入系统
+  → 完善健康档案与问卷
+  → 上传 PDF 或图片体检报告
+  → OCR 保留原分类、原顺序和原内容
+  → 指标标准化与 12 维健康评估
+  → RAG 医学知识检索 + DeepSeek 综合解读
+  → 生成统一健康报告和 PDF
+  → AI 制定健康随访计划
+  → 客户逐项反馈完成情况、感受与困难
+  → 自动继续、调整或终止下一期任务
+  → 趋势、健康检测和再次评估
 ```
 
-## Docker Desktop 与 E 盘存储
+## 已有功能
 
-本机只需 Docker Desktop、浏览器、微信开发者工具和可选编辑器。Java、Maven、Python、MySQL、Redis、MinIO 与 Nginx 均由容器提供。
+### 体检报告数字化
 
-因 C 盘空间有限，请先手动设置：
+- 上传 PDF、JPG、PNG，文件保存到 MinIO 私有存储。
+- PDF 原生表格/文本解析与扫描 PDF 回退。
+- 图片单栏、双栏识别及左右分栏合并去重。
+- 保留数值结果、非数值结果、参考范围、单位、异常标识和检查小结。
+- 过滤姓名、电话、门诊号、床位号、打印日期等非体检结果。
+- 异步 OCR、状态查询、失败恢复、原报告查看。
 
-1. Docker Desktop → **Settings** → **Resources** → **Advanced**。
-2. 将 **Disk image location** 设置为 `E:\DockerData\DockerDesktop`。
-3. 应用设置并等待 Docker Desktop 完成迁移。
+### 智能健康评估
 
-建议 E 盘路径：
+- 结合体检结果、健康档案、问卷、既往史和家族史。
+- 12 个健康维度规则评估与健康指数仪表盘。
+- 医学知识库 RAG 检索和 DeepSeek 综合解读。
+- 整体健康状态、重点问题、可能疾病与诊断参考、改善方向。
+- 同一份报告供客户与医生查看，支持 PDF 生成、版本保存和下载。
+
+### 自适应健康随访
+
+- 根据健康报告生成饮食、运动、作息、监测和营养行动。
+- 提供微量营养建议和一周营养食谱。
+- 客户逐项选择完成、部分完成或未完成。
+- 结合完成率、文字反馈、身体感受和困难原因调整下一期计划。
+- 支持继续、调整、终止、逾期和任务趋势查看。
+
+### 健康检测与温暖提醒
+
+- 健康拍面部健康检测接入层和结果界面。
+- 心率、血压、血氧、呼吸、心率变异性、压力参考等指标展示。
+- 健康指数、指标范围、异常状态、指标解读与趋势。
+- 腾讯云 TTS 吃饭和睡觉提醒，支持动态文案和性别音色策略。
+- 平台问题反馈、状态追踪和管理员回复。
+
+## 技术架构
 
 ```text
-E:\DockerData\DockerDesktop             Docker 镜像、容器、缓存、命名卷
-E:\DockerData\RayKA1\backups\mysql    MySQL 逻辑备份
-E:\health                               项目源码
+UniApp 小程序 / H5
+        │
+      Nginx
+        │
+  Java Spring Boot ───── MySQL
+        │               Redis
+        │               MinIO
+        │
+  Python FastAPI AI 服务
+        ├─ PDF 原生解析 / PaddleOCR
+        ├─ Qwen3.5-OCR
+        ├─ DeepSeek + RAG
+        └─ 报告与随访智能处理
 ```
 
-项目不会修改 Docker Desktop 全局设置。**不要手动移动 Docker WSL 文件，不要执行 `wsl --export/import` 来迁移本项目。** MySQL 使用 Docker 命名卷，未把 `/var/lib/mysql` 直接绑定到 Windows NTFS。
+| 层级 | 技术 |
+| --- | --- |
+| 客户端 | UniApp、Vue 3、TypeScript |
+| 业务后端 | Java、Spring Boot、MyBatis、Flyway |
+| AI 服务 | Python、FastAPI、PaddleOCR、PDF 结构解析 |
+| 外部 AI | Qwen3.5-OCR、DeepSeek |
+| 外部健康与语音 | 健康拍、腾讯云 TTS |
+| 数据 | MySQL、Redis、MinIO |
+| 网关与部署 | Nginx、Docker Compose |
 
-为改善国内网络下载速度，项目内 Maven 使用阿里云公共仓库、pip 使用清华 PyPI、npm 使用 npmmirror；Java 构建和运行基础镜像默认经过 DaoCloud 镜像代理。所有镜像地址都可在 `.env` 中替换，不影响宿主机全局设置。
+## 项目结构
 
-## 环境变量
+```text
+E:\health
+├─ rayk-miniapp/       UniApp 小程序与 H5
+├─ rayk-server/        Java 业务服务
+├─ rayk-ai/            Python AI、OCR、RAG 与报告服务
+├─ nginx/              网关配置
+├─ scripts/            启停、构建、备份和验证脚本
+├─ compose.yml         通用 Docker 编排
+├─ compose.dev.yml     本地开发覆盖配置
+├─ compose.prod.yml    生产部署覆盖配置
+├─ .env.example        环境变量模板
+├─ AGENTS.md           永久工程规则
+└─ handoff.md          当前状态与交接说明
+```
 
-开发前复制示例文件：
+## 运行要求
+
+- Windows 10/11 + Docker Desktop（WSL2 后端）
+- PowerShell 5.1 或更高版本
+- Node.js 与 npm（前端本地检查和构建）
+- Git
+- 建议至少 16 GB 内存
+
+项目根目录固定为 `E:\health`。Docker Desktop 的磁盘镜像位置和项目持久化数据应放在 E 盘，避免占满系统盘。
+
+## 快速启动
+
+### 1. 配置环境变量
 
 ```powershell
+Set-Location E:\health
 Copy-Item .env.example .env
 ```
 
-至少更换 MySQL、Redis、MinIO 密码与长度不少于 32 字节的 `JWT_SECRET`。`.env` 已被 Git 忽略，不应提交生产密钥。Compose 内的默认值只用于本机框架演示。
+在本地 `.env` 中填写数据库、微信及可选外部服务配置。`.env` 已被 Git 忽略，不得提交或复制到文档。
 
-如需启用综合 AI 解读，在本地 `.env` 设置 `DEEPSEEK_ENABLED=true`、`DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL=deepseek-v4-flash`。密钥不得写入源码、迁移、日志或前端；关闭、超时、RAG 引用校验失败或响应不合规时，系统自动回退到规则摘要，不影响多维规则评估主链路。
-
-微信开发联调默认启用固定 openid 并自动绑定 `customer` 测试用户。生产覆盖文件会强制关闭模拟模式；正式部署需在本地 `.env` 配置 `WECHAT_APP_ID`、`WECHAT_APP_SECRET`，并把 `MINIO_PUBLIC_ENDPOINT` 设置为客户端可访问的 HTTPS 对象存储域名。后端只使用微信 `code2Session` 返回的身份，不保存 `session_key`。
-
-面部健康检测当前处于供应商接入准备阶段。获得健康拍正式 API/SDK 文档后，应在服务端配置其鉴权凭据、签名算法、回调白名单、计费规则和超时重试策略；不得把供应商密钥或原始鉴权参数写入小程序、README 或 Git。
-
-## 启动
-
-### 开发环境
+### 2. 启动开发环境
 
 ```powershell
-.\scripts\start-dev.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\start-dev.ps1
 ```
 
 等价命令：
@@ -149,139 +147,146 @@ Copy-Item .env.example .env
 docker compose -f compose.yml -f compose.dev.yml up -d --build
 ```
 
-### 生产形态配置
+### 3. 查看状态
 
-在完成 TLS、强密钥、备份和监控配置后执行：
+```powershell
+docker compose -f compose.yml -f compose.dev.yml ps
+```
+
+本地入口：
+
+- H5：<http://127.0.0.1:8088/>
+- Java API：<http://127.0.0.1:8080/>
+- MinIO 控制台：<http://127.0.0.1:9001/>
+
+端口可通过 `.env` 调整。手机真机不能访问 `127.0.0.1`，局域网验收需使用电脑的 LAN 地址。
+
+## 常用 Docker 命令
+
+查看日志：
+
+```powershell
+docker compose -f compose.yml -f compose.dev.yml logs -f rayk-server rayk-ai nginx
+```
+
+重建单个服务：
+
+```powershell
+docker compose -f compose.yml -f compose.dev.yml up -d --build rayk-server
+docker compose -f compose.yml -f compose.dev.yml up -d --build rayk-ai
+docker compose -f compose.yml -f compose.dev.yml up -d --build nginx
+```
+
+重新构建全部服务：
+
+```powershell
+docker compose -f compose.yml -f compose.dev.yml up -d --build
+```
+
+停止并保留数据：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop-dev.ps1
+```
+
+日常操作不要使用 `docker compose down -v`，该命令会删除持久化数据卷。
+
+## 前端开发与三端同步构建
+
+```powershell
+Set-Location E:\health\rayk-miniapp
+npm ci
+npm run type-check
+npm run lint
+npm run build:h5
+npm run build:mp-weixin:dev
+npm run build:mp-weixin
+```
+
+每次前端修改后必须同步维护三个输出：
+
+| 用途 | 目录 |
+| --- | --- |
+| H5 调试界面 | `E:\health\rayk-miniapp\dist\build\h5` |
+| 微信开发包 | `E:\health\rayk-miniapp\dist\release\mp-weixin-dev` |
+| 微信生产局域网验收包 | `E:\health\rayk-miniapp\dist\release\mp-weixin-prod-lan` |
+
+微信开发者工具分别导入两个 release 目录。`mp-weixin-prod-lan` 是局域网验收包，不是可直接提交审核的正式互联网生产包。
+
+## 测试与质量检查
+
+Java：
+
+```powershell
+Set-Location E:\health\rayk-server
+.\mvnw.cmd test
+```
+
+Python：
+
+```powershell
+Set-Location E:\health\rayk-ai
+python -m pytest
+```
+
+前端：
+
+```powershell
+Set-Location E:\health\rayk-miniapp
+npm run type-check
+npm run lint
+```
+
+OCR 修改必须分别验证 PDF、扫描 PDF、单栏图片和双栏图片，且保证 PDF 原分类、原顺序和原内容不回归。
+
+## 外部服务配置
+
+所有服务都通过 `.env` 开关和参数配置：
+
+- DeepSeek：综合评估、报告和随访调整。
+- Qwen3.5-OCR：复杂图片和扫描内容识别。
+- 健康拍：面部健康检测。
+- 腾讯云 TTS：吃饭和睡觉提醒试听。
+- 微信：真实登录、手机号身份匹配和订阅消息。
+
+仓库只提供变量名和安全默认值，不保存真实密钥。正式环境建议使用部署平台的密钥管理服务，并在上线前轮换曾经通过聊天、截图或临时文件暴露的凭据。
+
+## 生产部署
+
+生产编排入口：
 
 ```powershell
 docker compose -f compose.yml -f compose.prod.yml up -d --build
 ```
 
-`compose.prod.yml` 仅向宿主机暴露 Nginx，数据库和内部服务不暴露端口；它仍是主体框架，不代表已经完成完整生产加固。
+正式上线前至少完成：
 
-### 状态、日志与停止
+- 企业主体小程序、真实微信配置和手机号身份链路。
+- HTTPS 合法域名、Nginx TLS 和微信服务器域名白名单。
+- 关闭 Mock/开发登录并使用强密码。
+- 健康拍正式环境、插件、回调和计费验收。
+- DeepSeek、Qwen OCR、腾讯云 TTS 的额度、限流、超时和降级验证。
+- MySQL/MinIO 备份恢复演练、日志留存、监控和告警。
+- 隐私政策、敏感个人信息授权、医疗与数据安全合规审查。
 
-```powershell
-docker compose -f compose.yml -f compose.dev.yml ps
-docker compose -f compose.yml -f compose.dev.yml logs -f rayk-server rayk-ai
-.\scripts\stop-dev.ps1
-```
+## 数据备份
 
-停止脚本只执行普通 `down`，保留命名卷和数据。**禁止执行 `docker compose down -v`。** 也不要使用会清除镜像、容器和卷的全局 prune 命令。
-
-## 服务地址
-
-| 服务 | 地址 |
-|---|---|
-| 小程序 H5 预览 / Nginx 统一入口 | <http://localhost:8088> |
-| Java API | <http://localhost:8080/api/v1> |
-| Swagger UI | <http://localhost:8080/swagger-ui.html> |
-| FastAPI | <http://localhost:8000/health> |
-| FastAPI Docs | <http://localhost:8000/docs> |
-| MinIO API | <http://localhost:9000> |
-| MinIO Console | <http://localhost:9001> |
-| H5 开发服务 | <http://localhost:5173> |
-
-Nginx 根路径展示已构建的小程序 H5 预览；路由为 `/api/` → Java、`/ai/` → Python、`/minio/` → MinIO。
-
-## 测试账号
-
-统一开发测试密码：`RayK@123456`。数据库只保存 BCrypt 摘要。
-
-| 用户名 | 角色 |
-|---|---|
-| `platform_admin` | 平台管理员 |
-| `doctor` | 医生 + 客户工作台 |
-| `customer` | 普通客户 |
-
-## 小程序开发与构建
+仓库提供 MySQL 备份和恢复脚本：
 
 ```powershell
-Set-Location rayk-miniapp
-npm install
-npm run dev:h5
-npm run type-check
-npm run build:h5
-npm run build:mp-weixin
+powershell -ExecutionPolicy Bypass -File .\scripts\backup-mysql.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\restore-mysql.ps1 -BackupFile E:\path\to\backup.sql
 ```
 
-当前验收约定只保留并同步更新以下三个前端产物：
+执行恢复前必须确认目标环境、备份文件和停机窗口。MinIO 原报告与生成报告也应纳入独立备份策略。
 
-```text
-rayk-miniapp\dist\build\h5                    H5 浏览器预览
-rayk-miniapp\dist\release\mp-weixin-dev       微信开发联调包
-rayk-miniapp\dist\release\mp-weixin-prod-lan  production 优化的局域网验收包
-```
+## 安全约束
 
-微信开发者工具分别导入两个 `dist\release` 目录。两份微信包目前均保留局域网 API 和开发身份入口，仅用于同一 Wi-Fi 下联调及验收，**不能直接提交微信审核**。正式发布前必须使用已备案的 HTTPS 合法域名，配置 API、WebSocket 和 MinIO 下载域名，关闭开发登录和后端模拟微信登录，再生成独立正式审核包。
+- 不提交 `.env`、API Key、数据库密码、微信密钥或供应商密钥。
+- 不公开 MinIO 存储桶。
+- 不修改已经执行过的 Flyway 迁移，只新增后续版本。
+- 数据库 `BIGINT` ID 在前端按字符串处理。
+- 前端隐藏不等于授权，权限和数据范围由 Java 后端校验。
+- AI 结论必须保留证据来源和辅助参考边界。
 
-## 最小业务闭环
-
-1. 用户通过微信身份与手机号完成登录，系统根据平台预录入信息自动识别医生或普通用户身份。
-2. 用户完善健康档案和健康问卷，录入基础信息、生活方式、饮食运动、睡眠情绪、既往疾病及家族健康史。
-3. 用户通过拍照或手机文件上传 PDF/JPG/PNG 体检报告；Java 完成安全校验并写入 MinIO 私有对象存储。
-4. Java 创建异步 OCR 任务，Python 使用 PaddleOCR、多版式解析和质量容错完成检验指标结构化、名称标准化和参考区间解析；识别结束后自动进入“我的体检报告”。
-5. Java 汇聚检验指标、健康档案和问卷数据，通过 HTTP 调用 Python 多维健康评估引擎，数据不足的维度不参与有效评分。
-6. Python 从版本化医学知识库检索与本次指标、疾病史和健康维度相关的证据，将去标识化健康时间线、规则结果与 RAG 证据包交给 DeepSeek 生成结构化综合解读。
-7. 系统生成包含身体健康状态、重点健康问题、潜在疾病提示、关键健康依据和改善方向的健康评估报告；用户与医生查看同一份报告，并可下载 PDF。
-8. 系统根据健康报告自动制定饮食、运动、作息、监测、微量营养建议和一周食谱，形成可执行的健康随访任务。
-9. 用户逐项反馈完成状态、身体感受、文字说明和困难原因；系统结合 RAG 证据决定下一期继续、降低强度、替换行动或终止，并受最大周期和到期规则约束。
-10. 医生可按体检者姓名或手机号查询用户，查看其健康评估报告、原始体检报告和健康随访执行情况；平台管理员可查看全平台健康报告与健康随访动态。
-
-健康拍面部检测完成服务端接入后，可作为补充健康数据进入健康画像和后续评估，但不能替代标准医疗设备测量、检验检查或医生诊断。
-
-开发环境提供隔离的演示数据与调试身份，正式环境通过微信身份、手机号匹配和角色自动识别进入对应工作台。
-
-## MySQL 备份与恢复
-
-默认备份目录为 `E:\DockerData\RayKA1\backups\mysql`，可用 `RAYK_BACKUP_DIR` 覆盖。
-
-```powershell
-.\scripts\backup-mysql.ps1
-.\scripts\restore-mysql.ps1 -BackupFile 'E:\DockerData\RayKA1\backups\mysql\rayk_health_YYYYMMDD_HHMMSS.sql'
-```
-
-备份通过容器内 `mysqldump` 导出，不复制 MySQL 内部目录。恢复脚本要求显式输入 `RESTORE`，不会删除命名卷，也不会自动清空数据库；恢复前请先备份当前状态。
-
-## 构建与测试
-
-```powershell
-docker compose -f compose.yml -f compose.dev.yml config
-docker compose -f compose.yml -f compose.dev.yml build
-docker build -f rayk-ai/Dockerfile.test -t rayk-a1-ai:test rayk-ai
-docker run --rm rayk-a1-ai:test
-Set-Location rayk-miniapp
-npm run type-check
-npm run build:h5
-npm run build:mp-weixin
-```
-
-Java 单元测试在 Docker 多阶段构建的 Maven `package` 中执行。Python 使用独立测试镜像；正式运行镜像不携带测试依赖和测试源。
-
-## 常见问题
-
-- **端口占用：** 修改 `.env` 中 `NGINX_PORT`、`JAVA_PORT` 等宿主机端口。
-- **登录失败：** 检查 Redis 和 Java 容器健康状态；JWT 登录态保存在 Redis。
-- **Flyway 失败：** 查看 `rayk-server` 日志，不要通过删卷规避迁移错误。
-- **AI 暂不可用：** 查看 `rayk-ai` 健康接口；Java 会把任务和报告标记为失败并返回明确错误。
-- **小程序 401/403：** 401 会回登录页，403 会进入无权限页；切换工作台后重新加载首页和菜单。
-- **Docker 数据仍在 C 盘：** 只在 Docker Desktop 设置中检查磁盘镜像位置，勿手动移动 WSL 数据文件。
-- **MinIO Bucket：** `minio-init` 会创建私有 `rayk-reports`，不会设为公开访问。
-- **微信一键登录提示未绑定：** 开发环境检查 `WECHAT_MOCK_ENABLED` 和 `WECHAT_AUTO_BIND_USERNAME`；生产环境需先通过已登录账号调用绑定接口建立 openid 关系。
-- **上传失败：** 仅支持内容与扩展名一致的 PDF/JPG/PNG；同时检查 Nginx、Java、MinIO、请求体限制和对象存储可用性。
-- **OCR 结果不完整：** 优先上传边缘完整、文字清晰、无强反光且尽量正拍的原图；系统会执行多版式解析和质量容错，仍无法可靠提取的报告应保留原件供查看，不把低置信内容强行当作有效指标。
-- **面部健康检测按钮不可用：** 当前仅完成入口和采集交互页面，需取得健康拍正式接口文档、测试凭据和回调规则后才能开放。
-
-## 文档与下一阶段
-
-详细设计见 [docs](./docs)。当前主体框架已经贯通微信身份与手机号匹配、JWT 登录、MinIO 私有文件存储、PaddleOCR 异步识别、十二维健康评估、医学知识 RAG、DeepSeek 综合解读、PDF 健康报告、指标趋势和反馈驱动的动态健康随访等核心链路。
-
-下一阶段重点：
-
-1. 完成健康拍 API/SDK 技术合同核验、沙箱联调、服务端签名、回调验签、结果映射、计费幂等和异常降级。
-2. 继续用真实医院复杂版式报告建设脱敏 OCR 回归样本，完善倾斜校正、多栏重排、指标召回率和错误观测。
-3. 为医学知识库补齐来源审查、专业人员复核、版本发布、证据失效提醒和离线评测流程。
-4. 完成正式微信主体资质、手机号能力、HTTPS 合法域名、订阅消息、隐私合规、备份恢复和生产监控验收。
-5. 推进医院权益、服务计费、套餐管理和商业化闭环，但不得以健康评估替代医学诊断。
-
-在引入任何真实医学规则或健康数据前，应补齐隐私授权、数据加密、保留策略、审计、规则验证、人工复核和适用地区合规评估。
+更详细的当前状态、已知未完成事项和不可重复的工程坑见 [handoff.md](handoff.md)。永久开发规则见 [AGENTS.md](AGENTS.md)。
