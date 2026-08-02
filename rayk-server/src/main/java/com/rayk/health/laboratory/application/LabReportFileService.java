@@ -12,6 +12,7 @@ import com.rayk.health.laboratory.mapper.LabReportMapper;
 import com.rayk.health.laboratory.vo.LabReportFileVo;
 import com.rayk.health.laboratory.vo.LabReportUploadVo;
 import com.rayk.health.laboratory.vo.LabReportVo;
+import com.rayk.health.patient.application.DataScopeService;
 import com.rayk.health.security.service.CurrentPrincipal;
 import com.rayk.health.security.service.CurrentUser;
 import com.rayk.health.storage.MinioProperties;
@@ -45,6 +46,7 @@ public class LabReportFileService {
     private final MinioClient minioPublicClient;
     private final MinioProperties properties;
     private final WorkflowApplicationService workflowService;
+    private final DataScopeService dataScopeService;
     private final LabReportFileMapper fileMapper;
     private final LabReportMapper reportMapper;
     private final OcrTaskService ocrTaskService;
@@ -54,6 +56,7 @@ public class LabReportFileService {
             @Qualifier("minioPublicClient") MinioClient minioPublicClient,
             MinioProperties properties,
             WorkflowApplicationService workflowService,
+            DataScopeService dataScopeService,
             LabReportFileMapper fileMapper,
             LabReportMapper reportMapper,
             OcrTaskService ocrTaskService) {
@@ -61,6 +64,7 @@ public class LabReportFileService {
         this.minioPublicClient = minioPublicClient;
         this.properties = properties;
         this.workflowService = workflowService;
+        this.dataScopeService = dataScopeService;
         this.fileMapper = fileMapper;
         this.reportMapper = reportMapper;
         this.ocrTaskService = ocrTaskService;
@@ -136,12 +140,14 @@ public class LabReportFileService {
 
     public List<LabReportFileVo> list(long reportId) {
         workflowService.getLabReport(reportId);
-        return fileMapper
-                .selectList(
-                        new LambdaQueryWrapper<LabReportFileEntity>()
-                                .eq(LabReportFileEntity::getReportId, reportId)
-                                .eq(LabReportFileEntity::getDeleted, 0)
-                                .orderByDesc(LabReportFileEntity::getCreatedAt))
+        return dataScopeService
+                .readScoped(
+                        () ->
+                                fileMapper.selectList(
+                                        new LambdaQueryWrapper<LabReportFileEntity>()
+                                                .eq(LabReportFileEntity::getReportId, reportId)
+                                                .eq(LabReportFileEntity::getDeleted, 0)
+                                                .orderByDesc(LabReportFileEntity::getCreatedAt)))
                 .stream()
                 .map(entity -> toVo(entity, false))
                 .toList();
@@ -149,7 +155,8 @@ public class LabReportFileService {
 
     public LabReportFileVo createDownloadUrl(long reportId, long fileId) {
         workflowService.getLabReport(reportId);
-        LabReportFileEntity entity = fileMapper.selectById(fileId);
+        LabReportFileEntity entity =
+                dataScopeService.readScoped(() -> fileMapper.selectById(fileId));
         if (entity == null || entity.getReportId() != reportId || !"STORED".equals(entity.getStatus())) {
             throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
         }
@@ -159,7 +166,8 @@ public class LabReportFileService {
     /** Opens the protected file through the application gateway for physical mobile devices. */
     public DownloadedFile openContent(long reportId, long fileId) {
         workflowService.getLabReport(reportId);
-        LabReportFileEntity entity = fileMapper.selectById(fileId);
+        LabReportFileEntity entity =
+                dataScopeService.readScoped(() -> fileMapper.selectById(fileId));
         if (entity == null || entity.getReportId() != reportId || !"STORED".equals(entity.getStatus())) {
             throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
         }

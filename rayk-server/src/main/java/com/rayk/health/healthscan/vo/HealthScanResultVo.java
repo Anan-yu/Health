@@ -16,7 +16,10 @@ public record HealthScanResultVo(
         BigDecimal diastolicBloodPressure,
         BigDecimal stressHrv,
         BigDecimal qualityScore,
+        Integer healthScore,
+        Integer peerPercentile,
+        Integer peerSampleSize,
+        Boolean peerComparisonEstimated,
         String failureMessage,
         LocalDateTime createdAt,
         LocalDateTime completedAt) {}
-

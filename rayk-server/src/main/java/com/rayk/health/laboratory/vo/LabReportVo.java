@@ -12,5 +12,6 @@ public record LabReportVo(
         String status,
         String sourceType,
         List<IndicatorVo> indicators,
+        List<OcrFindingVo> findings,
         LocalDateTime createdAt) {}
 

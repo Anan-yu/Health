@@ -6,21 +6,31 @@ import java.util.List;
 public final class AiDtos {
     private AiDtos() {}
 
-    public record EvaluateRequest(
+  public record EvaluateRequest(
       String taskId,
       String patientId,
       List<Indicator> indicators,
+      List<OcrFinding> findings,
       List<String> modelCodes,
       PatientContext patientContext) {
-        public EvaluateRequest(String taskId, String patientId, List<Indicator> indicators) {
-      this(taskId, patientId, indicators, null, null);
+    public EvaluateRequest(String taskId, String patientId, List<Indicator> indicators) {
+      this(taskId, patientId, indicators, List.of(), null, null);
     }
 
     public EvaluateRequest(
         String taskId, String patientId, List<Indicator> indicators, List<String> modelCodes) {
-      this(taskId, patientId, indicators, modelCodes, null);
-        }
+      this(taskId, patientId, indicators, List.of(), modelCodes, null);
     }
+
+    public EvaluateRequest(
+        String taskId,
+        String patientId,
+        List<Indicator> indicators,
+        List<String> modelCodes,
+        PatientContext patientContext) {
+      this(taskId, patientId, indicators, List.of(), modelCodes, patientContext);
+    }
+  }
 
   public record PatientContext(
       String gender,
@@ -126,11 +136,14 @@ public final class AiDtos {
             BigDecimal referenceLow,
             BigDecimal referenceHigh) {}
 
+    public record OcrFinding(String section, String item, String result) {}
+
     public record OcrRecognizeData(
             String engine,
             String status,
             BigDecimal confidence,
             List<Indicator> indicators,
+            List<OcrFinding> findings,
             List<String> rawLines,
             List<String> warnings) {}
 

@@ -17,6 +17,13 @@ const customer: MenuItem[] = [
     permission: 'self:health-record',
   },
   {
+    title: '健康检测',
+    description: '通过面部影像完成健康检测',
+    icon: '测',
+    route: '/pages-customer/health-scan/index',
+    permission: 'self:assessment',
+  },
+  {
     title: '上传检验报告',
     description: '上传报告并确认识别结果',
     icon: '传',
@@ -24,7 +31,7 @@ const customer: MenuItem[] = [
     permission: 'self:lab-report',
   },
   {
-    title: '我的报告',
+    title: '我的检验报告',
     description: '查看已上传的检验报告',
     icon: '报',
     route: '/pages-customer/lab-report/index',
@@ -38,18 +45,11 @@ const customer: MenuItem[] = [
     permission: 'self:assessment',
   },
   {
-    title: '健康报告',
+    title: '我的健康报告',
     description: '查看已生成的 PDF 健康报告',
     icon: '康',
     route: '/pages-customer/health-report/index',
     permission: 'self:health-report',
-  },
-  {
-    title: '指标趋势',
-    description: '查看历次指标变化趋势',
-    icon: '趋',
-    route: '/pages-customer/trend/index',
-    permission: 'self:lab-report',
   },
   {
     title: '健康随访',
@@ -59,11 +59,18 @@ const customer: MenuItem[] = [
     permission: 'self:followup',
   },
   {
-    title: '健康检测',
-    description: '通过面部影像完成健康检测',
-    icon: '测',
-    route: '/pages-customer/health-scan/index',
-    permission: 'self:assessment',
+    title: '指标趋势',
+    description: '查看历次指标变化趋势',
+    icon: '趋',
+    route: '/pages-customer/trend/index',
+    permission: 'self:lab-report',
+  },
+  {
+    title: '健康提醒',
+    description: '设置吃饭与睡觉语音提醒',
+    icon: '音',
+    route: '/pages-customer/voice-reminder/index',
+    permission: 'self:health-record',
   },
 ]
 

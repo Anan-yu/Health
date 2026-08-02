@@ -47,4 +47,15 @@ class DataScopeServiceTest {
         String sql = query.getSqlSegment();
         assertThat(sql).contains("tenant_id").contains("user_id").contains("deleted");
     }
+
+    @Test
+    void platformAdministratorCanReadPatientsAcrossTenants() {
+        CurrentPrincipal principal = new CurrentPrincipal("jti", "platform", 10001L, 1L,
+                List.of("PLATFORM_ADMIN"), List.of("platform:tenant:list"), "PLATFORM_ADMIN");
+        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(principal, null));
+        LambdaQueryWrapper<PatientEntity> query =
+                new DataScopeService(org.mockito.Mockito.mock(PatientMapper.class)).scopedPatients();
+        String sql = query.getSqlSegment();
+        assertThat(sql).contains("deleted").doesNotContain("tenant_id").doesNotContain("user_id");
+    }
 }

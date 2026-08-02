@@ -5,6 +5,7 @@ from pydantic import Field
 
 from app.schemas.common import RaykModel
 from app.schemas.indicator import IndicatorInput
+from app.schemas.ocr import OcrFinding
 
 
 class PatientContext(RaykModel):
@@ -35,12 +36,8 @@ class PatientContext(RaykModel):
     camera_heart_rate_variability: Decimal | None = Field(
         default=None, alias="cameraHeartRateVariability"
     )
-    camera_oxygen_saturation: Decimal | None = Field(
-        default=None, alias="cameraOxygenSaturation"
-    )
-    camera_respiration_rate: Decimal | None = Field(
-        default=None, alias="cameraRespirationRate"
-    )
+    camera_oxygen_saturation: Decimal | None = Field(default=None, alias="cameraOxygenSaturation")
+    camera_respiration_rate: Decimal | None = Field(default=None, alias="cameraRespirationRate")
     camera_systolic_blood_pressure: Decimal | None = Field(
         default=None, alias="cameraSystolicBloodPressure"
     )
@@ -57,6 +54,7 @@ class AssessmentRequest(RaykModel):
     task_id: str = Field(alias="taskId", min_length=1)
     patient_id: str = Field(alias="patientId", min_length=1)
     indicators: list[IndicatorInput]
+    findings: list[OcrFinding] = Field(default_factory=list, max_length=500)
     model_codes: list[str] | None = Field(default=None, alias="modelCodes")
     patient_context: PatientContext | None = Field(default=None, alias="patientContext")
 

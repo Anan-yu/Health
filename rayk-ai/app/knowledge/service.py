@@ -269,6 +269,7 @@ class MedicalKnowledgeRetriever:
                 f"{item.code or ''} {item.name} {item.value} {item.unit}"
                 for item in request.indicators
             ],
+            *[f"{item.section} {item.item} {item.result}" for item in request.findings],
             *[
                 f"{item.model_code} {item.model_name} {_text(item.evidence)} "
                 f"{_text(item.recommendations)}"

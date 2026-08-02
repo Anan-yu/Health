@@ -123,6 +123,10 @@ export interface HealthScanResult {
   diastolicBloodPressure?: number
   stressHrv?: number
   qualityScore?: number
+  healthScore?: number
+  peerPercentile?: number
+  peerSampleSize?: number
+  peerComparisonEstimated?: boolean
   failureMessage?: string
   createdAt: string
   completedAt?: string
@@ -165,6 +169,12 @@ export interface Indicator {
   manuallyConfirmed?: boolean
 }
 
+export interface OcrFinding {
+  section: string
+  item: string
+  result: string
+}
+
 export interface LabReport {
   id: string
   patientId: string
@@ -173,6 +183,7 @@ export interface LabReport {
   status: string
   sourceType: string
   indicators: Indicator[]
+  findings?: OcrFinding[]
   createdAt: string
 }
 

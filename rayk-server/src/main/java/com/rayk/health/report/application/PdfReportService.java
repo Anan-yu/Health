@@ -267,21 +267,27 @@ public class PdfReportService {
         return new ArtifactRecoveryResult(reportId, "REGENERATED", nextVersion, objectPath);
     }
 
-  /** Generate a presigned download URL for the report file. */
+    /** Generate a presigned download URL for the report file. */
     public String getDownloadUrl(long reportId) {
-        HealthReportEntity report = healthReportMapper.selectById(reportId);
+        HealthReportEntity report =
+                dataScopeService.readScoped(() -> healthReportMapper.selectById(reportId));
         if (report == null || !"PUBLISHED".equals(report.getStatus())) {
             throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
         }
         dataScopeService.requirePatient(report.getPatientId());
 
-    HealthReportVersionEntity versionEntity =
-        versionMapper.selectOne(
-                new LambdaQueryWrapper<HealthReportVersionEntity>()
-                        .eq(HealthReportVersionEntity::getHealthReportId, reportId)
-                        .eq(HealthReportVersionEntity::getDeleted, 0)
-                        .orderByDesc(HealthReportVersionEntity::getVersionNo)
-                        .last("LIMIT 1"));
+        HealthReportVersionEntity versionEntity =
+                dataScopeService.readScoped(
+                        () ->
+                                versionMapper.selectOne(
+                                        new LambdaQueryWrapper<HealthReportVersionEntity>()
+                                                .eq(
+                                                        HealthReportVersionEntity::getHealthReportId,
+                                                        reportId)
+                                                .eq(HealthReportVersionEntity::getDeleted, 0)
+                                                .orderByDesc(
+                                                        HealthReportVersionEntity::getVersionNo)
+                                                .last("LIMIT 1")));
         if (versionEntity == null || versionEntity.getObjectPath() == null) {
             throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
         }
@@ -305,18 +311,24 @@ public class PdfReportService {
 
     /** Opens the latest PDF through the authenticated application gateway for mobile clients. */
     public DownloadedPdf openDownload(long reportId) {
-        HealthReportEntity report = healthReportMapper.selectById(reportId);
+        HealthReportEntity report =
+                dataScopeService.readScoped(() -> healthReportMapper.selectById(reportId));
         if (report == null || !"PUBLISHED".equals(report.getStatus())) {
             throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
         }
         dataScopeService.requirePatient(report.getPatientId());
         HealthReportVersionEntity versionEntity =
-                versionMapper.selectOne(
-                        new LambdaQueryWrapper<HealthReportVersionEntity>()
-                                .eq(HealthReportVersionEntity::getHealthReportId, reportId)
-                                .eq(HealthReportVersionEntity::getDeleted, 0)
-                                .orderByDesc(HealthReportVersionEntity::getVersionNo)
-                                .last("LIMIT 1"));
+                dataScopeService.readScoped(
+                        () ->
+                                versionMapper.selectOne(
+                                        new LambdaQueryWrapper<HealthReportVersionEntity>()
+                                                .eq(
+                                                        HealthReportVersionEntity::getHealthReportId,
+                                                        reportId)
+                                                .eq(HealthReportVersionEntity::getDeleted, 0)
+                                                .orderByDesc(
+                                                        HealthReportVersionEntity::getVersionNo)
+                                                .last("LIMIT 1")));
         if (versionEntity == null || versionEntity.getObjectPath() == null) {
             throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
         }

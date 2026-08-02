@@ -50,7 +50,9 @@
       </view>
     </view>
 
-    <view v-if="latestResult" class="result-card">
+    <HealthScanResultDashboard v-if="hasSucceededResult" :records="scanRecords" />
+
+    <view v-else-if="latestResult" class="result-card">
       <view class="result-head">
         <view>
           <view class="result-title">最近一次检测</view>
@@ -60,16 +62,7 @@
           {{ latestResult.statusLabel }}
         </view>
       </view>
-      <view v-if="latestResult.status === 'SUCCEEDED'">
-        <view class="result-summary">本次共获得 {{ resultVitals.length }} 项健康数据</view>
-        <view class="vitals-grid">
-          <view v-for="item in resultVitals" :key="item.code" class="vital-item">
-            <view class="vital-value">{{ item.value }}</view>
-            <view class="vital-label">{{ item.label }}</view>
-          </view>
-        </view>
-      </view>
-      <view v-else-if="latestResult.failureMessage" class="failure-copy">
+      <view v-if="latestResult.failureMessage" class="failure-copy">
         {{ latestResult.failureMessage }}
       </view>
       <view v-else class="processing-copy">健康数据正在分析，请稍后刷新查看。</view>
@@ -94,13 +87,14 @@
     </button>
     <button v-else class="cancel-button" @tap="cancelScan">退出本次检测</button>
     <view v-if="uploading" class="upload-copy">视频正在安全上传 {{ uploadProgress }}%</view>
-    <view class="privacy-note">检测视频仅用于本次分析，不在本系统长期保存</view>
+    <view class="privacy-note">检测结果可为医护人员提供诊断参考，但不作为临床诊断依据。</view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import HealthScanResultDashboard from '@/components/health-scan/HealthScanResultDashboard.vue'
 import {
   createHealthScanSession,
   getMyHealthScans,
@@ -119,6 +113,7 @@ const progress = ref(0)
 const remainingTime = ref(0)
 const cameraTip = ref('请将面部完整放入取景框')
 const latestResult = ref<HealthScanResult>()
+const scanRecords = ref<HealthScanResult[]>([])
 const activeSession = ref<HealthScanSession>()
 
 let sampler: any
@@ -133,48 +128,9 @@ const indicators = [
   { icon: '压', name: '压力参考' },
 ]
 
-const resultVitals = computed(() => {
-  const result = latestResult.value
-  if (!result) return []
-  return [
-    {
-      code: 'heartRate',
-      value: displayValue(result.heartRate),
-      label: '心率（次/分）',
-      available: hasValue(result.heartRate),
-    },
-    {
-      code: 'bloodPressure',
-      value: displayBloodPressure(result),
-      label: '血压（毫米汞柱）',
-      available: hasValue(result.systolicBloodPressure) && hasValue(result.diastolicBloodPressure),
-    },
-    {
-      code: 'oxygenSaturation',
-      value: `${displayValue(result.oxygenSaturation)}%`,
-      label: '血氧饱和度',
-      available: hasValue(result.oxygenSaturation),
-    },
-    {
-      code: 'respirationRate',
-      value: displayValue(result.respirationRate),
-      label: '呼吸（次/分）',
-      available: hasValue(result.respirationRate),
-    },
-    {
-      code: 'heartRateVariability',
-      value: displayValue(result.heartRateVariability),
-      label: '心率变异性（毫秒）',
-      available: hasValue(result.heartRateVariability),
-    },
-    {
-      code: 'stressHrv',
-      value: displayDecimal(result.stressHrv),
-      label: '压力参考值',
-      available: hasValue(result.stressHrv),
-    },
-  ].filter((item) => item.available)
-})
+const hasSucceededResult = computed(() =>
+  scanRecords.value.some((record) => record.status === 'SUCCEEDED'),
+)
 
 const readyItems = [
   '保持环境光线均匀，避免强光和逆光',
@@ -200,6 +156,7 @@ onBeforeUnmount(() => releaseSampler())
 async function loadHistory() {
   try {
     const records = await getMyHealthScans()
+    scanRecords.value = records
     latestResult.value = records[0]
   } catch {
     // 页面仍可展示接入说明，网络错误由全局请求层处理。
@@ -333,6 +290,7 @@ async function uploadVideo(filePath: string) {
       (value) => (uploadProgress.value = value),
     )
     latestResult.value = result
+    scanRecords.value = [result, ...scanRecords.value.filter((record) => record.id !== result.id)]
     uni.showToast({
       title: result.status === 'SUCCEEDED' ? '检测完成' : '已提交分析',
       icon: 'success',
@@ -374,31 +332,6 @@ function releaseSampler() {
   }
   cameraListener = undefined
   sampler = undefined
-}
-
-function displayValue(value?: number) {
-  return value === undefined || value === null ? '--' : Number(value).toFixed(0)
-}
-
-function displayDecimal(value?: number) {
-  if (!hasValue(value)) return '--'
-  return Number(value).toFixed(2).replace(/\.?0+$/, '')
-}
-
-function hasValue(value?: number) {
-  return value !== undefined && value !== null && Number.isFinite(Number(value))
-}
-
-function displayBloodPressure(result: HealthScanResult) {
-  if (
-    result.systolicBloodPressure === undefined ||
-    result.diastolicBloodPressure === undefined
-  ) {
-    return '--/--'
-  }
-  return `${Number(result.systolicBloodPressure).toFixed(0)}/${Number(
-    result.diastolicBloodPressure,
-  ).toFixed(0)}`
 }
 
 function formatTime(value: string) {

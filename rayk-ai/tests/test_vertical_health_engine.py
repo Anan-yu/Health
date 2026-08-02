@@ -17,6 +17,7 @@ from app.schemas.assessment import (
     PatientContext,
 )
 from app.schemas.indicator import IndicatorInput
+from app.schemas.ocr import OcrFinding
 
 
 def _request() -> AssessmentRequest:
@@ -39,6 +40,18 @@ def _request() -> AssessmentRequest:
                 unit="%",
                 referenceLow=Decimal("4.0"),
                 referenceHigh=Decimal("6.0"),
+            ),
+        ],
+        findings=[
+            OcrFinding(
+                section="上腹部彩超（肝胆胰脾）",
+                item="肝脏",
+                result="肝实质回声细密增强，分布均匀。",
+            ),
+            OcrFinding(
+                section="上腹部彩超（肝胆胰脾）",
+                item="检查小结",
+                result="脂肪肝；胆囊壁稍强回声（考虑息肉样变）；胆囊壁毛糙。",
             ),
         ],
         patientContext=PatientContext(
@@ -117,6 +130,11 @@ def test_clinical_timeline_is_deidentified_and_calculates_bmi() -> None:
     assert timeline["anthropometrics"]["calculatedBmi"] == "24.2"
     assert timeline["laboratorySnapshot"]["abnormalCount"] == 1
     assert timeline["laboratorySnapshot"]["indicators"][0]["referenceStatus"] == "HIGH"
+    assert timeline["examinationSnapshot"]["sectionCount"] == 1
+    assert timeline["examinationSnapshot"]["observationCount"] == 1
+    assert timeline["examinationSnapshot"]["summaryCount"] == 1
+    assert any(fact["factId"] == "EXAM:001:OBS:001" for fact in timeline["patientFacts"])
+    assert any(fact["factId"] == "EXAM:001:SUMMARY:001" for fact in timeline["patientFacts"])
 
 
 class _FakeResponse:
@@ -213,6 +231,9 @@ def test_vertical_prompt_contains_grounding_without_direct_identifiers() -> None
     assert user_message["data"]["evidenceBundle"]["knowledgeBaseVersion"] == KNOWLEDGE_BASE_VERSION
     assert user_message["data"]["evidenceBundle"]["evidence"]
     assert "patientFacts" in user_message["data"]["healthTimeline"]
+    assert "examinationSnapshot" in user_message["data"]["healthTimeline"]
+    assert "肝实质回声细密增强" in serialized
+    assert "考虑息肉样变" in serialized
     assert "TASK_SENSITIVE" not in serialized
     assert "PATIENT_SENSITIVE" not in serialized
 

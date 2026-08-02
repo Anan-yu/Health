@@ -29,7 +29,10 @@ public class GlobalExceptionHandler {
                     DATA_COLLECTION_CONSENT_REQUIRED,
                     HEALTH_ASSESSMENT_CONSENT_REQUIRED,
                     DATA_SHARING_CONSENT_REQUIRED -> HttpStatus.FORBIDDEN;
-            case FILE_STORAGE_UNAVAILABLE, AI_SERVICE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+            case FILE_STORAGE_UNAVAILABLE,
+                    AI_SERVICE_UNAVAILABLE,
+                    VOICE_SERVICE_UNAVAILABLE,
+                    VOICE_SERVICE_QUOTA_EXHAUSTED -> HttpStatus.SERVICE_UNAVAILABLE;
             default -> HttpStatus.BAD_REQUEST;
         };
         return ResponseEntity.status(status).body(ApiResponse.error(error.code(), error.message()));

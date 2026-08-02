@@ -29,7 +29,7 @@
       <view>
         <view class="section-title">{{ isCustomer ? '健康服务' : '全部功能' }}</view>
       </view>
-      <view class="soft-button" @click="goSwitch">切换身份</view>
+      <view v-if="isDoctor" class="soft-button" @click="goSwitch">切换身份</view>
     </view>
 
     <view class="menu-grid">
@@ -92,6 +92,7 @@ const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
 const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
+const isDoctor = computed(() => auth.currentWorkbench === 'DOCTOR')
 </script>
 
 <style scoped>

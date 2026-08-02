@@ -8,3 +8,4 @@ httpx==0.28.1
 paddlepaddle==3.2.2
 paddleocr==3.7.0
 reportlab==4.3.1
+pdfplumber==0.11.10

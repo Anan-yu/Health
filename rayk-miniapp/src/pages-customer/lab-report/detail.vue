@@ -11,16 +11,16 @@
       </view>
       <view class="indicator-summary">
         <view
-          ><text>{{ report?.indicators.length || 0 }}</text
-          ><text>检验指标</text></view
+          ><text>{{ resultItemCount }}</text
+          ><text>体检项目</text></view
         >
         <view
-          ><text>{{ abnormalCount }}</text
-          ><text>需关注</text></view
+          ><text>{{ resultGroups.length }}</text
+          ><text>检查类目</text></view
         >
         <view
-          ><text>{{ normalCount }}</text
-          ><text>正常范围</text></view
+          ><text>{{ summaryCount }}</text
+          ><text>检查小结</text></view
         >
       </view>
       <view v-if="isProcessing" class="processing-note">
@@ -32,27 +32,57 @@
           >
         </view>
       </view>
-      <view class="section-head"
-        ><view
-          ><view class="eyebrow">INDICATORS</view><view class="section-title">检验指标</view></view
-        ></view
-      >
-      <view v-for="item in report?.indicators" :key="item.id" class="card indicator-card">
-        <view class="indicator-main">
-          <view
-            ><view class="indicator-name">{{ item.name }}</view
-            ><view class="indicator-ref"
-              >参考 {{ item.referenceLow ?? '-' }} ~ {{ item.referenceHigh ?? '-' }}
-              {{ item.unit }}</view
-            ></view
-          >
-          <StatusTag :status="item.abnormalFlag || 'NORMAL'" />
+      <template v-if="resultGroups.length">
+        <view class="section-head result-heading">
+          <view>
+            <view class="eyebrow">RESULTS</view>
+            <view class="section-title">分类体检结果</view>
+          </view>
         </view>
-        <view class="indicator-value"
-          ><text>{{ item.value }}</text
-          ><text>{{ item.unit }}</text></view
-        >
-      </view>
+        <view v-for="group in resultGroups" :key="group.key" class="card result-card">
+          <view class="result-section-head">
+            <view class="finding-section">{{ group.section }}</view>
+            <view class="result-count"
+              >{{ group.indicators.length + group.observations.length }} 项</view
+            >
+          </view>
+          <view
+            v-for="(item, index) in group.indicators"
+            :key="item.id || `${item.code}-${index}`"
+            class="category-indicator-row"
+          >
+            <view class="category-indicator-copy">
+              <view class="indicator-name">{{ item.name }}</view>
+              <view class="indicator-ref">参考范围：{{ referenceText(item) }}</view>
+            </view>
+            <view class="category-indicator-result">
+              <view class="category-indicator-value">
+                <text>{{ item.value }}</text
+                ><text v-if="item.unit">{{ item.unit }}</text>
+              </view>
+              <StatusTag :status="item.abnormalFlag || 'NORMAL'" />
+            </view>
+          </view>
+          <view
+            v-for="(finding, index) in group.observations"
+            :key="`${finding.item}-${index}`"
+            class="finding-row"
+          >
+            <view class="finding-name">{{ finding.item }}</view>
+            <view class="finding-result">{{ finding.result }}</view>
+          </view>
+          <view v-if="group.summaries.length" class="finding-summary">
+            <view class="finding-summary-title">检查小结</view>
+            <view
+              v-for="(summary, index) in group.summaries"
+              :key="`${summary.item}-${index}`"
+              class="finding-summary-item"
+            >
+              {{ summary.result }}
+            </view>
+          </view>
+        </view>
+      </template>
     </PageState>
   </view>
 </template>
@@ -61,20 +91,144 @@
 import { computed, onUnmounted, ref } from 'vue'
 import { onHide, onLoad, onShow } from '@dcloudio/uni-app'
 import { getLabReport, getOcrTask } from '@/api/lab-report'
-import type { LabReport } from '@/types/api'
+import type { Indicator, LabReport, OcrFinding } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 const report = ref<LabReport>(),
   loading = ref(true),
   error = ref('')
-const abnormalCount = computed(
-  () =>
-    report.value?.indicators.filter((item) => item.abnormalFlag && item.abnormalFlag !== 'NORMAL')
-      .length || 0,
+const summaryLabels = new Set([
+  '小结',
+  '检查小结',
+  '诊断意见',
+  '诊断结论',
+  '检查结论',
+  '影像结论',
+  '印象',
+  '提示',
+  '结论',
+])
+const normalizeFindingLabel = (value: string) =>
+  value
+    .trim()
+    .replace(/[：:]$/, '')
+    .replace(/\s/g, '')
+const administrativeFindingMarkers = [
+  '姓名',
+  '性别',
+  '年龄',
+  '出生日期',
+  '体检日期',
+  '检查日期',
+  '报告日期',
+  '打印日期',
+  '咨询电话',
+  '联系电话',
+  '手机号',
+  '身份证',
+  '报告编号',
+  '报告号',
+  '体检编号',
+  '住院号',
+  '门诊号',
+  '床位号',
+  '床号',
+  '病区',
+  '科室',
+  '条码号',
+  '检查号',
+  '检验号',
+  '样本号',
+  '申请单号',
+  '仪器型号',
+  '设备编号',
+]
+const isAdministrativeFinding = (finding: OcrFinding) => {
+  const compact = normalizeFindingLabel(finding.item || '')
+  return !compact || administrativeFindingMarkers.some((marker) => compact.includes(marker))
+}
+const isAdministrativeIndicator = (item: Indicator) => {
+  const compact = normalizeFindingLabel(`${item.name || ''}${item.code || ''}`)
+  return !compact || administrativeFindingMarkers.some((marker) => compact.includes(marker))
+}
+const visibleIndicators = computed(() =>
+  (report.value?.indicators || []).filter((item) => !isAdministrativeIndicator(item)),
 )
-const normalCount = computed(() =>
-  Math.max((report.value?.indicators.length || 0) - abnormalCount.value, 0),
+const visibleFindings = computed(() =>
+  (report.value?.findings || []).filter((finding) => !isAdministrativeFinding(finding)),
 )
+const resultGroups = computed(() => {
+  const groups: Array<{
+    key: string
+    section: string
+    indicators: Indicator[]
+    observations: Array<{ item: string; result: string }>
+    summaries: Array<{ item: string; result: string }>
+  }> = []
+  for (const finding of visibleFindings.value) {
+    // 类目名称、类目分段和出现顺序均以原体检报告为准，不合并后续同名类目。
+    const section = finding.section?.trim() || report.value?.reportName?.trim() || '体检结果'
+    const item = finding.item?.trim()
+    const result = finding.result?.trim()
+    if (!item || !result) continue
+    let values = groups[groups.length - 1]
+    if (!values || values.section !== section) {
+      values = {
+        key: `${groups.length}-${section}`,
+        section,
+        indicators: [],
+        observations: [],
+        summaries: [],
+      }
+      groups.push(values)
+    }
+    const target = summaryLabels.has(normalizeFindingLabel(item))
+      ? values.summaries
+      : values.observations
+    target.push({ item, result })
+  }
+  // 新版体检报告已把数值、单位和参考范围保存在原类目内容中。仅在旧报告没有
+  // 任何原始分类结果时展示独立指标，避免重复展示或把指标挪到报告末尾。
+  for (const item of visibleFindings.value.length ? [] : visibleIndicators.value) {
+    // 旧式数值指标没有保存原始类目，只能归入原报告名称，避免猜测后放错类目。
+    const section = report.value?.reportName?.trim() || '检验指标'
+    let values = groups[groups.length - 1]
+    if (!values || values.section !== section) {
+      values = {
+        key: `${groups.length}-${section}`,
+        section,
+        indicators: [],
+        observations: [],
+        summaries: [],
+      }
+      groups.push(values)
+    }
+    values.indicators.push(item)
+  }
+  return groups
+})
+const resultItemCount = computed(() =>
+  resultGroups.value.reduce(
+    (total, group) => total + group.indicators.length + group.observations.length,
+    0,
+  ),
+)
+const summaryCount = computed(() =>
+  resultGroups.value.reduce((total, group) => total + group.summaries.length, 0),
+)
+const referenceText = (item: Indicator) => {
+  const low = item.referenceLow
+  const high = item.referenceHigh
+  const range =
+    low != null && high != null
+      ? `${low}～${high}`
+      : low != null
+        ? `≥ ${low}`
+        : high != null
+          ? `≤ ${high}`
+          : '以原报告为准'
+  return item.unit && range !== '以原报告为准' ? `${range} ${item.unit}` : range
+}
 const isProcessing = computed(() =>
   ['UPLOADED', 'OCR_PENDING', 'OCR_PROCESSING', 'CONFIRMED', 'AI_PROCESSING'].includes(
     report.value?.status || '',
@@ -253,39 +407,122 @@ function scheduleOcrPoll() {
   color: #82908b;
   font-size: 20rpx;
 }
-.indicator-card {
-  padding: 27rpx;
-}
-.indicator-main {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16rpx;
-}
 .indicator-name {
-  font-size: 28rpx;
-  font-weight: 680;
+  color: #23473e;
+  font-size: 25rpx;
+  font-weight: 700;
 }
 .indicator-ref {
   margin-top: 8rpx;
   color: #87948f;
   font-size: 21rpx;
 }
-.indicator-value {
+.result-heading {
+  margin-top: 34rpx;
+}
+.result-card {
+  overflow: hidden;
+  padding: 0 28rpx;
+}
+.result-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.result-count {
+  padding: 7rpx 14rpx;
+  border-radius: 999rpx;
+  background: #edf7f3;
+  color: #4c766b;
+  font-size: 20rpx;
+}
+.category-indicator-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 22rpx 0;
+  border-top: 1rpx solid #e8efec;
+}
+.category-indicator-copy {
+  flex: 1;
+  min-width: 0;
+}
+.category-indicator-result {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 14rpx;
+  text-align: right;
+}
+.category-indicator-value {
   display: flex;
   align-items: baseline;
-  margin-top: 24rpx;
-  padding-top: 20rpx;
-  border-top: 1rpx solid #edf1f0;
+  justify-content: flex-end;
+  color: #08775e;
 }
-.indicator-value text:first-child {
-  color: #0f7a62;
-  font-size: 44rpx;
+.category-indicator-value text:first-child {
+  font-size: 30rpx;
+  font-weight: 780;
+}
+.category-indicator-value text:last-child {
+  max-width: 120rpx;
+  margin-left: 7rpx;
+  color: #748780;
+  font-size: 19rpx;
+  word-break: break-all;
+}
+.finding-section {
+  padding: 27rpx 0 20rpx;
+  color: #125f4e;
+  font-size: 29rpx;
   font-weight: 760;
 }
-.indicator-value text:last-child {
-  margin-left: 9rpx;
-  color: #7d8b86;
-  font-size: 22rpx;
+.finding-row {
+  padding: 22rpx 0;
+  border-top: 1rpx solid #e8efec;
+}
+.finding-name {
+  color: #24483f;
+  font-size: 25rpx;
+  font-weight: 680;
+}
+.finding-result {
+  margin-top: 10rpx;
+  color: #617a72;
+  font-size: 23rpx;
+  line-height: 1.65;
+  word-break: break-all;
+}
+.finding-summary {
+  margin: 18rpx 0 28rpx;
+  padding: 22rpx 24rpx;
+  border: 1rpx solid #cde8de;
+  border-radius: 20rpx;
+  background: linear-gradient(135deg, #effaf6, #e3f5ef);
+}
+.finding-summary-title {
+  color: #0c735c;
+  font-size: 24rpx;
+  font-weight: 760;
+}
+.finding-summary-item {
+  position: relative;
+  margin-top: 12rpx;
+  padding-left: 20rpx;
+  color: #294e44;
+  font-size: 24rpx;
+  line-height: 1.65;
+  word-break: break-all;
+}
+.finding-summary-item::before {
+  position: absolute;
+  top: 17rpx;
+  left: 0;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #19a37f;
+  content: '';
 }
 </style>

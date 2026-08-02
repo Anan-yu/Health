@@ -1,5 +1,5 @@
 <template>
-  <view class="page elder-page"
+  <view class="page profile-edit-page elder-page"
     ><view class="title">健康档案与问卷</view
     ><view class="subtitle page-copy">请认真作答，作答内容将作为健康报告评估依据。</view
     ><PageState :loading="loading" :error="error" :empty="!patient"
@@ -526,11 +526,26 @@ const save = async () => {
 .field textarea {
   min-height: 150rpx;
 }
-.primary-button {
-  margin-top: 26rpx;
-  border-radius: 26rpx;
-  background: #0f7a62;
+.profile-edit-page .primary-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 94rpx;
+  min-height: 94rpx;
+  margin: 28rpx 0 0;
+  padding: 0 28rpx;
+  border: 0;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #11876c, #0b725c);
   color: #fff;
-  font-size: 32rpx;
+  font-size: 30rpx;
+  line-height: 1;
+  font-weight: 720;
+  box-shadow: 0 14rpx 30rpx rgba(15, 122, 98, 0.18);
+}
+.profile-edit-page .primary-button::after {
+  display: none;
 }
 </style>

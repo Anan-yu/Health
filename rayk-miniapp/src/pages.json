@@ -28,7 +28,8 @@
         { "path": "trend/index", "style": { "navigationBarTitleText": "指标趋势" } },
         { "path": "followup/index", "style": { "navigationBarTitleText": "健康随访" } },
         { "path": "followup/feedback", "style": { "navigationBarTitleText": "随访反馈" } },
-        { "path": "health-scan/index", "style": { "navigationBarTitleText": "健康检测" } }
+        { "path": "health-scan/index", "style": { "navigationBarTitleText": "健康检测" } },
+        { "path": "voice-reminder/index", "style": { "navigationBarTitleText": "健康提醒" } }
       ]
     },
     {

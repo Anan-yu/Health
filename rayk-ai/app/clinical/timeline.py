@@ -3,6 +3,18 @@ from typing import Any
 
 from app.schemas.assessment import AssessmentRequest, ModelResult
 
+_SUMMARY_LABELS = {
+    "小结",
+    "检查小结",
+    "诊断意见",
+    "诊断结论",
+    "检查结论",
+    "影像结论",
+    "印象",
+    "提示",
+    "结论",
+}
+
 
 def _decimal_text(value: Decimal | None) -> str | None:
     if value is None:
@@ -20,6 +32,57 @@ def _reference_status(
     if reference_low is not None or reference_high is not None:
         return "WITHIN_RANGE"
     return "UNKNOWN"
+
+
+def _normalized_label(value: str) -> str:
+    return "".join(value.strip().rstrip("：:").split())
+
+
+def _structured_examinations(request: AssessmentRequest) -> list[dict[str, Any]]:
+    """Keep qualitative observations and report conclusions separate and traceable."""
+    sections: list[dict[str, Any]] = []
+    section_indexes: dict[str, int] = {}
+    seen: set[tuple[str, str, str]] = set()
+
+    for finding in request.findings:
+        section = finding.section.strip() or "其他体检结果"
+        item = finding.item.strip()
+        result = finding.result.strip()
+        if not item or not result:
+            continue
+        fingerprint = (section, item, result)
+        if fingerprint in seen:
+            continue
+        seen.add(fingerprint)
+
+        section_index = section_indexes.get(section)
+        if section_index is None:
+            section_index = len(sections)
+            section_indexes[section] = section_index
+            sections.append(
+                {
+                    "sectionId": f"EXAM:{section_index + 1:03d}",
+                    "category": section,
+                    "observations": [],
+                    "summaries": [],
+                }
+            )
+
+        target = sections[section_index]
+        is_summary = _normalized_label(item) in _SUMMARY_LABELS
+        collection_name = "summaries" if is_summary else "observations"
+        ordinal = len(target[collection_name]) + 1
+        fact_kind = "SUMMARY" if is_summary else "OBS"
+        target[collection_name].append(
+            {
+                "factId": f"{target['sectionId']}:{fact_kind}:{ordinal:03d}",
+                "item": item,
+                "result": result,
+                "sourceQualifier": "原报告检查小结" if is_summary else "原报告检查所见",
+            }
+        )
+
+    return sections
 
 
 class ClinicalContextBuilder:
@@ -58,6 +121,7 @@ class ClinicalContextBuilder:
             if item.code
         ]
         abnormal = [item for item in indicators if item["referenceStatus"] in {"HIGH", "LOW"}]
+        examination_sections = _structured_examinations(request)
         context_payload = (
             context.model_dump(by_alias=True, exclude_none=True, mode="json")
             if context is not None
@@ -90,6 +154,29 @@ class ClinicalContextBuilder:
             }
             for item in indicators
         )
+        for section in examination_sections:
+            for finding in section["observations"]:
+                patient_facts.append(
+                    {
+                        "factId": finding["factId"],
+                        "category": "非数值检查所见",
+                        "section": section["category"],
+                        "field": finding["item"],
+                        "value": finding["result"],
+                        "sourceQualifier": finding["sourceQualifier"],
+                    }
+                )
+            for summary in section["summaries"]:
+                patient_facts.append(
+                    {
+                        "factId": summary["factId"],
+                        "category": "原报告检查小结",
+                        "section": section["category"],
+                        "field": summary["item"],
+                        "value": summary["result"],
+                        "sourceQualifier": summary["sourceQualifier"],
+                    }
+                )
 
         return {
             "demographics": {
@@ -118,6 +205,14 @@ class ClinicalContextBuilder:
                 ),
                 "indicators": indicators,
             },
+            "examinationSnapshot": {
+                "sectionCount": len(examination_sections),
+                "observationCount": sum(
+                    len(section["observations"]) for section in examination_sections
+                ),
+                "summaryCount": sum(len(section["summaries"]) for section in examination_sections),
+                "sections": examination_sections,
+            },
             "ruleAssessmentSnapshot": {
                 "evaluatedCount": sum(item.status == "EVALUATED" for item in results),
                 "insufficientDataCount": sum(
@@ -130,13 +225,14 @@ class ClinicalContextBuilder:
                 "results": [item.model_dump(by_alias=True, mode="json") for item in results],
             },
             "deterministicFindings": self._deterministic_findings(
-                indicators, calculated_bmi, results
+                indicators, examination_sections, calculated_bmi, results
             ),
         }
 
     @staticmethod
     def _deterministic_findings(
         indicators: list[dict[str, Any]],
+        examination_sections: list[dict[str, Any]],
         calculated_bmi: Decimal | None,
         results: list[ModelResult],
     ) -> list[str]:
@@ -146,6 +242,15 @@ class ClinicalContextBuilder:
             findings.append(
                 f"本次共有{len(indicators)}项已标准化检验指标，其中"
                 f"{abnormal_count}项超出报告参考区间。"
+            )
+        if examination_sections:
+            observation_count = sum(
+                len(section["observations"]) for section in examination_sections
+            )
+            summary_count = sum(len(section["summaries"]) for section in examination_sections)
+            findings.append(
+                f"原报告另含{len(examination_sections)}个非数值检查类目、"
+                f"{observation_count}项检查所见和{summary_count}项检查小结。"
             )
         if calculated_bmi is not None:
             findings.append(f"根据身高和体重计算的BMI为{_decimal_text(calculated_bmi)}。")

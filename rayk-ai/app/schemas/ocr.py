@@ -14,10 +14,17 @@ class OcrRecognizeRequest(RaykModel):
     download_url: str | None = Field(default=None, alias="downloadUrl")
 
 
+class OcrFinding(RaykModel):
+    section: str
+    item: str
+    result: str
+
+
 class OcrRecognizeData(RaykModel):
     engine: str
     status: str
     confidence: Decimal
     indicators: list[IndicatorInput]
+    findings: list[OcrFinding] = Field(default_factory=list)
     raw_lines: list[str] = Field(alias="rawLines")
     warnings: list[str]

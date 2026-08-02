@@ -3,6 +3,15 @@ from pathlib import Path
 
 from app.ocr.service import IndicatorRowParser, OcrQualityValidator, PaddleOcrService
 from app.schemas.indicator import IndicatorInput
+from app.schemas.ocr import OcrFinding
+
+
+class _TextPage:
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+    def extract_text(self, **_: object) -> str:
+        return self.text
 
 
 def test_parser_extracts_known_indicator_and_reference_range() -> None:
@@ -13,6 +22,47 @@ def test_parser_extracts_known_indicator_and_reference_range() -> None:
     assert indicators[0].value == Decimal("6.20")
     assert indicators[0].reference_low == Decimal("3.90")
     assert indicators[0].reference_high == Decimal("6.10")
+
+
+def test_native_pdf_findings_start_at_detail_and_keep_source_order() -> None:
+    parser = IndicatorRowParser()
+    findings: list[OcrFinding] = []
+    seen: set[tuple[str, str, str]] = set()
+    pages = [
+        _TextPage("异常结果显示\n★一般检查\n腰围 97"),
+        _TextPage(
+            "体检明细\n【肝纤维检测】 检查结果\n"
+            "肝脏硬度 6.6 kPa\n【一般检查】 检查结果\n腰围 97"
+        ),
+    ]
+
+    parser._parse_native_pdf_findings(pages, findings, seen)
+
+    assert [(item.section, item.item, item.result) for item in findings] == [
+        ("肝纤维检测", "肝脏硬度", "6.6 kPa"),
+        ("一般检查", "腰围", "97"),
+    ]
+
+
+def test_finding_merge_preserves_source_and_rejects_cloud_rewrites() -> None:
+    source = [
+        OcrFinding(section="肝纤维检测", item="肝脏硬度", result="6.6 kPa"),
+        OcrFinding(section="一般检查", item="检查小结", result="体重状况：肥胖"),
+    ]
+    cloud = [
+        OcrFinding(section="一般检查", item="腰围", result="97 cm"),
+        OcrFinding(section="肝纤维检测", item="肝脏硬度", result="肝硬度 6.6"),
+        OcrFinding(section="一般检查", item="检查小结", result="腰臀比偏高"),
+    ]
+
+    merged = PaddleOcrService._merge_findings(source, cloud)
+
+    assert [(item.section, item.item, item.result) for item in merged] == [
+        ("肝纤维检测", "肝脏硬度", "6.6 kPa"),
+        ("一般检查", "检查小结", "体重状况：肥胖"),
+        ("一般检查", "腰围", "97 cm"),
+        ("一般检查", "检查小结", "腰臀比偏高"),
+    ]
 
 
 def test_parser_supports_english_aliases() -> None:

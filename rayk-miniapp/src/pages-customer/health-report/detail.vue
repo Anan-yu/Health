@@ -54,7 +54,9 @@
           <view v-for="item in evidenceItems" :key="item" class="evidence-item">{{ item }}</view>
         </template>
         <view v-else class="muted">本次暂未提取到可展示的关键依据。</view>
-        <view class="data-action" @click="openLabReport">查看原检验报告</view>
+        <view class="data-action" @click="openLabReport">{{
+          openingOriginal ? '正在打开…' : '查看原检验报告'
+        }}</view>
       </view>
 
       <view class="section-head"
@@ -85,6 +87,7 @@
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getHealthReport, getHealthReportDownloadUrl } from '@/api/health-report'
+import { getFileDownloadUrl, getReportFiles } from '@/api/lab-report'
 import { getApiBaseUrl, getRequestHeaders } from '@/utils/request'
 import { useAuthStore } from '@/stores/auth'
 import type { Assessment, HealthReport } from '@/types/api'
@@ -119,6 +122,7 @@ const id = ref(''),
   report = ref<HealthReport | null>(null),
   loading = ref(true),
   downloading = ref(false),
+  openingOriginal = ref(false),
   error = ref('')
 const auth = useAuthStore()
 const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
@@ -226,10 +230,55 @@ onLoad((options) => {
   id.value = options?.id || ''
 })
 onShow(load)
-const openLabReport = () => {
-  if (!assessment.value?.reportId) return
-  const root = isCustomer.value ? 'pages-customer' : 'pages-business'
-  uni.navigateTo({ url: `/${root}/lab-report/detail?id=${assessment.value.reportId}` })
+const openLabReport = async () => {
+  const reportId = assessment.value?.reportId
+  if (!reportId || openingOriginal.value) return
+  openingOriginal.value = true
+  try {
+    const files = await getReportFiles(reportId)
+    const file = files[0]
+    if (!file) {
+      uni.showToast({ title: '未找到原检验报告文件', icon: 'none' })
+      return
+    }
+    // #ifdef H5
+    const { downloadUrl } = await getFileDownloadUrl(reportId, file.id)
+    if (!downloadUrl) throw new Error('原检验报告暂不可用')
+    globalThis.location.assign(downloadUrl)
+    // #endif
+    // #ifdef MP-WEIXIN
+    uni.showLoading({ title: '正在打开' })
+    uni.downloadFile({
+      url: `${getApiBaseUrl()}/api/v1/lab-reports/${reportId}/files/${file.id}/content`,
+      header: getRequestHeaders(),
+      success: ({ tempFilePath, statusCode }) => {
+        if (statusCode !== 200) {
+          uni.showToast({ title: '原检验报告打开失败', icon: 'none' })
+          return
+        }
+        if (file.mimeType?.startsWith('image/')) {
+          uni.previewImage({ urls: [tempFilePath], current: tempFilePath })
+          return
+        }
+        uni.openDocument({
+          filePath: tempFilePath,
+          fileType: 'pdf',
+          showMenu: true,
+          fail: () => uni.showToast({ title: '文件打开失败', icon: 'none' }),
+        })
+      },
+      fail: () => uni.showToast({ title: '原检验报告下载失败', icon: 'none' }),
+      complete: () => uni.hideLoading(),
+    })
+    // #endif
+  } catch (cause) {
+    uni.showToast({
+      title: cause instanceof Error ? cause.message : '原检验报告打开失败',
+      icon: 'none',
+    })
+  } finally {
+    openingOriginal.value = false
+  }
 }
 const openFollowup = () => uni.navigateTo({ url: '/pages-customer/followup/index' })
 const download = async () => {
@@ -440,11 +489,26 @@ const download = async () => {
 .plan-card > text {
   font-size: 42rpx;
 }
-.download-button {
-  margin-top: 24rpx;
-  border-radius: 16rpx;
-  background: #0f7a62;
+.report-page .download-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 94rpx;
+  min-height: 94rpx;
+  margin: 28rpx 0 0;
+  padding: 0 28rpx;
+  border: 0;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #11876c, #0b725c);
   color: #fff;
-  font-size: 28rpx;
+  font-size: 30rpx;
+  line-height: 1;
+  font-weight: 720;
+  box-shadow: 0 14rpx 30rpx rgba(15, 122, 98, 0.18);
+}
+.report-page .download-button::after {
+  display: none;
 }
 </style>

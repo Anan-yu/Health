@@ -105,6 +105,17 @@ rayk:
     plugin-server-url: ${HEALTH_SHOT_PLUGIN_SERVER_URL:}
     connect-timeout-seconds: ${HEALTH_SHOT_CONNECT_TIMEOUT_SECONDS:10}
     read-timeout-seconds: ${HEALTH_SHOT_READ_TIMEOUT_SECONDS:120}
+  tts:
+    enabled: ${TENCENT_TTS_ENABLED:false}
+    app-id: ${TENCENT_TTS_APP_ID:}
+    secret-id: ${TENCENT_TTS_SECRET_ID:}
+    secret-key: ${TENCENT_TTS_SECRET_KEY:}
+    region: ${TENCENT_TTS_REGION:ap-guangzhou}
+    female-voice-type: ${TENCENT_TTS_FEMALE_VOICE_TYPE:502001}
+    male-voice-type: ${TENCENT_TTS_MALE_VOICE_TYPE:602004}
+    speed: ${TENCENT_TTS_SPEED:-1}
+    volume: ${TENCENT_TTS_VOLUME:0}
+    sample-rate: ${TENCENT_TTS_SAMPLE_RATE:24000}
 
 logging:
   pattern:

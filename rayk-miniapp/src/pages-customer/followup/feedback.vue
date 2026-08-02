@@ -352,20 +352,27 @@ async function submit() {
   line-height: 1.65;
 }
 .status-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12rpx;
   margin-top: 18rpx;
 }
 .status-option {
-  flex: 1;
-  min-height: 72rpx;
-  padding: 16rpx 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 82rpx;
+  min-height: 82rpx;
+  padding: 0 8rpx;
   border: 1rpx solid #d9e5e1;
-  border-radius: 16rpx;
+  border-radius: 18rpx;
   background: #f7faf9;
   color: #6f817b;
   text-align: center;
   font-size: 27rpx;
+  line-height: 1;
 }
 .status-option.active {
   border-color: #149170;

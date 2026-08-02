@@ -155,21 +155,36 @@ const detail = (id: string) => uni.navigateTo({ url: `/pages-customer/lab-report
   font-size: 20rpx;
 }
 .filter-row {
-  display: flex;
-  gap: 14rpx;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8rpx;
   margin-bottom: 22rpx;
+  padding: 8rpx;
+  border: 1rpx solid #dce8e3;
+  border-radius: 24rpx;
+  background: #edf4f1;
 }
-.filter {
-  padding: 12rpx 24rpx;
-  border-radius: 999rpx;
-  background: #eaf0ee;
+.report-page .filter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 70rpx;
+  min-height: 70rpx;
+  padding: 0 12rpx;
+  border-radius: 18rpx;
+  background: transparent;
   color: #74837e;
-  font-size: 22rpx;
+  font-size: 26rpx;
+  line-height: 1;
+  text-align: center;
 }
-.filter.active {
-  background: #dff3ec;
+.report-page .filter.active {
+  background: #fff;
   color: #0d745c;
-  font-weight: 650;
+  font-weight: 720;
+  box-shadow: 0 6rpx 16rpx rgba(34, 91, 75, 0.09);
 }
 .report-card {
   display: flex;

@@ -25,6 +25,8 @@ public enum ErrorCode {
     OCR_TASK_PROCESSING(40102, "报告正在识别，请稍后再试"),
     OCR_SERVICE_UNAVAILABLE(40103, "报告识别服务暂时不可用，可稍后重新识别"),
     AI_SERVICE_UNAVAILABLE(50101, "AI服务暂时不可用"),
+    VOICE_SERVICE_UNAVAILABLE(50102, "语音服务暂时不可用，请稍后再试"),
+    VOICE_SERVICE_QUOTA_EXHAUSTED(50103, "语音服务当前没有可用调用额度，请联系管理员开通或充值"),
     REVIEW_INVALID_STATUS(60101, "审核任务当前状态不允许此操作"),
     FOLLOWUP_NOT_FOUND(60201, "随访任务或计划不存在或无权访问"),
     FOLLOWUP_INVALID_STATUS(60202, "随访任务或计划当前状态不允许此操作"),

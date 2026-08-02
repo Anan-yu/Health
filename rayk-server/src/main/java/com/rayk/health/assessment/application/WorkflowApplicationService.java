@@ -24,6 +24,7 @@ import com.rayk.health.indicator.application.AssessmentModelService;
 import com.rayk.health.indicator.mapper.IndicatorValueMapper;
 import com.rayk.health.integration.ai.AiDtos;
 import com.rayk.health.integration.ai.AiServiceClient;
+import com.rayk.health.laboratory.application.LabIndicatorVisibility;
 import com.rayk.health.laboratory.dto.ConfirmIndicatorsRequest;
 import com.rayk.health.laboratory.dto.CreateLabReportRequest;
 import com.rayk.health.laboratory.dto.IndicatorInput;
@@ -31,6 +32,7 @@ import com.rayk.health.laboratory.entity.LabReportEntity;
 import com.rayk.health.laboratory.mapper.LabReportMapper;
 import com.rayk.health.laboratory.vo.IndicatorVo;
 import com.rayk.health.laboratory.vo.LabReportVo;
+import com.rayk.health.laboratory.vo.OcrFindingVo;
 import com.rayk.health.patient.application.DataScopeService;
 import com.rayk.health.patient.converter.PatientConverter;
 import com.rayk.health.patient.entity.PatientEntity;
@@ -52,6 +54,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -270,6 +273,14 @@ public class WorkflowApplicationService {
                                                             item.getUnit(),
                                                             item.getReferenceLow(),
                                                             item.getReferenceHigh()))
+                                    .toList(),
+                            ocrFindings(report).stream()
+                                    .map(
+                                            item ->
+                                                    new AiDtos.OcrFinding(
+                                                            item.section(),
+                                                            item.item(),
+                                                            item.result()))
                                     .toList(),
                             activeModelCodes,
                             toPatientContext(
@@ -924,7 +935,10 @@ public class WorkflowApplicationService {
         return indicatorMapper.selectList(
                 new LambdaQueryWrapper<IndicatorValueEntity>()
                         .eq(IndicatorValueEntity::getReportId, reportId)
-                        .eq(IndicatorValueEntity::getDeleted, 0));
+                        .eq(IndicatorValueEntity::getDeleted, 0))
+                .stream()
+                .filter(item -> LabIndicatorVisibility.isVisible(item.getIndicatorName()))
+                .toList();
     }
 
     private IndicatorValueEntity toIndicator(
@@ -980,7 +994,39 @@ public class WorkflowApplicationService {
                 report.getStatus(),
                 report.getSourceType(),
                 values,
+                ocrFindings(report),
                 report.getCreatedAt());
+    }
+
+    private List<OcrFindingVo> ocrFindings(LabReportEntity report) {
+        if (report.getOcrSnapshot() == null || report.getOcrSnapshot().isBlank()) {
+            return List.of();
+        }
+        try {
+            JsonNode findings = objectMapper.readTree(report.getOcrSnapshot()).path("findings");
+            if (!findings.isArray()) {
+                return List.of();
+            }
+            List<OcrFindingVo> values = new ArrayList<>();
+            findings.forEach(
+                    node -> {
+                        String section = node.path("section").asText("体检结果").trim();
+                        String item = node.path("item").asText("").trim();
+                        String result = node.path("result").asText("").trim();
+                        if (!item.isBlank()
+                                && !result.isBlank()
+                                && LabIndicatorVisibility.isFindingVisible(item)) {
+                            values.add(
+                                    new OcrFindingVo(
+                                            section.isBlank() ? "体检结果" : section,
+                                            item,
+                                            result));
+                        }
+                    });
+            return List.copyOf(values);
+        } catch (JsonProcessingException exception) {
+            return List.of();
+        }
     }
 
     private AssessmentVo toAssessmentVo(HealthAssessmentEntity entity) {
