@@ -111,8 +111,8 @@ rayk:
     secret-id: ${TENCENT_TTS_SECRET_ID:}
     secret-key: ${TENCENT_TTS_SECRET_KEY:}
     region: ${TENCENT_TTS_REGION:ap-guangzhou}
-    female-voice-type: ${TENCENT_TTS_FEMALE_VOICE_TYPE:502001}
-    male-voice-type: ${TENCENT_TTS_MALE_VOICE_TYPE:602004}
+    female-voice-type: ${TENCENT_TTS_FEMALE_VOICE_TYPE:601012}
+    male-voice-type: ${TENCENT_TTS_MALE_VOICE_TYPE:501005}
     speed: ${TENCENT_TTS_SPEED:-1}
     volume: ${TENCENT_TTS_VOLUME:0}
     sample-rate: ${TENCENT_TTS_SAMPLE_RATE:24000}
