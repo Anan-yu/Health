@@ -148,7 +148,7 @@ class MedicalKnowledgeRetriever:
         self,
         request: AssessmentRequest,
         results: list[ModelResult],
-        limit: int = 10,
+        limit: int = 6,
     ) -> list[MedicalKnowledgeReference]:
         return self._retrieve(self._plan_assessment_query(request, results), limit=limit)
 
@@ -238,7 +238,6 @@ class MedicalKnowledgeRetriever:
         request: AssessmentRequest,
         results: list[ModelResult],
     ) -> KnowledgeQueryPlan:
-        indicator_codes = frozenset(item.code for item in request.indicators if item.code)
         abnormal_codes = frozenset(
             item.code
             for item in request.indicators
@@ -248,41 +247,90 @@ class MedicalKnowledgeRetriever:
                 or (item.reference_high is not None and item.value > item.reference_high)
             )
         )
-        evaluated_models = frozenset(
-            item.model_code for item in results if item.status == "EVALUATED"
+        focus_models = frozenset(
+            item.model_code
+            for item in results
+            if item.status == "EVALUATED" and item.risk_level in {"ATTENTION", "HIGH"}
         )
         context_payload = (
             request.patient_context.model_dump(exclude_none=True)
             if request.patient_context is not None
             else {}
         )
-        context_fields = frozenset(key for key, value in context_payload.items() if _present(value))
+        relevant_context_fields = {
+            "age",
+            "gender",
+            "height_cm",
+            "weight_kg",
+            "bmi",
+            "waist_cm",
+            "recent_weight_change_kg",
+            "lifestyle_summary",
+            "smoking_status",
+            "alcohol_status",
+            "exercise_frequency",
+            "sleep_quality",
+            "sleep_hours",
+            "stress_level",
+            "dietary_preference",
+            "recent_dietary_pattern",
+            "diabetes_status",
+            "hypertension_status",
+            "dyslipidemia_status",
+            "fatty_liver_status",
+            "family_history",
+            "medical_history",
+            "allergy_history",
+            "current_medications",
+        }
+        context_fields = frozenset(
+            key
+            for key, value in context_payload.items()
+            if key in relevant_context_fields and _present(value)
+        )
         topics = frozenset(
             topic
-            for model_code in evaluated_models
+            for model_code in focus_models
             for topic in _MODEL_TOPICS.get(model_code, frozenset())
         )
+        summary_labels = {
+            "小结",
+            "检查小结",
+            "诊断意见",
+            "诊断结论",
+            "检查结论",
+            "影像结论",
+            "印象",
+            "提示",
+            "结论",
+        }
+        report_summaries = [
+            item
+            for item in request.findings
+            if "".join(item.item.strip().rstrip("：:").split()) in summary_labels
+        ]
+        abnormal_indicators = [item for item in request.indicators if item.code in abnormal_codes]
         query_parts = [
             "医学健康评估",
             *sorted(topics),
             *[
                 f"{item.code or ''} {item.name} {item.value} {item.unit}"
-                for item in request.indicators
+                for item in abnormal_indicators
             ],
-            *[f"{item.section} {item.item} {item.result}" for item in request.findings],
+            *[f"{item.section} {item.item} {item.result}" for item in report_summaries],
             *[
                 f"{item.model_code} {item.model_name} {_text(item.evidence)} "
-                f"{_text(item.recommendations)}"
+                f"{_text(item.missing_indicators)}"
                 for item in results
-                if item.status == "EVALUATED"
+                if item.model_code in focus_models
             ],
-            _text(context_payload),
+            _text({key: context_payload[key] for key in context_fields}),
         ]
         query_text = " ".join(part for part in query_parts if part)
         return KnowledgeQueryPlan(
             query_text=query_text,
-            model_codes=evaluated_models,
-            indicator_codes=indicator_codes,
+            model_codes=focus_models,
+            indicator_codes=frozenset(abnormal_codes),
             abnormal_indicator_codes=abnormal_codes,
             context_fields=context_fields,
             topics=topics,

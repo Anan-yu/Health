@@ -66,11 +66,13 @@ public final class AiDtos {
       BigDecimal cameraSystolicBloodPressure,
       BigDecimal cameraDiastolicBloodPressure,
       BigDecimal cameraStressHrv,
-      BigDecimal cameraVitalsQualityScore) {
+      BigDecimal cameraVitalsQualityScore,
+      String cameraCompletedAt) {
     public PatientContext(String gender, Integer age) {
       this(
           gender,
           age,
+          null,
           null,
           null,
           null,
@@ -239,6 +241,8 @@ public final class AiDtos {
       String status,
       String source,
       String model,
+      int generationAttempts,
+      String fallbackReason,
       String summary,
       List<String> priorityConcerns,
       List<CrossModelFinding> crossModelFindings,

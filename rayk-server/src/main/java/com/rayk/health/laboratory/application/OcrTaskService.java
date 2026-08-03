@@ -109,7 +109,7 @@ public class OcrTaskService {
             throw new BusinessException(ErrorCode.OCR_TASK_PROCESSING);
         }
         LabReportEntity report = requireReport(reportId);
-        if (Set.of("CONFIRMED", "AI_PROCESSING", "REVIEWING", "PUBLISHED")
+        if (Set.of("CONFIRMED", "AI_PROCESSING", "AI_FAILED", "REVIEWING", "PUBLISHED")
                 .contains(report.getStatus())) {
             throw new BusinessException(ErrorCode.LAB_REPORT_INVALID_STATUS);
         }

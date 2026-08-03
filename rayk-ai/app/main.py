@@ -46,6 +46,14 @@ async def validation_error(_: Request, exc: RequestValidationError) -> JSONRespo
         {key: value for key, value in error.items() if key not in {"input", "url"}}
         for error in exc.errors()
     ]
+    validation_issues = [
+        f"{'.'.join(str(part) for part in error.get('loc', []))}:"
+        f"{error.get('type', 'validation_error')}"
+        for error in safe_errors
+    ]
+    logging.getLogger("rayk.ai.validation").warning(
+        "request validation failed issues=%s", validation_issues
+    )
     return JSONResponse(
         status_code=422,
         content={

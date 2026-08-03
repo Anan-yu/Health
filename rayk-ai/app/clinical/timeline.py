@@ -15,6 +15,8 @@ _SUMMARY_LABELS = {
     "结论",
 }
 
+_CAMERA_LIMITATION = "仅供趋势参考，不能替代医疗设备测量。"
+
 
 def _decimal_text(value: Decimal | None) -> str | None:
     if value is None:
@@ -36,6 +38,17 @@ def _reference_status(
 
 def _normalized_label(value: str) -> str:
     return "".join(value.strip().rstrip("：:").split())
+
+
+def _abnormal_display_text(indicator: dict[str, Any]) -> str:
+    name = indicator["name"]
+    value = indicator["value"]
+    unit = f" {indicator['unit']}" if indicator["unit"] else ""
+    if indicator["referenceStatus"] == "HIGH":
+        return (
+            f"{name}为 {value}{unit}，高于本次报告参考上限 " f"{indicator['referenceHigh']}{unit}。"
+        )
+    return f"{name}为 {value}{unit}，低于本次报告参考下限 " f"{indicator['referenceLow']}{unit}。"
 
 
 def _structured_examinations(request: AssessmentRequest) -> list[dict[str, Any]]:
@@ -121,6 +134,19 @@ class ClinicalContextBuilder:
             if item.code
         ]
         abnormal = [item for item in indicators if item["referenceStatus"] in {"HIGH", "LOW"}]
+        abnormal_facts = [
+            {
+                "factId": item["factId"],
+                "displayName": item["name"],
+                "value": item["value"],
+                "unit": item["unit"],
+                "referenceLow": item["referenceLow"],
+                "referenceHigh": item["referenceHigh"],
+                "referenceStatus": item["referenceStatus"],
+                "displayText": _abnormal_display_text(item),
+            }
+            for item in abnormal
+        ]
         examination_sections = _structured_examinations(request)
         context_payload = (
             context.model_dump(by_alias=True, exclude_none=True, mode="json")
@@ -134,15 +160,46 @@ class ClinicalContextBuilder:
             else {}
         )
         canonical_context_payload.pop("bmi", None)
-        patient_facts = [
-            {
-                "factId": f"PROFILE:{key}",
-                "category": "健康档案与问卷",
-                "field": key,
-                "value": value,
-            }
-            for key, value in canonical_context_payload.items()
-        ]
+        patient_facts: list[dict[str, Any]] = []
+        for key, value in canonical_context_payload.items():
+            if key.startswith("camera_"):
+                if key == "camera_completed_at":
+                    continue
+                camera_fact = {
+                    "factId": f"FACE:{key}",
+                    "category": "健康拍体征",
+                    "field": key,
+                    "value": value,
+                    "sourceType": "FACE_CAMERA_ESTIMATION",
+                    "sourceLabel": "健康拍摄像头估算",
+                    "evidenceLevel": "SUPPLEMENTARY",
+                    "usableForDiagnosis": False,
+                    "limitation": _CAMERA_LIMITATION,
+                }
+                completed_at = canonical_context_payload.get("camera_completed_at")
+                if completed_at:
+                    camera_fact["completedAt"] = completed_at
+                patient_facts.append(camera_fact)
+                continue
+            patient_facts.append(
+                {
+                    "factId": f"PROFILE:{key}",
+                    "category": "健康档案与问卷",
+                    "field": key,
+                    "value": value,
+                }
+            )
+        if calculated_bmi is not None:
+            patient_facts.append(
+                {
+                    "factId": "DERIVED:BMI",
+                    "category": "身体测量",
+                    "field": "bmi",
+                    "value": _decimal_text(calculated_bmi),
+                    "unit": "kg/m²",
+                    "sourceQualifier": "根据身高和体重计算",
+                }
+            )
         patient_facts.extend(
             {
                 "factId": item["factId"],
@@ -178,6 +235,55 @@ class ClinicalContextBuilder:
                     }
                 )
 
+        focus_profile_fields = {
+            "lifestyle_summary",
+            "medical_history",
+            "family_history",
+            "allergy_history",
+            "current_medications",
+            "hypertension_status",
+            "diabetes_status",
+            "dyslipidemia_status",
+            "fatty_liver_status",
+            "smoking_status",
+            "alcohol_status",
+            "exercise_frequency",
+            "sleep_quality",
+            "sleep_hours",
+            "stress_level",
+            "dietary_preference",
+            "recent_dietary_pattern",
+        }
+        profile_signals = [
+            {
+                "factId": f"PROFILE:{key}",
+                "field": key,
+                "value": value,
+            }
+            for key, value in canonical_context_payload.items()
+            if key in focus_profile_fields
+        ]
+        report_conclusions = [
+            {
+                "factId": summary["factId"],
+                "section": section["category"],
+                "item": summary["item"],
+                "result": summary["result"],
+            }
+            for section in examination_sections
+            for summary in section["summaries"]
+        ]
+        attention_results = [
+            {
+                "modelName": item.model_name,
+                "riskLevel": item.risk_level,
+                "evidence": item.evidence,
+                "missingIndicators": item.missing_indicators,
+            }
+            for item in results
+            if item.status == "EVALUATED" and item.risk_level in {"ATTENTION", "HIGH"}
+        ]
+
         return {
             "demographics": {
                 "gender": context.gender if context is not None else "UNKNOWN",
@@ -194,6 +300,14 @@ class ClinicalContextBuilder:
             },
             "healthProfileAndQuestionnaire": context_payload,
             "patientFacts": patient_facts,
+            "abnormalFacts": abnormal_facts,
+            "analysisFocus": {
+                "instruction": "先围绕本区生成结论，再到完整快照核对，不按资料顺序逐项复述。",
+                "abnormalFacts": abnormal_facts,
+                "profileSignals": profile_signals,
+                "reportConclusions": report_conclusions,
+                "attentionResults": attention_results,
+            },
             "laboratorySnapshot": {
                 "totalCount": len(indicators),
                 "abnormalCount": len(abnormal),

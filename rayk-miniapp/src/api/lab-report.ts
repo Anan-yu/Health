@@ -1,5 +1,6 @@
 import type {
   ApiResponse,
+  Assessment,
   Indicator,
   LabReport,
   LabReportFile,
@@ -75,4 +76,4 @@ export const saveIndicators = (id: string, indicators: Indicator[]) =>
 export const confirmIndicators = (id: string) =>
   request<LabReport>({ url: `/api/v1/lab-reports/${id}/confirm`, method: 'POST' })
 export const submitAi = (id: string) =>
-  request<unknown>({ url: `/api/v1/lab-reports/${id}/submit-ai`, method: 'POST' })
+  request<Assessment>({ url: `/api/v1/lab-reports/${id}/submit-ai`, method: 'POST' })

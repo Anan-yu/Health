@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -51,6 +52,7 @@ class PatientContext(RaykModel):
     camera_vitals_quality_score: Decimal | None = Field(
         default=None, alias="cameraVitalsQualityScore"
     )
+    camera_completed_at: datetime | None = Field(default=None, alias="cameraCompletedAt")
 
 
 class AssessmentRequest(RaykModel):
@@ -110,6 +112,8 @@ class ComprehensiveInterpretation(RaykModel):
     status: Literal["SUCCESS", "DISABLED", "FALLBACK"]
     source: Literal["DEEPSEEK", "RULE_FALLBACK"]
     model: str | None = None
+    generation_attempts: int = Field(default=0, alias="generationAttempts", ge=0, le=3)
+    fallback_reason: str | None = Field(default=None, alias="fallbackReason", max_length=100)
     summary: str = Field(min_length=1, max_length=1000)
     priority_concerns: list[str] = Field(
         default_factory=list, alias="priorityConcerns", max_length=10

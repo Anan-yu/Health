@@ -22,6 +22,7 @@ const labels: Record<string, string> = {
   COMPLETED: '已完成',
   APPROVED: '已通过',
   FAILED: '失败',
+  AI_FAILED: '评估未完成',
   REJECTED: '已退回',
   HIGH: '偏高',
   LOW: '偏低',
@@ -68,6 +69,7 @@ const label = computed(() => labels[props.status] || props.status)
   color: #14744c;
 }
 .failed,
+.ai_failed,
 .ocr_failed,
 .rejected,
 .high,

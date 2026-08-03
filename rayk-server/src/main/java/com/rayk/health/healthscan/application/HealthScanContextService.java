@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.rayk.health.healthscan.entity.HealthScanTaskEntity;
 import com.rayk.health.healthscan.mapper.HealthScanTaskMapper;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -35,7 +36,8 @@ public class HealthScanContextService {
                 task.getSystolicBloodPressure(),
                 task.getDiastolicBloodPressure(),
                 task.getStressHrv(),
-                task.getQualityScore());
+                task.getQualityScore(),
+                task.getCompletedAt());
     }
 
     public record LatestVitals(
@@ -46,9 +48,10 @@ public class HealthScanContextService {
             BigDecimal systolicBloodPressure,
             BigDecimal diastolicBloodPressure,
             BigDecimal stressHrv,
-            BigDecimal qualityScore) {
+            BigDecimal qualityScore,
+            LocalDateTime completedAt) {
         public static LatestVitals empty() {
-            return new LatestVitals(null, null, null, null, null, null, null, null);
+            return new LatestVitals(null, null, null, null, null, null, null, null, null);
         }
     }
 }

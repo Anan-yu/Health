@@ -223,7 +223,14 @@ public class WorkflowApplicationService {
     @Audited(operationType = "SUBMIT_ASSESSMENT", resourceType = "LAB_REPORT")
     public AssessmentVo submitAi(long reportId) {
         LabReportEntity report = requireReport(reportId);
-        if (!"CONFIRMED".equals(report.getStatus())) {
+        String previousReportStatus = report.getStatus();
+        boolean legacyAssessmentFailure =
+                "FAILED".equals(previousReportStatus)
+                        && report.getOcrSnapshot() != null
+                        && !report.getOcrSnapshot().isBlank()
+                        && !indicators(reportId).isEmpty();
+        if (!Set.of("CONFIRMED", "PUBLISHED", "AI_FAILED").contains(previousReportStatus)
+                && !legacyAssessmentFailure) {
             throw new BusinessException(ErrorCode.LAB_REPORT_INVALID_STATUS);
         }
         privacyConsentService.requireConsent(
@@ -291,6 +298,16 @@ public class WorkflowApplicationService {
                                             current.tenantId(), patient.getId())));
             AiDtos.AssessmentData aiResult = aiServiceClient.evaluate(aiRequest);
             task.setStatus("SUCCESS");
+            if (aiResult.interpretation() != null
+                    && "RULE_FALLBACK".equals(aiResult.interpretation().source())) {
+                String reason = aiResult.interpretation().fallbackReason();
+                task.setErrorMessage(
+                        reason == null || reason.isBlank()
+                                ? "AI综合解读已使用规则降级"
+                                : "AI综合解读已使用规则降级：" + reason);
+            } else {
+                task.setErrorMessage(null);
+            }
             task.setFinishedAt(LocalDateTime.now());
             touch(task, current.userId());
             aiTaskMapper.updateById(task);
@@ -320,8 +337,13 @@ public class WorkflowApplicationService {
             task.setFinishedAt(LocalDateTime.now());
             touch(task, current.userId());
             aiTaskMapper.updateById(task);
-            report.setStatus("FAILED");
-            report.setFailureReason("健康评估报告生成失败，请稍后重试");
+            if ("PUBLISHED".equals(previousReportStatus)) {
+                report.setStatus("PUBLISHED");
+                report.setFailureReason(null);
+            } else {
+                report.setStatus("AI_FAILED");
+                report.setFailureReason("体检内容识别已完成，AI评估或健康报告生成失败，请稍后重试");
+            }
             touch(report, current.userId());
             labReportMapper.updateById(report);
             if (exception instanceof BusinessException businessException) {
@@ -1093,7 +1115,8 @@ public class WorkflowApplicationService {
                 latestVitals.systolicBloodPressure(),
                 latestVitals.diastolicBloodPressure(),
                 latestVitals.stressHrv(),
-                latestVitals.qualityScore());
+                latestVitals.qualityScore(),
+                latestVitals.completedAt() == null ? null : latestVitals.completedAt().toString());
     }
 
     private HealthReportEntity publishAutomatically(

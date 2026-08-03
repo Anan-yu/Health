@@ -19,6 +19,22 @@
         :tone="reportFeedback.tone"
       />
 
+      <view v-if="isFallback" class="fallback-card">
+        <view class="fallback-title">本次大模型综合解读未完成</view>
+        <view class="fallback-copy">
+          当前展示的是保守规则结果，不代表大模型已经完成综合分析。原始检查结果仍可正常查看。
+        </view>
+        <button
+          v-if="isCustomer"
+          class="retry-button"
+          :loading="reassessing"
+          :disabled="reassessing"
+          @click="reassess"
+        >
+          {{ reassessing ? '正在重新生成…' : '重新生成 AI 解读' }}
+        </button>
+      </view>
+
       <view class="section-head"><view class="title">整体健康状态</view></view>
       <view class="card status-card">
         <view v-for="item in statusOverview" :key="item.label" class="status-row">
@@ -28,35 +44,40 @@
       </view>
 
       <view class="section-head"
-        ><view class="eyebrow">FOCUS</view><view class="title">重点健康问题</view></view
+        ><view class="eyebrow">FOCUS</view><view class="title">本次重点发现</view></view
       >
-      <view v-if="concerns.length" class="focus-list">
-        <view v-for="item in concerns" :key="item.code" class="card focus-card">
-          <view class="row"
-            ><view class="focus-title">{{ item.title }}</view
-            ><text :class="`pill ${item.level}`">{{
-              item.level === 'high' ? '建议重点关注' : '建议改善'
-            }}</text></view
-          >
-          <view class="focus-description">{{ item.description }}</view>
-          <view class="focus-next">下一步：{{ item.next }}</view>
-        </view>
+      <view v-if="priorityItems.length" class="card evidence-card">
+        <view v-for="item in priorityItems" :key="item" class="evidence-item">{{ item }}</view>
       </view>
-      <view v-else class="card good-card"
-        >当前已确认的数据未提示需要优先改善的健康问题，请保持良好生活习惯并按需复评。</view
+      <view v-else-if="hasEffectiveData" class="card good-card">
+        当前已确认的数据未提示需要优先改善的健康问题。</view
       >
+      <view v-else class="card good-card">当前数据不足，请补充资料后再进行健康评估。</view>
 
       <view class="section-head"
-        ><view class="eyebrow">EVIDENCE</view><view class="title">关键依据</view></view
+        ><view class="eyebrow">REASON</view><view class="title">为什么需要关注</view></view
       >
       <view class="card evidence-card">
-        <template v-if="evidenceItems.length">
-          <view v-for="item in evidenceItems" :key="item" class="evidence-item">{{ item }}</view>
+        <template v-if="whyItems.length">
+          <view v-for="item in whyItems" :key="item" class="evidence-item">{{ item }}</view>
         </template>
-        <view v-else class="muted">本次暂未提取到可展示的关键依据。</view>
+        <view v-else class="muted">当前没有可进一步说明的异常依据。</view>
         <view class="data-action" @click="openLabReport">{{
           openingOriginal ? '正在打开…' : '查看原检验报告'
         }}</view>
+      </view>
+
+      <view v-if="interpretation?.diagnosticReferences?.length" class="section-head">
+        <view class="eyebrow">CONFIRM</view><view class="title">需要进一步确认的健康方向</view>
+      </view>
+      <view v-if="interpretation?.diagnosticReferences?.length" class="card evidence-card">
+        <view
+          v-for="item in interpretation.diagnosticReferences"
+          :key="item.conditionName"
+          class="evidence-item"
+        >
+          {{ cleanHealthText(item.conditionName) }}：{{ cleanHealthText(item.rationale) }}
+        </view>
       </view>
 
       <view class="section-head"
@@ -67,6 +88,31 @@
           ><text>{{ index + 1 }}</text
           ><view>{{ item }}</view></view
         >
+      </view>
+
+      <view class="section-head"
+        ><view class="eyebrow">MISSING</view><view class="title">需要补充的数据</view></view
+      >
+      <view class="card evidence-card">
+        <template v-if="missingItems.length">
+          <view v-for="item in missingItems" :key="item" class="evidence-item">{{ item }}</view>
+        </template>
+        <view v-else class="muted">当前没有额外的重点补充项。</view>
+      </view>
+
+      <view class="section-head"
+        ><view class="eyebrow">LIMIT</view><view class="title">当前不能说明什么</view></view
+      >
+      <view class="card good-card">{{ uncertaintyText }}</view>
+
+      <view class="section-head"
+        ><view class="eyebrow">SOURCE</view><view class="title">数据来源与限制</view></view
+      >
+      <view class="card good-card">
+        {{ sourceLimitText }}
+        <view class="report-disclaimer">{{
+          interpretation?.disclaimer || assessment?.disclaimer
+        }}</view>
       </view>
 
       <view v-if="isCustomer" class="plan-card" @click="openFollowup">
@@ -86,7 +132,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { getHealthReport, getHealthReportDownloadUrl } from '@/api/health-report'
+import { createAssessment } from '@/api/assessment'
+import {
+  getHealthReport,
+  getHealthReportDownloadUrl,
+  getHealthReports,
+} from '@/api/health-report'
 import { getFileDownloadUrl, getReportFiles } from '@/api/lab-report'
 import { getApiBaseUrl, getRequestHeaders } from '@/utils/request'
 import { useAuthStore } from '@/stores/auth'
@@ -122,14 +173,17 @@ const id = ref(''),
   report = ref<HealthReport | null>(null),
   loading = ref(true),
   downloading = ref(false),
+  reassessing = ref(false),
   openingOriginal = ref(false),
   error = ref('')
 const auth = useAuthStore()
 const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
 const assessment = computed<Assessment | undefined>(() => report.value?.assessment)
-const evaluated = computed(() =>
-  (assessment.value?.results?.results || []).filter((item) => item.status !== 'INSUFFICIENT_DATA'),
-)
+const interpretation = computed(() => assessment.value?.results?.interpretation)
+const isFallback = computed(() => interpretation.value?.source === 'RULE_FALLBACK')
+const allResults = computed(() => assessment.value?.results?.results || [])
+const evaluated = computed(() => allResults.value.filter((item) => item.status === 'EVALUATED'))
+const hasEffectiveData = computed(() => evaluated.value.length > 0)
 const concerns = computed<Focus[]>(() =>
   evaluated.value
     .filter((item) => item.riskLevel === 'ATTENTION' || item.riskLevel === 'HIGH')
@@ -147,11 +201,17 @@ const concerns = computed<Focus[]>(() =>
       recommendations: (item.recommendations || []).map(cleanHealthText).filter(Boolean),
     })),
 )
-const overallSummary = computed(() =>
-  concerns.value.length
-    ? `本次发现 ${concerns.value.length} 项需要优先关注的健康方向，已生成对应的健康随访计划。`
-    : '当前已确认的数据整体平稳，建议保持良好生活习惯并按需完成健康随访。',
+const priorityItems = computed(() =>
+  (interpretation.value?.priorityConcerns || []).map(cleanHealthText).filter(Boolean),
 )
+const overallSummary = computed(() => {
+  const aiSummary = cleanHealthText(interpretation.value?.summary || '')
+  if (aiSummary) return aiSummary
+  if (concerns.value.length) return `本次有 ${concerns.value.length} 个健康方向需要关注。`
+  return hasEffectiveData.value
+    ? '当前已确认的数据未触发重点关注规则，建议按需复评。'
+    : '当前数据不足以形成有效健康结论，请补充资料后复评。'
+})
 const reportFeedback = computed<{
   title: string
   message: string
@@ -159,7 +219,7 @@ const reportFeedback = computed<{
   icon: string
   tone: 'life' | 'warm'
 }>(() =>
-  concerns.value.length
+  priorityItems.value.length || concerns.value.length
     ? {
         title: '看见需要关注的方向，是改善健康的第一步',
         message: '不必一次改变所有事情，先从最容易执行的一项行动开始。',
@@ -177,19 +237,22 @@ const reportFeedback = computed<{
 )
 const statusOverview = computed(() => {
   const groups = [
-    ['体重与代谢', ['GLUCOSE_METABOLISM']],
+    ['体重与代谢', ['BODY_COMPOSITION', 'GLUCOSE_METABOLISM']],
     ['心血管健康', ['LIPID_CARDIOVASCULAR']],
     ['肝肾基础状态', ['LIVER_METABOLIC', 'KIDNEY_ELECTROLYTE']],
     ['营养与饮食', ['NUTRITION_MICRONUTRIENT']],
     ['睡眠与恢复', ['HPA_ADRENAL']],
-    ['运动与生活习惯', []],
   ] as const
   return groups.map(([label, codes]) => {
-    const items = evaluated.value.filter((item) =>
+    const matching = allResults.value.filter((item) =>
       (codes as readonly string[]).includes(item.modelCode),
     )
+    const items = matching.filter((item) => item.status === 'EVALUATED')
     const high = items.some((item) => item.riskLevel === 'HIGH'),
       attention = items.some((item) => item.riskLevel === 'ATTENTION')
+    if (!matching.length || !items.length) {
+      return { label, level: 'insufficient', text: '数据不足' }
+    }
     return {
       label,
       level: high ? 'high' : attention ? 'attention' : 'good',
@@ -197,19 +260,39 @@ const statusOverview = computed(() => {
     }
   })
 })
-const evidenceItems = computed(() =>
-  [
-    ...new Set(
-      concerns.value.flatMap((item) => item.evidence).filter((item) => !item.includes('未触发')),
-    ),
-  ].slice(0, 8),
-)
-const directions = computed(() => {
-  const result = [...new Set(concerns.value.flatMap((item) => item.recommendations))].slice(0, 3)
-  return result.length
-    ? result
-    : ['保持规律作息、均衡饮食与适量运动，并在有新的检验报告时进行复评。']
+const whyItems = computed(() => {
+  const interpreted = (interpretation.value?.crossModelFindings || [])
+    .map((item) => cleanHealthText(item.explanation))
+    .filter(Boolean)
+  const evidence = concerns.value.flatMap((item) => item.evidence)
+  return [
+    ...new Set([...interpreted, ...evidence].filter((item) => !item.includes('未触发'))),
+  ].slice(0, 8)
 })
+const directions = computed(() => {
+  const generated = (interpretation.value?.recommendations || [])
+    .map(cleanHealthText)
+    .filter(Boolean)
+  const result = [
+    ...new Set(
+      generated.length ? generated : concerns.value.flatMap((item) => item.recommendations),
+    ),
+  ].slice(0, 5)
+  return result.length ? result : ['补充有效数据后，再制定与本次重点问题对应的健康行动。']
+})
+const missingItems = computed(() => [
+  ...new Set((interpretation.value?.missingDataAdvice || []).map(cleanHealthText).filter(Boolean)),
+])
+const uncertaintyText = computed(
+  () =>
+    cleanHealthText(interpretation.value?.uncertainty || '') ||
+    '本报告仅覆盖当前已提供的数据，不能据此诊断疾病或决定药物治疗。',
+)
+const sourceLimitText = computed(() =>
+  assessment.value?.results?.interpretation
+    ? '结论来自结构化检验报告、健康档案、问卷和辅助检测；健康拍摄像头估算仅供趋势参考，不能替代医疗设备测量。'
+    : '当前仅使用已提供的结构化资料，缺失信息不会被推断为正常。',
+)
 const load = async () => {
   if (!id.value) {
     error.value = '缺少健康报告编号'
@@ -281,6 +364,37 @@ const openLabReport = async () => {
   }
 }
 const openFollowup = () => uni.navigateTo({ url: '/pages-customer/followup/index' })
+const reassess = () => {
+  const labReportId = assessment.value?.reportId
+  if (!labReportId || !report.value || reassessing.value) return
+  uni.showModal({
+    title: '重新生成 AI 解读',
+    content: '将使用当前健康档案、检查报告和面部健康检测重新评估，并生成一份新的健康报告。是否继续？',
+    success: async ({ confirm }) => {
+      if (!confirm || !report.value) return
+      reassessing.value = true
+      try {
+        const generated = await createAssessment(labReportId)
+        const reports = await getHealthReports(report.value.patientId)
+        const generatedReport = reports.records.find(
+          (item) => item.assessment?.id === generated.id,
+        )
+        if (!generatedReport) {
+          uni.showToast({ title: '评估已生成，请稍后在报告列表查看', icon: 'none' })
+          return
+        }
+        uni.redirectTo({ url: `/pages-customer/health-report/detail?id=${generatedReport.id}` })
+      } catch (cause) {
+        uni.showToast({
+          title: cause instanceof Error ? cause.message : '重新生成失败，请稍后重试',
+          icon: 'none',
+        })
+      } finally {
+        reassessing.value = false
+      }
+    },
+  })
+}
 const download = async () => {
   if (!id.value) return
   downloading.value = true
@@ -381,6 +495,10 @@ const download = async () => {
   color: #b42318;
   background: #fee9e7;
 }
+.insufficient {
+  color: #687a75;
+  background: #eef2f1;
+}
 .focus-card {
   margin-bottom: 18rpx;
   padding: 28rpx;
@@ -414,6 +532,39 @@ const download = async () => {
 .good-card {
   color: #46685e;
   line-height: 1.7;
+}
+.report-disclaimer {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #e5ece9;
+  color: #74857f;
+  font-size: 22rpx;
+}
+.fallback-card {
+  margin-top: 24rpx;
+  padding: 26rpx 28rpx;
+  border: 1rpx solid #f2cf91;
+  border-radius: 22rpx;
+  background: #fff8e9;
+}
+.fallback-title {
+  color: #8c5200;
+  font-size: 27rpx;
+  font-weight: 720;
+}
+.fallback-copy {
+  margin-top: 10rpx;
+  color: #786445;
+  font-size: 23rpx;
+  line-height: 1.65;
+}
+.retry-button {
+  margin-top: 20rpx;
+  border: 0;
+  border-radius: 16rpx;
+  background: #0b8064;
+  color: #fff;
+  font-size: 24rpx;
 }
 .evidence-card {
   padding: 16rpx 27rpx;

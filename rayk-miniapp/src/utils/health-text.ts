@@ -30,6 +30,11 @@ const HEALTH_TEXT_TRANSLATIONS: Array<[string, string]> = [
 
 export function cleanHealthText(value: string) {
   const withoutInternalMetrics = value
+    .replace(
+      /评估维度\d+数据不足[：:]建议补充[^。；]+[。；]?/g,
+      '专项评估数据不足，建议结合症状和医生意见补充相应检查。',
+    )
+    .replace(/评估维度\d+[：:]?/g, '')
     .replace(/\s*[（(][A-Za-z][A-Za-z0-9_]*\s*=\s*[^）)]*[）)]/g, '')
     .replace(
       /\b[A-Za-z][A-Za-z0-9_]*\s*=\s*[-+]?\d+(?:\.\d+)?(?:\s*[A-Za-z/%^0-9]+)?\b/g,

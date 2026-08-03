@@ -11,13 +11,9 @@ from reportlab.lib.units import mm  # type: ignore[import-untyped]
 from reportlab.pdfbase import pdfmetrics  # type: ignore[import-untyped]
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont  # type: ignore[import-untyped]
 from reportlab.pdfgen.canvas import Canvas  # type: ignore[import-untyped]
-from reportlab.platypus import (  # type: ignore[import-untyped]
-    KeepTogether,
-    Paragraph,
-    SimpleDocTemplate,
-    Spacer,
-)
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer  # type: ignore[import-untyped]
 
+from app.core.constants import DISCLAIMER
 from app.schemas.report import ReportGenerateData, ReportGenerateRequest
 
 
@@ -25,26 +21,35 @@ class DemoReportService:
     """Produces the same concise health report used by customers and doctors."""
 
     def generate(self, request: ReportGenerateRequest) -> ReportGenerateData:
-        focus_count = sum(result.risk_level in {"ATTENTION", "HIGH"} for result in request.results)
+        focus_count = sum(
+            result.status == "EVALUATED" and result.risk_level in {"ATTENTION", "HIGH"}
+            for result in request.results
+        )
+        has_effective_data = bool(request.indicators) or any(
+            result.status == "EVALUATED" for result in request.results
+        )
         rule_summary = (
-            f"本次发现{focus_count}项需要优先关注的健康方向，已生成对应的健康随访计划。"
+            f"本次有{focus_count}个健康方向需要关注，请结合重点发现和下一步行动持续管理。"
             if focus_count
-            else "当前已确认的数据整体平稳，建议保持良好生活习惯并按需完成健康随访。"
+            else (
+                "当前已确认的数据未触发重点关注规则，建议按需复评。"
+                if has_effective_data
+                else "当前数据不足以形成有效健康结论，建议补充资料后复评。"
+            )
         )
         summary = (
             request.interpretation.summary if request.interpretation is not None else rule_summary
         )
         title = f"{request.patient_display_name}的健康评估报告"
+        sections = ["整体健康状态", "本次重点发现"]
+        if request.interpretation and request.interpretation.diagnostic_references:
+            sections.append("需要进一步确认的健康方向")
+        sections.extend(["建议补充的信息", "下一步健康行动", "报告限制与免责声明"])
         return ReportGenerateData(
             title=title,
             summary=summary,
-            sections=[
-                "整体健康状态",
-                "可能疾病与诊断参考",
-                "重点健康问题",
-                "健康随访",
-            ],
-            disclaimer="",
+            sections=sections,
+            disclaimer=DISCLAIMER,
             pdf_base64=base64.b64encode(self._build_pdf(request, title, summary)).decode("ascii"),
         )
 
@@ -124,54 +129,39 @@ class DemoReportService:
                     small,
                 )
             )
-        current_focus = self._current_focus(request)
-        if current_focus:
-            story.append(
-                Paragraph(
-                    "<b>当前重点：</b>" + self._safe(current_focus),
-                    small,
-                )
-            )
-        management_direction = self._management_direction(request)
-        if management_direction:
-            story.append(
-                Paragraph(
-                    "<b>健康管理方向：</b>" + self._safe(management_direction),
-                    small,
-                )
-            )
-        if request.interpretation is not None:
-            if request.interpretation.red_flags:
-                story.extend(
-                    [
-                        Spacer(1, 2 * mm),
-                        Paragraph(
-                            "<b>需优先关注：</b>"
-                            + self._safe(
-                                self._display_text("；".join(request.interpretation.red_flags[:3]))
-                            ),
-                            small,
-                        ),
-                    ]
-                )
-        story.extend(
-            [
-                Spacer(1, 3 * mm),
-                Paragraph("二、可能疾病与诊断参考", heading),
-                Paragraph(
-                    "以下内容是基于现有检验指标、健康档案和问卷信息形成的鉴别诊断线索，"
-                    "用于帮助医生确定进一步问诊和检查方向，不是疾病确诊结果。",
-                    small,
-                ),
-                Spacer(1, 2 * mm),
+        interpretation = request.interpretation
+        priority_concerns = interpretation.priority_concerns if interpretation is not None else []
+        if not priority_concerns:
+            priority_concerns = [
+                evidence
+                for result in request.results
+                if result.status == "EVALUATED" and result.risk_level in {"ATTENTION", "HIGH"}
+                for evidence in result.evidence[:1]
             ]
-        )
+        story.extend([Spacer(1, 3 * mm), Paragraph("二、本次重点发现", heading)])
+        if priority_concerns:
+            for concern in priority_concerns[:8]:
+                story.append(Paragraph("• " + self._safe(self._display_text(concern)), normal))
+        elif request.indicators:
+            story.append(Paragraph("当前已确认的数据未触发重点关注规则。", normal))
+        else:
+            story.append(Paragraph("当前数据不足，尚不能形成有效的重点发现。", normal))
+
         diagnostic_references = (
-            request.interpretation.diagnostic_references
-            if request.interpretation is not None
-            else []
+            interpretation.diagnostic_references if interpretation is not None else []
         )
+        section_number = 3
         if diagnostic_references:
+            story.extend(
+                [
+                    Spacer(1, 3 * mm),
+                    Paragraph("三、需要进一步确认的健康方向", heading),
+                    Paragraph(
+                        "以下方向用于帮助医生确定进一步问诊和检查重点，不代表疾病诊断。",
+                        small,
+                    ),
+                ]
+            )
             for reference in diagnostic_references[:5]:
                 story.extend(
                     [
@@ -205,55 +195,60 @@ class DemoReportService:
                         )
                     )
                 story.append(Spacer(1, 3 * mm))
-        else:
-            story.append(
-                Paragraph(
-                    "当前资料不足以形成有证据支持的疾病候选。该结果不代表已排除疾病；"
-                    "如存在不适症状，仍应由医生结合完整病史和进一步检查判断。",
-                    normal,
-                )
-            )
+            section_number = 4
 
-        focus_section = [Spacer(1, 3 * mm), Paragraph("三、重点健康问题", heading)]
-        focus = [item for item in request.results if item.risk_level in {"ATTENTION", "HIGH"}][:3]
-        if focus:
-            for result in focus:
-                evidence = self._display_text(
-                    "；".join(result.evidence[:3]) or "本次数据提示该方向需要持续关注"
-                )
-                next_step = (
-                    self._display_text(result.recommendations[0])
-                    if result.recommendations
-                    else "结合后续健康随访持续观察变化"
-                )
-                level = "建议重点关注" if result.risk_level == "HIGH" else "建议改善"
-                focus_section.extend(
-                    [
-                        Paragraph(
-                            f"<b>{self._safe(self._focus_name(result.model_code))}</b>"
-                            f" · {level}",
-                            normal,
-                        ),
-                        Paragraph(f"主要发现：{self._safe(evidence)}", small),
-                        Paragraph(f"下一步：{self._safe(next_step)}", small),
-                        Spacer(1, 2 * mm),
-                    ]
-                )
-        else:
-            focus_section.append(
-                Paragraph("当前已确认的数据未提示需要优先改善的健康问题。", normal)
-            )
-        focus_section.extend(
+        number_labels = {3: "三", 4: "四", 5: "五", 6: "六"}
+        missing_data = interpretation.missing_data_advice if interpretation is not None else []
+        story.extend(
             [
                 Spacer(1, 3 * mm),
-                Paragraph("四、健康随访", heading),
-                Paragraph(
-                    "已根据本次重点健康问题生成本周健康计划，请在健康随访中完成任务并提交反馈。",
-                    normal,
-                ),
+                Paragraph(f"{number_labels[section_number]}、建议补充的信息", heading),
             ]
         )
-        story.append(KeepTogether(focus_section))
+        if missing_data:
+            for item in missing_data[:8]:
+                story.append(Paragraph("• " + self._safe(self._display_text(item)), normal))
+        else:
+            story.append(Paragraph("当前没有额外的重点补充项，后续按医生意见复查。", normal))
+
+        section_number += 1
+        actions = interpretation.recommendations if interpretation is not None else []
+        if not actions:
+            actions = [
+                recommendation
+                for result in request.results
+                if result.status == "EVALUATED" and result.risk_level in {"ATTENTION", "HIGH"}
+                for recommendation in result.recommendations[:1]
+            ]
+        story.extend(
+            [
+                Spacer(1, 3 * mm),
+                Paragraph(f"{number_labels[section_number]}、下一步健康行动", heading),
+            ]
+        )
+        if actions:
+            for item in actions[:5]:
+                story.append(Paragraph("• " + self._safe(self._display_text(item)), normal))
+        else:
+            story.append(Paragraph("补充有效数据后，再制定与重点问题对应的健康行动。", normal))
+
+        section_number += 1
+        uncertainty = (
+            interpretation.uncertainty
+            if interpretation is not None
+            else "本报告仅覆盖当前已提供的资料，不能据此诊断疾病或决定药物治疗。"
+        )
+        story.extend(
+            [
+                Spacer(1, 3 * mm),
+                Paragraph(f"{number_labels[section_number]}、报告限制与免责声明", heading),
+                Paragraph(
+                    "<b>当前不能说明：</b>" + self._safe(self._display_text(uncertainty)), normal
+                ),
+                Spacer(1, 2 * mm),
+                Paragraph("<b>免责声明：</b>" + self._safe(DISCLAIMER), small),
+            ]
+        )
         document.build(
             story,
             onFirstPage=self._add_page_footer,
@@ -290,6 +285,7 @@ class DemoReportService:
             "",
             cleaned,
         )
+        cleaned = re.sub(r"\b[a-z]+(?:_[a-z0-9]+)+\b", "", cleaned)
         translations = (
             ("VERY_HIGH", "很高"),
             ("VERY_POOR", "很差"),

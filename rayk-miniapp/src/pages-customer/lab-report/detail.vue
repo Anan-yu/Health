@@ -32,6 +32,20 @@
           >
         </view>
       </view>
+      <view v-if="isAssessmentFailed" class="assessment-failed-note">
+        <view class="assessment-failed-title">体检内容已识别，AI 评估尚未完成</view>
+        <view class="assessment-failed-copy">
+          已识别的分类项目和检查小结不会丢失，也不需要重新识别原报告。可直接重新生成评估结果和健康报告。
+        </view>
+        <button
+          class="assessment-retry-button"
+          :loading="reassessing"
+          :disabled="reassessing"
+          @click="retryAssessment"
+        >
+          {{ reassessing ? '正在生成…' : '重新生成评估与健康报告' }}
+        </button>
+      </view>
       <template v-if="resultGroups.length">
         <view class="section-head result-heading">
           <view>
@@ -90,12 +104,14 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue'
 import { onHide, onLoad, onShow } from '@dcloudio/uni-app'
-import { getLabReport, getOcrTask } from '@/api/lab-report'
+import { getHealthReports } from '@/api/health-report'
+import { getLabReport, getOcrTask, submitAi } from '@/api/lab-report'
 import type { Indicator, LabReport, OcrFinding } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 const report = ref<LabReport>(),
   loading = ref(true),
+  reassessing = ref(false),
   error = ref('')
 const summaryLabels = new Set([
   '小结',
@@ -234,6 +250,9 @@ const isProcessing = computed(() =>
     report.value?.status || '',
   ),
 )
+const isAssessmentFailed = computed(() =>
+  ['AI_FAILED', 'FAILED'].includes(report.value?.status || '') && resultItemCount.value > 0,
+)
 const reportId = ref('')
 const autoReturn = ref(false)
 let pollTimer: ReturnType<typeof globalThis.setTimeout> | undefined
@@ -294,6 +313,28 @@ function scheduleOcrPoll() {
       scheduleOcrPoll()
     }
   }, 1800)
+}
+
+async function retryAssessment() {
+  if (!report.value || reassessing.value) return
+  reassessing.value = true
+  error.value = ''
+  try {
+    const assessment = await submitAi(reportId.value)
+    const reports = await getHealthReports(report.value.patientId)
+    const healthReport = reports.records.find((item) => item.assessment?.id === assessment.id)
+    if (healthReport) {
+      uni.redirectTo({ url: `/pages-customer/health-report/detail?id=${healthReport.id}` })
+      return
+    }
+    report.value = await getLabReport(reportId.value)
+    uni.showToast({ title: '评估已生成，请在健康报告中查看', icon: 'success' })
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '评估生成失败，请稍后重试'
+    report.value = await getLabReport(reportId.value).catch(() => report.value)
+  } finally {
+    reassessing.value = false
+  }
 }
 </script>
 
@@ -386,6 +427,32 @@ function scheduleOcrPoll() {
   color: #628078;
   font-size: 22rpx;
   line-height: 1.6;
+}
+.assessment-failed-note {
+  margin-top: 22rpx;
+  padding: 26rpx;
+  border: 1rpx solid #f0ce91;
+  border-radius: 22rpx;
+  background: #fff8e9;
+}
+.assessment-failed-title {
+  color: #805000;
+  font-size: 26rpx;
+  font-weight: 720;
+}
+.assessment-failed-copy {
+  margin-top: 9rpx;
+  color: #756449;
+  font-size: 22rpx;
+  line-height: 1.65;
+}
+.assessment-retry-button {
+  margin-top: 20rpx;
+  border: 0;
+  border-radius: 16rpx;
+  background: #0b8064;
+  color: #fff;
+  font-size: 24rpx;
 }
 @keyframes processing-spin {
   to {

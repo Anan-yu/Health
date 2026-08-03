@@ -65,16 +65,12 @@ MODEL_DEFINITIONS: list[ModelDefinition] = [
             "fasting_glucose",
             "fasting_insulin",
             "hba1c",
-            "triglyceride",
-            "hdl",
         ],
-        "minimum_indicators": 2,
+        "minimum_indicators": 1,
         "rules": [
             _rule("fasting_glucose", "HIGH", "6.1", "空腹血糖高于关注范围", 15, "mmol/L"),
             _rule("fasting_insulin", "HIGH", "25", "空腹胰岛素偏高", 12, "mIU/L"),
             _rule("hba1c", "HIGH", "6.0", "糖化血红蛋白偏高", 14, "%"),
-            _rule("triglyceride", "HIGH", "1.7", "甘油三酯偏高", 8, "mmol/L"),
-            _rule("hdl", "LOW", "1.0", "高密度脂蛋白偏低", 8, "mmol/L"),
         ],
         "base_score": 90,
         "recommendations": [
@@ -399,7 +395,11 @@ class HealthRuleEngine(RuleEngine):
                 values["bmi"] = IndicatorInput(
                     code="bmi", name="身体质量指数", value=context.bmi, unit="kg/m2"
                 )
-            if context.waist_cm is not None and "waist_risk_score" not in values:
+            if (
+                context.waist_cm is not None
+                and context.gender in {"MALE", "FEMALE"}
+                and "waist_risk_score" not in values
+            ):
                 waist_limit = Decimal("85") if context.gender == "FEMALE" else Decimal("90")
                 values["waist_risk_score"] = IndicatorInput(
                     code="waist_risk_score",
@@ -521,10 +521,14 @@ class HealthRuleEngine(RuleEngine):
             threshold = _rule_threshold(indicator, rule)
             if threshold is None:
                 continue
-            if _fires(indicator.value, rule["condition"], threshold):
-                evidence.append(
-                    f"{rule['evidence']}（{rule['code']}={indicator.value} {indicator.unit}）"
-                )
+            is_bmi_rule = rule["code"] == "bmi"
+            fires = (
+                self._bmi_rule_is_exclusive_match(indicator.value, rule)
+                if is_bmi_rule
+                else _fires(indicator.value, rule["condition"], threshold)
+            )
+            if fires:
+                evidence.append(self._natural_evidence(indicator, rule, threshold))
                 total_penalty += rule["penalty"]
 
         score = max(0, min(100, model["base_score"] - total_penalty))
@@ -551,6 +555,31 @@ class HealthRuleEngine(RuleEngine):
             missing_indicators=missing,
             recommendations=model["recommendations"],
         )
+
+    @staticmethod
+    def _bmi_rule_is_exclusive_match(value: Decimal, rule: RuleDefinition) -> bool:
+        """Keep BMI classifications mutually exclusive at the rule boundary."""
+        threshold = rule["threshold"]
+        if rule["condition"] == "LOW":
+            return value < Decimal("18.5") and threshold == Decimal("18.5")
+        if threshold == Decimal("24"):
+            return Decimal("24") <= value < Decimal("28")
+        if threshold == Decimal("28"):
+            return value >= Decimal("28")
+        return True
+
+    @staticmethod
+    def _natural_evidence(
+        indicator: IndicatorInput, rule: RuleDefinition, threshold: Decimal
+    ) -> str:
+        unit = f" {indicator.unit}" if indicator.unit else ""
+        if rule["condition"] == "HIGH":
+            boundary = (
+                "本次报告参考上限" if indicator.reference_high is not None else "健康管理关注值"
+            )
+            return f"{indicator.name}为 {indicator.value}{unit}，高于{boundary} {threshold}{unit}。"
+        boundary = "本次报告参考下限" if indicator.reference_low is not None else "健康管理关注值"
+        return f"{indicator.name}为 {indicator.value}{unit}，低于{boundary} {threshold}{unit}。"
 
     @staticmethod
     def _context_evidence(model_code: str, context: PatientContext | None) -> list[str]:

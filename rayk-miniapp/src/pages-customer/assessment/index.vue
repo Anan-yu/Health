@@ -19,15 +19,77 @@
             </text>
           </view>
           <view class="interpretation-summary">
-            {{ displayInterpretation(assessment.results.interpretation.summary) }}
+            {{ cleanHealthText(assessment.results.interpretation.summary) }}
           </view>
           <view
-            v-for="finding in assessment.results.interpretation.crossModelFindings"
-            :key="finding.title"
-            class="finding"
+            v-if="assessment.results.interpretation.priorityConcerns?.length"
+            class="detail-block"
           >
-            <view class="finding-title">{{ displayInterpretation(finding.title) }}</view>
-            <view class="subtitle">{{ displayInterpretation(finding.explanation) }}</view>
+            <view class="detail-title">本次重点发现</view>
+            <view
+              v-for="item in assessment.results.interpretation.priorityConcerns"
+              :key="item"
+              class="detail-item"
+              >{{ cleanHealthText(item) }}</view
+            >
+          </view>
+          <view
+            v-if="assessment.results.interpretation.crossModelFindings?.length"
+            class="detail-block"
+          >
+            <view class="detail-title">为什么需要关注</view>
+            <view
+              v-for="finding in assessment.results.interpretation.crossModelFindings"
+              :key="finding.title"
+              class="finding"
+            >
+              <view class="finding-title">{{ cleanHealthText(finding.title) }}</view>
+              <view class="subtitle">{{ cleanHealthText(finding.explanation) }}</view>
+            </view>
+          </view>
+          <view
+            v-if="assessment.results.interpretation.recommendations?.length"
+            class="detail-block"
+          >
+            <view class="detail-title">下一步建议</view>
+            <view
+              v-for="item in assessment.results.interpretation.recommendations"
+              :key="item"
+              class="detail-item"
+              >{{ cleanHealthText(item) }}</view
+            >
+          </view>
+          <view
+            v-if="assessment.results.interpretation.missingDataAdvice?.length"
+            class="detail-block"
+          >
+            <view class="detail-title">需要补充的数据</view>
+            <view
+              v-for="item in assessment.results.interpretation.missingDataAdvice"
+              :key="item"
+              class="detail-item"
+              >{{ cleanHealthText(item) }}</view
+            >
+          </view>
+          <view
+            v-if="assessment.results.interpretation.diagnosticReferences?.length"
+            class="detail-block"
+          >
+            <view class="detail-title">需要进一步确认的健康方向</view>
+            <view
+              v-for="item in assessment.results.interpretation.diagnosticReferences"
+              :key="item.conditionName"
+              class="detail-item"
+              >{{ cleanHealthText(item.conditionName) }}：{{
+                cleanHealthText(item.rationale)
+              }}</view
+            >
+          </view>
+          <view class="detail-block">
+            <view class="detail-title">当前不能说明什么</view>
+            <view class="uncertainty">{{
+              cleanHealthText(assessment.results.interpretation.uncertainty)
+            }}</view>
           </view>
         </view>
 
@@ -43,6 +105,7 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getMyAssessments } from '@/api/assessment'
 import type { Assessment } from '@/types/api'
+import { cleanHealthText } from '@/utils/health-text'
 import HealthDimensionDashboard from '@/components/HealthDimensionDashboard.vue'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -53,10 +116,6 @@ const error = ref('')
 
 function interpretationSource(value: string) {
   return value === 'DEEPSEEK' ? 'AI 辅助解读' : '规则辅助解读'
-}
-
-function displayInterpretation(value: string) {
-  return value.split('模型').join('评估维度')
 }
 
 onShow(async () => {
@@ -107,6 +166,36 @@ onShow(async () => {
 .finding-title {
   font-weight: 650;
   color: #173f36;
+}
+.detail-block {
+  margin-top: 22rpx;
+}
+.detail-title {
+  margin-bottom: 10rpx;
+  color: #173f36;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+.detail-item {
+  position: relative;
+  padding: 9rpx 0 9rpx 24rpx;
+  color: #526f67;
+  font-size: 24rpx;
+  line-height: 1.65;
+}
+.detail-item::before {
+  position: absolute;
+  left: 0;
+  content: '•';
+  color: #0b8064;
+}
+.uncertainty {
+  padding: 17rpx;
+  border-radius: 14rpx;
+  background: #f4f7f6;
+  color: #647872;
+  font-size: 23rpx;
+  line-height: 1.65;
 }
 .disclaimer {
   margin-top: 18rpx;

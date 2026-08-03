@@ -250,6 +250,8 @@ export interface Assessment {
       status: 'SUCCESS' | 'DISABLED' | 'FALLBACK'
       source: 'DEEPSEEK' | 'RULE_FALLBACK'
       model?: string
+      generationAttempts?: number
+      fallbackReason?: string
       summary: string
       priorityConcerns: string[]
       crossModelFindings: Array<{

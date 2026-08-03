@@ -1,5 +1,7 @@
 from base64 import b64decode
+from io import BytesIO
 
+import pdfplumber
 from fastapi.testclient import TestClient
 
 from app.core.constants import DISCLAIMER
@@ -32,7 +34,7 @@ def test_demo_assessment_contains_disclaimer() -> None:
     body = response.json()
     assert body["data"]["status"] == "SUCCESS"
     assert body["data"]["disclaimer"] == DISCLAIMER
-    assert body["data"]["results"][0]["riskLevel"] == "INSUFFICIENT_DATA"
+    assert body["data"]["results"][0]["riskLevel"] == "ATTENTION"
 
 
 def test_assessment_flags_confirmed_bilirubin_and_electrolyte_abnormalities() -> None:
@@ -210,10 +212,64 @@ def test_report_generation_returns_a_real_pdf() -> None:
     )
     assert response.status_code == 200
     data = response.json()["data"]
-    assert "可能疾病与诊断参考" in data["sections"]
+    assert "需要进一步确认的健康方向" in data["sections"]
+    assert "可能疾病与诊断参考" not in data["sections"]
+    assert "本次重点发现" in data["sections"]
+    assert "建议补充的信息" in data["sections"]
+    assert "下一步健康行动" in data["sections"]
+    assert "报告限制与免责声明" in data["sections"]
+    assert data["summary"] == ("空腹血糖轻度高于参考范围，结合现有资料建议关注糖代谢状态。")
+    assert data["disclaimer"] == DISCLAIMER
     assert "检验指标明细" not in data["sections"]
     assert "优先改善方向" not in data["sections"]
     assert b64decode(data["pdfBase64"]).startswith(b"%PDF-")
+
+
+def test_report_omits_empty_disease_section_and_keeps_summary_and_disclaimer_in_pdf() -> None:
+    request = ReportGenerateRequest.model_validate(
+        {
+            "assessmentId": "ASSESSMENT_003",
+            "patientDisplayName": "测试客户",
+            "reportNo": "HR_TEST_003",
+            "indicators": [
+                {
+                    "code": "total_cholesterol",
+                    "name": "总胆固醇",
+                    "value": 5.99,
+                    "unit": "mmol/L",
+                    "referenceHigh": 5.2,
+                }
+            ],
+            "results": [],
+            "interpretation": {
+                "status": "DISABLED",
+                "source": "RULE_FALLBACK",
+                "summary": "本次主要需要关注血脂健康，总胆固醇高于本次报告参考上限。",
+                "priorityConcerns": ["总胆固醇为5.99 mmol/L，高于本次报告参考上限5.20 mmol/L。"],
+                "crossModelFindings": [],
+                "diagnosticReferences": [],
+                "recommendations": ["建议核对LDL-C、HDL-C和甘油三酯。"],
+                "missingDataAdvice": ["完整血脂指标尚未提供。"],
+                "followupQuestions": [],
+                "redFlags": [],
+                "uncertainty": "不能仅根据总胆固醇判断冠心病或是否需要药物治疗。",
+                "disclaimer": DISCLAIMER,
+            },
+        }
+    )
+
+    generated = DemoReportService().generate(request)
+    pdf_bytes = b64decode(generated.pdf_base64)
+    with pdfplumber.open(BytesIO(pdf_bytes)) as document:
+        pdf_text = "\n".join(page.extract_text() or "" for page in document.pages)
+
+    assert generated.summary == request.interpretation.summary
+    assert "需要进一步确认的健康方向" not in generated.sections
+    assert generated.disclaimer == DISCLAIMER
+    assert request.interpretation.summary in pdf_text
+    assert DISCLAIMER in pdf_text
+    assert "total_cholesterol" not in pdf_text
+    assert "可能疾病与诊断参考" not in pdf_text
 
 
 def test_report_overall_health_section_uses_real_coverage_and_profile_data() -> None:

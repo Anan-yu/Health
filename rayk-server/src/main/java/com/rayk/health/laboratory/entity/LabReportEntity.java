@@ -1,6 +1,8 @@
 package com.rayk.health.laboratory.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -21,6 +23,7 @@ public class LabReportEntity {
     private String status;
     private String sourceType;
     private String ocrSnapshot;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String failureReason;
     private Long createdBy;
     private LocalDateTime createdAt;
