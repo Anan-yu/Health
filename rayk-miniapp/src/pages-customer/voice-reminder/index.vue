@@ -81,7 +81,9 @@
     <button class="save-button" :disabled="saving || loading" @click="save">
       {{ saving ? '正在保存…' : '保存提醒设置' }}
     </button>
-    <view class="bottom-tip">提醒时间已保存；微信关闭时的准时通知需在微信中授权消息提醒。</view>
+    <view class="bottom-tip"
+      >提醒时间已保存；应用保持运行并允许声音时会自动播报，微信关闭后的通知需授权订阅消息。</view
+    >
   </view>
 </template>
 
@@ -95,6 +97,7 @@ import {
   type VoiceReminderSetting,
 } from '@/api/voice-reminder'
 import { getApiBaseUrl, getRequestHeaders } from '@/utils/request'
+import { refreshVoiceReminderRuntime } from '@/utils/voice-reminder-runtime'
 
 const defaultSetting: VoiceReminderSetting = {
   mealEnabled: true,
@@ -154,6 +157,7 @@ const save = async () => {
         sleepTime: setting.sleepTime,
       }),
     )
+    refreshVoiceReminderRuntime()
     uni.showToast({ title: '提醒设置已保存', icon: 'success' })
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '保存失败', icon: 'none' })

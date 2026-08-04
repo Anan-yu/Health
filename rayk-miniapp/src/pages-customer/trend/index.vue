@@ -61,22 +61,24 @@
         </view>
         <view class="card chart-card">
           <view class="section-title">{{ summary?.indicatorName || selectedName }} · 历史记录</view>
-          <view class="chart">
-            <view v-for="point in points" :key="point.reportId" class="column">
-              <view class="bar-wrap"
-                ><view
-                  class="bar"
-                  :class="
-                    point.abnormalFlag === 'HIGH' || point.abnormalFlag === 'LOW' ? 'abnormal' : ''
-                  "
-                  :style="{ height: `${barHeight(point.value)}rpx` }"
-              /></view>
-              <text class="point-value">{{ point.value }}</text
-              ><text class="point-date">{{ formatDate(point.reportDate) }}</text>
+          <scroll-view class="chart-scroll" scroll-x :show-scrollbar="false">
+            <view class="chart" :style="{ width: chartWidth }">
+              <view v-for="point in points" :key="point.reportId" class="column">
+                <view class="bar-wrap"
+                  ><view
+                    class="bar"
+                    :class="
+                      point.abnormalFlag === 'HIGH' || point.abnormalFlag === 'LOW' ? 'abnormal' : ''
+                    "
+                    :style="{ height: `${barHeight(point.value)}rpx` }"
+                /></view>
+                <text class="point-value">{{ point.value }}</text
+                ><text class="point-date">{{ formatDate(point.reportDate) }}</text>
+              </view>
             </view>
-          </view>
+          </scroll-view>
           <view class="chart-note"
-            >绿色为参考范围内记录，橙色表示当次检验标记异常。趋势仅供健康管理参考。</view
+            >左右滑动可查看全部历史记录。绿色为参考范围内记录，橙色表示当次检验标记异常。趋势仅供健康管理参考。</view
           >
         </view>
       </PageState>
@@ -113,6 +115,7 @@ const selectedUnit = computed(() => selectedIndicator.value?.unit || '')
 const trendLabel = computed(
   () => ({ UP: '上升', DOWN: '下降', STABLE: '平稳' })[summary.value?.trendDirection || 'STABLE'],
 )
+const chartWidth = computed(() => `${Math.max(points.value.length * 92 + 24, 660)}rpx`)
 
 const loadTrend = async () => {
   const report = reports.value.find((item) =>
@@ -312,17 +315,22 @@ onShow(async () => {
 .chart-card {
   margin-top: 22rpx;
 }
+.chart-scroll {
+  width: 100%;
+  margin-top: 22rpx;
+}
 .chart {
   display: flex;
   height: 310rpx;
-  margin-top: 22rpx;
   align-items: flex-end;
-  justify-content: space-around;
+  justify-content: flex-start;
   gap: 12rpx;
+  box-sizing: border-box;
+  padding: 0 8rpx;
 }
 .column {
   display: flex;
-  min-width: 76rpx;
+  flex: 0 0 76rpx;
   height: 100%;
   flex-direction: column;
   align-items: center;

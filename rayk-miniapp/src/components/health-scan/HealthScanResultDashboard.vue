@@ -14,26 +14,11 @@
 
     <view v-if="activePrimaryTab === 'result'" class="result-panel">
       <view class="metric-toolbar">
-        <view class="metric-switch" @tap="indicatorPickerOpen = !indicatorPickerOpen">
+        <view class="metric-heading">
           <view class="metric-switch-icon">{{ selectedMetric.icon }}</view>
           <view class="metric-switch-name">{{ selectedMetric.name }}</view>
-          <view class="metric-switch-arrow" :class="{ open: indicatorPickerOpen }">⌄</view>
         </view>
         <view class="metric-time">{{ formatTime(latest.createdAt) }}</view>
-      </view>
-
-      <view v-if="indicatorPickerOpen" class="metric-picker">
-        <view
-          v-for="metric in availableMetrics"
-          :key="metric.code"
-          class="metric-option"
-          :class="{ active: selectedMetricCode === metric.code }"
-          @tap="selectMetric(metric.code)"
-        >
-          <view class="metric-option-icon">{{ metric.icon }}</view>
-          <view>{{ metric.name }}</view>
-          <view v-if="selectedMetricCode === metric.code" class="metric-option-check">✓</view>
-        </view>
       </view>
 
       <view class="secondary-tabs">
@@ -280,6 +265,10 @@ interface MetricDefinition {
 
 const props = defineProps<{
   records: HealthScanResult[]
+  selectedMetricCode?: string
+}>()
+const emit = defineEmits<{
+  'update:selectedMetricCode': [code: string]
 }>()
 
 const primaryTabs: Array<{ key: PrimaryTab; label: string }> = [
@@ -642,9 +631,11 @@ const metricDefinitions: MetricDefinition[] = [
 
 const activePrimaryTab = ref<PrimaryTab>('result')
 const activeSecondaryTab = ref<SecondaryTab>('value')
-const indicatorPickerOpen = ref(false)
 const scoreHelpOpen = ref(false)
-const selectedMetricCode = ref('heartRate')
+const selectedMetricCode = computed({
+  get: () => props.selectedMetricCode || 'heartRate',
+  set: (code: string) => emit('update:selectedMetricCode', code),
+})
 
 const succeededRecords = computed(() =>
   props.records.filter((record) => record.status === 'SUCCEEDED'),
@@ -741,6 +732,15 @@ watch(
   },
   { immediate: true },
 )
+watch(
+  () => props.selectedMetricCode,
+  (code) => {
+    if (code && availableMetrics.value.length && !availableMetrics.value.some((metric) => metric.code === code)) {
+      emit('update:selectedMetricCode', availableMetrics.value[0].code)
+    }
+  },
+  { immediate: true },
+)
 
 function assessMetric(metric: MetricDefinition) {
   if (!latest.value) {
@@ -749,16 +749,10 @@ function assessMetric(metric: MetricDefinition) {
   return metric.assess(latest.value)
 }
 
-function selectMetric(code: string) {
-  selectedMetricCode.value = code
-  indicatorPickerOpen.value = false
-}
-
 function openMetric(code: string, tab: SecondaryTab = 'value') {
   selectedMetricCode.value = code
   activePrimaryTab.value = 'result'
   activeSecondaryTab.value = tab
-  indicatorPickerOpen.value = false
   setTimeout(() => {
     uni.pageScrollTo({ selector: '#health-scan-analysis', offsetTop: -12, duration: 260 })
   }, 50)
@@ -834,19 +828,13 @@ function shortDate(value?: string) {
   justify-content: space-between;
   min-height: 76rpx;
 }
-.metric-switch {
+.metric-heading {
   display: flex;
   align-items: center;
   min-height: 66rpx;
-  padding: 0 18rpx 0 10rpx;
-  border: 1rpx solid #cfe3dc;
-  border-radius: 22rpx;
-  background: #fff;
   color: #173a32;
-  box-shadow: 0 8rpx 20rpx rgba(26, 79, 65, 0.06);
 }
-.metric-switch-icon,
-.metric-option-icon {
+.metric-switch-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -863,54 +851,9 @@ function shortDate(value?: string) {
   font-size: 28rpx;
   font-weight: 760;
 }
-.metric-switch-arrow {
-  margin-left: 10rpx;
-  color: #78918a;
-  font-size: 28rpx;
-  line-height: 1;
-  transition: transform 0.2s ease;
-}
-.metric-switch-arrow.open {
-  transform: rotate(180deg);
-}
 .metric-time {
   color: #82918c;
   font-size: 21rpx;
-}
-.metric-picker {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12rpx;
-  padding: 16rpx;
-  border: 1rpx solid #d9e8e3;
-  border-radius: 26rpx;
-  background: #fff;
-  box-shadow: 0 18rpx 40rpx rgba(20, 72, 58, 0.12);
-}
-.metric-option {
-  display: flex;
-  align-items: center;
-  min-height: 76rpx;
-  padding: 0 14rpx;
-  border: 1rpx solid transparent;
-  border-radius: 20rpx;
-  background: #f3f8f6;
-  color: #355249;
-  font-size: 24rpx;
-  font-weight: 650;
-}
-.metric-option.active {
-  border-color: #70c8ac;
-  background: #e8f7f1;
-  color: #08715b;
-}
-.metric-option .metric-option-icon {
-  margin-right: 10rpx;
-}
-.metric-option-check {
-  margin-left: auto;
-  color: #078266;
-  font-weight: 800;
 }
 .secondary-tabs {
   display: flex;
@@ -959,8 +902,12 @@ function shortDate(value?: string) {
   font-size: 30rpx;
   font-weight: 760;
 }
-.result-card-time,
 .content-copy {
+  margin-top: 5rpx;
+  color: #87958f;
+  font-size: 21rpx;
+}
+.result-card-time {
   margin-top: 5rpx;
   color: #87958f;
   font-size: 21rpx;

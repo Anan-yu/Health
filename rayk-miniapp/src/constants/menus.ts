@@ -38,9 +38,9 @@ const customer: MenuItem[] = [
     permission: 'self:lab-report',
   },
   {
-    title: 'AI评估结果',
-    description: '查看健康评估与建议',
-    icon: 'AI',
+    title: '健康总览',
+    description: '查看综合解读、健康仪表盘和维度卡片',
+    icon: '总',
     route: '/pages-customer/assessment/index',
     permission: 'self:assessment',
   },

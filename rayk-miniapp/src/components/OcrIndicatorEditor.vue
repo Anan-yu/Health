@@ -136,7 +136,6 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import {
   confirmIndicators,
-  getFileDownloadUrl,
   getLabReport,
   getOcrTask,
   getReportFiles,
@@ -144,7 +143,11 @@ import {
   saveIndicators,
   submitAi,
 } from '@/api/lab-report'
-import { getApiBaseUrl, getRequestHeaders } from '@/utils/request'
+import {
+  getApiBaseUrl,
+  getRequestHeaders,
+  openProtectedFileInBrowser,
+} from '@/utils/request'
 import type { Indicator, LabReport, OcrTask } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -359,11 +362,9 @@ async function previewSource() {
     if (!files.length) throw new Error('没有可预览的报告文件')
     const file = files[0]
     // #ifdef H5
-    const downloadFile = await getFileDownloadUrl(props.reportId, file.id)
-    if (!downloadFile.downloadUrl) throw new Error('报告预览地址生成失败')
-    const previewWindow = globalThis.open(downloadFile.downloadUrl, '_blank')
-    if (!previewWindow) throw new Error('浏览器拦截了预览窗口，请允许弹窗后重试')
-    previewWindow.opener = null
+    await openProtectedFileInBrowser(
+      `/api/v1/lab-reports/${props.reportId}/files/${file.id}/content`,
+    )
     // #endif
     // #ifndef H5
     uni.downloadFile({

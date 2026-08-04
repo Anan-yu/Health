@@ -41,16 +41,36 @@
 
     <view v-else class="intro-card">
       <view class="intro-title">一次检测，多项体征</view>
-      <view class="intro-copy">检测结果将与健康档案、问卷和体检报告共同完善健康画像。</view>
+      <view class="intro-copy">
+        {{
+          hasSucceededResult
+            ? '点击下方指标，可查看本次结果、历史趋势和指标解读。'
+            : '检测结果将与健康档案、问卷和体检报告共同完善健康画像。'
+        }}
+      </view>
       <view class="indicator-grid">
-        <view v-for="indicator in indicators" :key="indicator.name" class="indicator-item">
+        <view
+          v-for="indicator in indicators"
+          :key="indicator.code"
+          class="indicator-item"
+          :class="{
+            selectable: hasSucceededResult,
+            selected: hasSucceededResult && selectedMetricCode === indicator.code,
+          }"
+          @tap="selectIndicator(indicator.code)"
+        >
           <view class="indicator-icon">{{ indicator.icon }}</view>
           <view class="indicator-name">{{ indicator.name }}</view>
+          <view v-if="hasSucceededResult && selectedMetricCode === indicator.code" class="indicator-check">✓</view>
         </view>
       </view>
     </view>
 
-    <HealthScanResultDashboard v-if="hasSucceededResult" :records="scanRecords" />
+    <HealthScanResultDashboard
+      v-if="hasSucceededResult"
+      v-model:selected-metric-code="selectedMetricCode"
+      :records="scanRecords"
+    />
 
     <view v-else-if="latestResult" class="result-card">
       <view class="result-head">
@@ -115,17 +135,18 @@ const cameraTip = ref('请将面部完整放入取景框')
 const latestResult = ref<HealthScanResult>()
 const scanRecords = ref<HealthScanResult[]>([])
 const activeSession = ref<HealthScanSession>()
+const selectedMetricCode = ref('heartRate')
 
 let sampler: any
 let cameraListener: any
 
 const indicators = [
-  { icon: '心', name: '心率' },
-  { icon: '压', name: '血压' },
-  { icon: '氧', name: '血氧' },
-  { icon: '呼', name: '呼吸' },
-  { icon: '变', name: '心率变异性' },
-  { icon: '压', name: '压力参考' },
+  { code: 'heartRate', icon: '心', name: '心率' },
+  { code: 'bloodPressure', icon: '压', name: '血压' },
+  { code: 'oxygenSaturation', icon: '氧', name: '血氧' },
+  { code: 'respirationRate', icon: '呼', name: '呼吸' },
+  { code: 'heartRateVariability', icon: '变', name: '心率变异性' },
+  { code: 'stressHrv', icon: '压', name: '压力参考' },
 ]
 
 const hasSucceededResult = computed(() =>
@@ -338,6 +359,14 @@ function formatTime(value: string) {
   if (!value) return ''
   return value.replace('T', ' ').slice(0, 16)
 }
+
+function selectIndicator(code: string) {
+  if (!hasSucceededResult.value) return
+  selectedMetricCode.value = code
+  setTimeout(() => {
+    uni.pageScrollTo({ selector: '#health-scan-analysis', offsetTop: -12, duration: 260 })
+  }, 50)
+}
 </script>
 
 <style scoped>
@@ -515,8 +544,20 @@ function formatTime(value: string) {
   align-items: center;
   min-height: 82rpx;
   padding: 0 18rpx;
+  border: 2rpx solid transparent;
   border-radius: 22rpx;
   background: #f0f8f5;
+}
+.indicator-item.selectable {
+  position: relative;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.indicator-item.selectable:active {
+  background: #e7f5ef;
+}
+.indicator-item.selected {
+  border-color: #62c5a6;
+  background: #e6f7f0;
 }
 .indicator-item:last-child:nth-child(odd) {
   grid-column: 1 / -1;
@@ -538,6 +579,12 @@ function formatTime(value: string) {
   color: #27463e;
   font-size: 26rpx;
   font-weight: 680;
+}
+.indicator-check {
+  margin-left: auto;
+  color: #08715b;
+  font-size: 28rpx;
+  font-weight: 800;
 }
 .result-head {
   display: flex;

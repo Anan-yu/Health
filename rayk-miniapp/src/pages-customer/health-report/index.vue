@@ -7,7 +7,13 @@
           ><view class="section-title">{{ item.title }}</view
           ><StatusTag :status="item.status" /></view
         ><view class="subtitle">{{ item.summary }}</view
-        ><view class="muted">医生意见：{{ item.doctorOpinion || '无' }} · 查看报告 ›</view></view
+        ><view class="muted report-date">报告日期：{{ formatReportDate(item.publishedAt) }}</view
+        ><view class="muted"
+          ><template v-if="hasDoctorOpinion(item.doctorOpinion)">
+            医生意见：{{ item.doctorOpinion }} ·
+          </template>
+          查看报告 ›</view
+        ></view
       ></PageState
     ></view
   >
@@ -35,9 +41,17 @@ onShow(async () => {
 })
 const detail = (id: string) =>
   uni.navigateTo({ url: `/pages-customer/health-report/detail?id=${id}` })
+const hasDoctorOpinion = (opinion?: string) => {
+  const value = opinion?.trim()
+  return Boolean(value && value !== '无' && value.toLowerCase() !== 'none')
+}
+const formatReportDate = (value?: string) => (value ? value.replace('T', ' ').slice(0, 10) : '待确认')
 </script>
 <style scoped>
 .report-card {
   margin-bottom: 20rpx;
+}
+.report-date {
+  margin-top: 10rpx;
 }
 </style>

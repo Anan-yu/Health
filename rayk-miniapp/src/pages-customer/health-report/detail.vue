@@ -5,9 +5,7 @@
         <view class="eyebrow">HEALTH REPORT</view>
         <view class="hero-title">本次健康评估报告</view>
         <view class="hero-summary">{{ overallSummary }}</view>
-        <view class="hero-meta"
-          >报告日期：{{ report.publishedAt || '-' }} · 检验报告与健康档案共同评估</view
-        >
+        <view class="hero-meta">由健康档案、检验报告、面部检测结果综合评估</view>
       </view>
 
       <CareFeedbackCard
@@ -135,11 +133,10 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import { createAssessment } from '@/api/assessment'
 import {
   getHealthReport,
-  getHealthReportDownloadUrl,
   getHealthReports,
 } from '@/api/health-report'
-import { getFileDownloadUrl, getReportFiles } from '@/api/lab-report'
-import { getApiBaseUrl, getRequestHeaders } from '@/utils/request'
+import { getReportFiles } from '@/api/lab-report'
+import { getApiBaseUrl, getRequestHeaders, openProtectedFileInBrowser } from '@/utils/request'
 import { useAuthStore } from '@/stores/auth'
 import type { Assessment, HealthReport } from '@/types/api'
 import { cleanHealthText } from '@/utils/health-text'
@@ -325,9 +322,10 @@ const openLabReport = async () => {
       return
     }
     // #ifdef H5
-    const { downloadUrl } = await getFileDownloadUrl(reportId, file.id)
-    if (!downloadUrl) throw new Error('原检验报告暂不可用')
-    globalThis.location.assign(downloadUrl)
+    await openProtectedFileInBrowser(
+      `/api/v1/lab-reports/${reportId}/files/${file.id}/content`,
+      '_self',
+    )
     // #endif
     // #ifdef MP-WEIXIN
     uni.showLoading({ title: '正在打开' })
@@ -399,9 +397,8 @@ const download = async () => {
   if (!id.value) return
   downloading.value = true
   try {
-    const { downloadUrl } = await getHealthReportDownloadUrl(id.value)
     // #ifdef H5
-    globalThis.location.assign(downloadUrl)
+    await openProtectedFileInBrowser(`/api/v1/health-reports/${id.value}/content`, '_self')
     // #endif
     // #ifdef MP-WEIXIN
     uni.downloadFile({

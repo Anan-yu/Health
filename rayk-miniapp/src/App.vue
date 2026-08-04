@@ -1,7 +1,17 @@
 <script setup lang="ts">
-import { onLaunch } from '@dcloudio/uni-app'
+import { onHide, onLaunch, onShow } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
-onLaunch(() => useAuthStore().hydrate())
+import {
+  startVoiceReminderRuntime,
+  stopVoiceReminderRuntime,
+} from '@/utils/voice-reminder-runtime'
+
+onLaunch(() => {
+  useAuthStore().hydrate()
+  startVoiceReminderRuntime()
+})
+onShow(startVoiceReminderRuntime)
+onHide(stopVoiceReminderRuntime)
 </script>
 <style>
 page {
