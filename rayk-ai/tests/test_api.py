@@ -198,6 +198,12 @@ def test_report_generation_returns_a_real_pdf() -> None:
                         "supportingEvidence": ["空腹血糖6.2 mmol/L，高于参考上限6.1 mmol/L"],
                         "contradictingEvidence": ["缺少糖化血红蛋白和重复空腹血糖结果"],
                         "confirmationAdvice": ["复查空腹血糖并结合糖化血红蛋白综合判断"],
+                        "treatmentPlan": [
+                            "建议由内分泌科或全科结合复查结果确认后续诊疗路径，不自行用药。"
+                        ],
+                        "nutritionInterventionPlan": [
+                            "减少含糖饮料和精制主食摄入，记录一周饮食后由营养专业人员调整。"
+                        ],
                         "recommendedDepartment": "内分泌科或全科",
                     }
                 ],
@@ -212,7 +218,8 @@ def test_report_generation_returns_a_real_pdf() -> None:
     )
     assert response.status_code == 200
     data = response.json()["data"]
-    assert "需要进一步确认的健康方向" in data["sections"]
+    assert "疾病推断参考" in data["sections"]
+    assert "需要进一步确认的健康方向" not in data["sections"]
     assert "可能疾病与诊断参考" not in data["sections"]
     assert "本次重点发现" in data["sections"]
     assert "建议补充的信息" in data["sections"]
@@ -222,7 +229,23 @@ def test_report_generation_returns_a_real_pdf() -> None:
     assert data["disclaimer"] == DISCLAIMER
     assert "检验指标明细" not in data["sections"]
     assert "优先改善方向" not in data["sections"]
-    assert b64decode(data["pdfBase64"]).startswith(b"%PDF-")
+    pdf_bytes = b64decode(data["pdfBase64"])
+    assert pdf_bytes.startswith(b"%PDF-")
+    with pdfplumber.open(BytesIO(pdf_bytes)) as document:
+        pdf_text = "\n".join(page.extract_text() or "" for page in document.pages)
+        bold_font_names = {
+            char["fontname"]
+            for page in document.pages
+            for char in page.chars
+            if char["text"] in set("糖代谢异常内分泌科或全科")
+        }
+    assert "报告编号" not in pdf_text
+    assert "三、疾病推断参考" in pdf_text
+    assert "可能疾病：糖代谢异常" in pdf_text
+    assert "建议咨询科室：内分泌科或全科" in pdf_text
+    assert "疾病治疗方案" in pdf_text
+    assert "营养干预修复方案" in pdf_text
+    assert any("WenQuanYiZenHei" in font_name for font_name in bold_font_names)
 
 
 def test_report_omits_empty_disease_section_and_keeps_summary_and_disclaimer_in_pdf() -> None:
@@ -264,12 +287,57 @@ def test_report_omits_empty_disease_section_and_keeps_summary_and_disclaimer_in_
         pdf_text = "\n".join(page.extract_text() or "" for page in document.pages)
 
     assert generated.summary == request.interpretation.summary
-    assert "需要进一步确认的健康方向" not in generated.sections
+    assert "疾病推断参考" not in generated.sections
     assert generated.disclaimer == DISCLAIMER
     assert request.interpretation.summary in pdf_text
     assert DISCLAIMER in pdf_text
     assert "total_cholesterol" not in pdf_text
     assert "可能疾病与诊断参考" not in pdf_text
+    assert "报告编号" not in pdf_text
+
+
+def test_report_backfills_a_specific_helicobacter_treatment_path_for_legacy_data() -> None:
+    request = ReportGenerateRequest.model_validate(
+        {
+            "assessmentId": "ASSESSMENT_HP_001",
+            "patientDisplayName": "测试客户",
+            "reportNo": "HR_TEST_HP_001",
+            "indicators": [],
+            "results": [],
+            "interpretation": {
+                "status": "SUCCESS",
+                "source": "DEEPSEEK",
+                "summary": "呼气试验结果提示需要消化专科复核。",
+                "priorityConcerns": ["C14呼气试验结果需要结合专科判断。"],
+                "crossModelFindings": [],
+                "diagnosticReferences": [
+                    {
+                        "conditionName": "幽门螺杆菌感染",
+                        "assessment": "POSSIBLE",
+                        "rationale": "C14呼气试验结果提示幽门螺杆菌感染可能。",
+                        "indicatorCodes": [],
+                        "supportingEvidence": ["C14呼气试验结果高于本次报告参考上限。"],
+                        "contradictingEvidence": [],
+                        "confirmationAdvice": ["消化内科结合病史和检查复核。"],
+                        "recommendedDepartment": "消化内科",
+                    }
+                ],
+                "recommendations": ["预约消化内科复核。"],
+                "missingDataAdvice": [],
+                "followupQuestions": [],
+                "redFlags": [],
+                "uncertainty": "本报告不构成疾病诊断。",
+                "disclaimer": DISCLAIMER,
+            },
+        }
+    )
+
+    pdf_bytes = b64decode(DemoReportService().generate(request).pdf_base64)
+    with pdfplumber.open(BytesIO(pdf_bytes)) as document:
+        pdf_text = "\n".join(page.extract_text() or "" for page in document.pages)
+
+    assert "含铋四联根除治疗" in pdf_text
+    assert "复查呼气试验或粪便抗原" in pdf_text
 
 
 def test_report_overall_health_section_uses_real_coverage_and_profile_data() -> None:

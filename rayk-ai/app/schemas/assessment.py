@@ -103,6 +103,10 @@ class DiagnosticReference(RaykModel):
     confirmation_advice: list[str] = Field(
         default_factory=list, alias="confirmationAdvice", max_length=10
     )
+    treatment_plan: list[str] = Field(default_factory=list, alias="treatmentPlan", max_length=5)
+    nutrition_intervention_plan: list[str] = Field(
+        default_factory=list, alias="nutritionInterventionPlan", max_length=5
+    )
     recommended_department: str | None = Field(
         default=None, alias="recommendedDepartment", max_length=100
     )

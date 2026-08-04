@@ -9,11 +9,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 RUN groupadd --system rayk && useradd --system --gid rayk --home-dir /app rayk
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 libgomp1 \
+    && apt-get install -y --no-install-recommends \
+        libgl1 \
+        libglib2.0-0 \
+        libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --index-url "$PIP_INDEX_URL" --upgrade pip \
     && pip install --no-cache-dir --index-url "$PIP_INDEX_URL" -r requirements.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        fonts-wqy-microhei \
+        fonts-wqy-zenhei \
+    && rm -rf /var/lib/apt/lists/*
 COPY app ./app
 RUN mkdir -p /app/.paddlex /app/.cache \
     && chown -R rayk:rayk /app

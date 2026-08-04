@@ -66,15 +66,30 @@
       </view>
 
       <view v-if="interpretation?.diagnosticReferences?.length" class="section-head">
-        <view class="eyebrow">CONFIRM</view><view class="title">需要进一步确认的健康方向</view>
+        <view class="eyebrow">REFERENCE</view><view class="title">疾病推断参考</view>
       </view>
       <view v-if="interpretation?.diagnosticReferences?.length" class="card evidence-card">
         <view
           v-for="item in interpretation.diagnosticReferences"
           :key="item.conditionName"
-          class="evidence-item"
+          class="diagnostic-reference"
         >
-          {{ cleanHealthText(item.conditionName) }}：{{ cleanHealthText(item.rationale) }}
+          <view class="diagnostic-line">
+            <text>可能疾病：</text><text class="diagnostic-strong">{{ cleanHealthText(item.conditionName) }}</text>
+          </view>
+          <view class="diagnostic-copy">推断依据：{{ cleanHealthText(item.rationale) }}</view>
+          <view v-if="item.recommendedDepartment" class="diagnostic-line">
+            <text>建议咨询科室：</text
+            ><text class="diagnostic-strong">{{ cleanHealthText(item.recommendedDepartment) }}</text>
+          </view>
+          <view class="diagnostic-plan">
+            <view class="diagnostic-plan-title">疾病治疗方案</view>
+            <view v-for="plan in treatmentPlanFor(item)" :key="plan" class="diagnostic-copy">• {{ plan }}</view>
+          </view>
+          <view class="diagnostic-plan">
+            <view class="diagnostic-plan-title">营养干预修复方案</view>
+            <view v-for="plan in nutritionPlanFor(item)" :key="plan" class="diagnostic-copy">• {{ plan }}</view>
+          </view>
         </view>
       </view>
 
@@ -151,6 +166,12 @@ type Focus = {
   next: string
   evidence: string[]
   recommendations: string[]
+}
+type DiagnosticReference = {
+  conditionName: string
+  recommendedDepartment?: string
+  treatmentPlan?: string[]
+  nutritionInterventionPlan?: string[]
 }
 const labels: Record<string, string> = {
   GLUCOSE_METABOLISM: '糖代谢健康',
@@ -266,6 +287,19 @@ const whyItems = computed(() => {
     ...new Set([...interpreted, ...evidence].filter((item) => !item.includes('未触发'))),
   ].slice(0, 8)
 })
+const planItems = (plans?: string[]) => (plans || []).map(cleanHealthText).filter(Boolean)
+const treatmentPlanFor = (item: DiagnosticReference) => {
+  const plans = planItems(item.treatmentPlan)
+  if (plans.length) return plans
+  const department = cleanHealthText(item.recommendedDepartment || '') || '相关专科'
+  return [`请由${department}结合症状、检查小结和必要复查明确后续诊疗路径，不要依据本报告自行用药或调整治疗。`]
+}
+const nutritionPlanFor = (item: DiagnosticReference) => {
+  const plans = planItems(item.nutritionInterventionPlan)
+  return plans.length
+    ? plans
+    : ['建议由临床营养师或相关专科结合体重、肝肾功能、过敏史、当前用药和复查结果制定个体化饮食方案。']
+}
 const directions = computed(() => {
   const generated = (interpretation.value?.recommendations || [])
     .map(cleanHealthText)
@@ -575,6 +609,38 @@ const download = async () => {
 }
 .evidence-item:last-of-type {
   border-bottom: 0;
+}
+.diagnostic-reference {
+  padding: 19rpx 0 22rpx;
+  border-bottom: 1rpx solid #edf1ef;
+  color: #47675d;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+.diagnostic-reference:last-child {
+  border-bottom: 0;
+  padding-bottom: 10rpx;
+}
+.diagnostic-line {
+  color: #35594e;
+}
+.diagnostic-strong {
+  color: #173f35;
+  font-weight: 750;
+}
+.diagnostic-copy {
+  margin-top: 9rpx;
+  color: #58736a;
+}
+.diagnostic-plan {
+  margin-top: 15rpx;
+  padding: 14rpx 16rpx;
+  border-radius: 14rpx;
+  background: #f1f8f5;
+}
+.diagnostic-plan-title {
+  color: #0b765d;
+  font-weight: 700;
 }
 .data-action {
   margin-top: 18rpx;

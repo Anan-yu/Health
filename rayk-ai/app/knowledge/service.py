@@ -10,7 +10,7 @@ from sklearn.metrics.pairwise import linear_kernel  # type: ignore[import-untype
 from app.schemas.assessment import AssessmentRequest, ModelResult
 from app.schemas.followup import FollowupAdjustmentRequest
 
-KNOWLEDGE_BASE_VERSION = "ZHIYU_MEDICAL_KB_2.0.0"
+KNOWLEDGE_BASE_VERSION = "ZHIYU_MEDICAL_KB_2.1.0"
 
 _EMPTY_VALUES = {"", "UNKNOWN", "NONE", "NO_DATA", None}
 _MODEL_TOPICS: dict[str, frozenset[str]] = {

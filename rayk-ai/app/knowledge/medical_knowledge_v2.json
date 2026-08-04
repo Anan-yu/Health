@@ -1,5 +1,5 @@
 {
-  "knowledgeBaseVersion": "ZHIYU_MEDICAL_KB_2.0.0",
+  "knowledgeBaseVersion": "ZHIYU_MEDICAL_KB_2.1.0",
   "reviewPolicy": "仅收录政府卫生机构、国家卫生行业标准、国际卫生组织及经授权专业指南的结构化摘要；生产启用前须完成医学审核。",
   "documents": [
     {
@@ -448,6 +448,24 @@
       "keywords": ["促甲状腺激素", "游离甲状腺激素", "甲状腺功能", "体重变化", "个性化检查"],
       "applicablePopulation": ["接受健康体检的成年人"],
       "contraindications": ["不得依据单个甲状腺指标或非特异性症状直接诊断甲状腺疾病"]
+    },
+    {
+      "evidenceId": "CSGE-HP-2022-001",
+      "title": "2022中国幽门螺杆菌感染治疗指南",
+      "guidance": "成人幽门螺杆菌感染的根除应先由消化内科结合根除适应证、药物过敏、既往根除史和近期抗菌药使用进行评估。需要根除时，指南推荐含铋四联方案作为初次和再次根除治疗的主要路径，疗程通常为14天；具体药物组合、禁忌和疗效复核由医生个体化确定。",
+      "sourceName": "中华医学会消化病学分会",
+      "sourceUrl": "https://www.sinocardiomed.com/wp-content/uploads/2023/10/2023102513453091.pdf",
+      "documentVersion": "2022中国幽门螺杆菌感染治疗指南",
+      "publishedAt": "2022-11-01",
+      "authorityLevel": "A",
+      "evidenceType": "专业临床实践指南",
+      "section": "根除治疗与个体化评估",
+      "topics": ["消化", "幽门螺杆菌", "感染", "根除治疗"],
+      "modelCodes": ["GUT_BARRIER", "CHRONIC_INFLAMMATION"],
+      "contextFields": ["allergy_history", "current_medications", "medical_history"],
+      "keywords": ["幽门螺杆菌", "幽门螺杆菌感染", "C14呼气试验", "C13呼气试验", "根除治疗", "含铋四联"],
+      "applicablePopulation": ["经检测提示幽门螺杆菌感染、需由医生评估根除的人群"],
+      "contraindications": ["不能仅依据一次检测结果自行购买抗菌药或自行组合根除方案"]
     },
     {
       "evidenceId": "NHC-SLEEP-2025-001",

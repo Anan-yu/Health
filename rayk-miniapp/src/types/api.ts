@@ -267,6 +267,8 @@ export interface Assessment {
         supportingEvidence: string[]
         contradictingEvidence: string[]
         confirmationAdvice: string[]
+        treatmentPlan?: string[]
+        nutritionInterventionPlan?: string[]
         recommendedDepartment?: string
       }>
       recommendations: string[]

@@ -306,6 +306,7 @@ class ClinicalContextBuilder:
                 "abnormalFacts": abnormal_facts,
                 "profileSignals": profile_signals,
                 "reportConclusions": report_conclusions,
+                "diagnosticSummaryFacts": report_conclusions,
                 "attentionResults": attention_results,
             },
             "laboratorySnapshot": {

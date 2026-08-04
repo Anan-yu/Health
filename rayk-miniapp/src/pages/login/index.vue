@@ -23,8 +23,12 @@
 
     <!-- #ifdef MP-WEIXIN -->
     <view class="card login-card">
-      <view class="card-title">微信授权手机号登录</view>
+      <view class="card-title">{{ supportsPhoneLogin ? '微信授权手机号登录' : '微信一键登录' }}</view>
+      <view v-if="!supportsPhoneLogin" class="login-card-tip">
+        客户可通过微信一键登录，工作人员仅首次登录需要完成绑定。
+      </view>
       <button
+        v-if="supportsPhoneLogin"
         class="wechat"
         :loading="wechatLoading"
         :disabled="Boolean(identified)"
@@ -35,16 +39,98 @@
       >
         微信一键登录
       </button>
-      <view v-if="wechatLoading" class="recognizing">正在安全识别微信身份与授权手机号…</view>
+      <button
+        v-else
+        class="wechat"
+        :loading="wechatLoading"
+        :disabled="Boolean(identified)"
+        hover-class="wechat-hover"
+        @click="handleWeChatLogin()"
+      >
+        微信一键登录
+      </button>
+      <view v-if="wechatLoading" class="recognizing">
+        {{ supportsPhoneLogin ? '正在安全识别微信身份与授权手机号…' : '正在安全识别微信身份…' }}
+      </view>
       <view v-if="identified" class="identified">
         <view class="identified-mark">✓</view>
         <view
-          ><text>已识别：{{ identified.displayName }}</text
+          ><text>已识别：{{ identified.category }}</text
           ><text>将进入{{ identified.workbench }}</text></view
         >
       </view>
       <view class="agreement">登录即表示同意《用户服务协议》和《隐私政策》</view>
       <view v-if="wechatError" class="error">{{ wechatError }}</view>
+    </view>
+    <view v-if="!supportsPhoneLogin" class="card staff-login-card">
+      <view class="staff-login-heading">
+        <view class="card-title">工作人员登录</view>
+        <view class="staff-login-badge">首次绑定</view>
+      </view>
+      <view class="staff-role-switch">
+        <button
+          class="staff-role-option"
+          :class="{ active: staffLoginMode === 'admin' }"
+          @click="staffLoginMode = 'admin'"
+        >
+          平台管理员
+        </button>
+        <button
+          class="staff-role-option"
+          :class="{ active: staffLoginMode === 'doctor' }"
+          @click="staffLoginMode = 'doctor'"
+        >
+          医生
+        </button>
+      </view>
+      <view class="staff-login-guide">
+        <view class="staff-guide-row">
+          <text class="staff-guide-index">1</text>
+          <text>{{ staffLoginMode === 'admin' ? '填写账号密码并绑定当前微信' : '填写一次性绑定码并绑定当前微信' }}</text>
+        </view>
+        <view class="staff-guide-row staff-guide-row-muted">
+          <text class="staff-guide-index">2</text>
+          <text>绑定成功后，日常登录直接点击上方“微信一键登录”</text>
+        </view>
+      </view>
+      <view v-if="staffLoginMode === 'admin'" class="staff-credentials">
+        <input
+          v-model="staffUsername"
+          class="input staff-username-input"
+          maxlength="50"
+          placeholder="请输入平台管理员账号"
+        />
+        <input
+          v-model="staffPassword"
+          class="input staff-password-input"
+          password
+          maxlength="100"
+          placeholder="请输入平台管理员密码"
+        />
+      </view>
+      <input
+        v-else
+        v-model="staffInviteCode"
+        class="input staff-invite-input"
+        maxlength="10"
+        placeholder="请输入 10 位绑定码"
+      />
+      <button
+        class="secondary staff-login-button"
+        :loading="staffLoading"
+        :disabled="Boolean(identified)"
+        @click="handleStaffLogin"
+      >
+        {{ staffLoginMode === 'admin' ? '首次绑定管理员微信' : '首次绑定医生微信' }}
+      </button>
+      <view class="staff-login-note">
+        {{
+          staffLoginMode === 'admin'
+            ? '绑定成功后无需再次输入账号密码，直接使用微信一键登录。'
+            : '绑定码仅首次使用，绑定后无需重复输入。'
+        }}
+      </view>
+      <view v-if="staffError" class="error">{{ staffError }}</view>
     </view>
     <!-- #endif -->
 
@@ -109,45 +195,111 @@ const username = ref('doctor'),
   showDeveloper = ref(true),
   error = ref(''),
   wechatError = ref(''),
+  staffLoginMode = ref<'admin' | 'doctor'>('doctor'),
+  staffUsername = ref(''),
+  staffPassword = ref(''),
+  staffInviteCode = ref(''),
+  staffLoading = ref(false),
+  staffError = ref(''),
   expired = ref(false),
-  identified = ref<{ displayName: string; workbench: string } | null>(null)
+  identified = ref<{ category: string; workbench: string } | null>(null)
 const auth = useAuthStore()
 const isDevBuild = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEVELOPMENT_LOGIN === 'true'
+const supportsPhoneLogin = import.meta.env.VITE_WECHAT_PHONE_LOGIN === 'true'
 const workbenchNames: Record<Role, string> = {
   PLATFORM_ADMIN: '平台管理工作台',
   DOCTOR: '医生工作台',
   CUSTOMER: '个人健康中心',
 }
+const identityLabels: Record<Role, string> = {
+  PLATFORM_ADMIN: '管理员',
+  DOCTOR: '医生',
+  CUSTOMER: '客户',
+}
+const identifiedFor = (data: AuthData) => ({
+  category: identityLabels[data.defaultWorkbench],
+  workbench: workbenchNames[data.defaultWorkbench],
+})
 
 onLoad((query) => {
   expired.value = query?.expired === '1'
 })
 
-async function handleWeChatLogin(event: { detail?: { code?: string; errMsg?: string } }) {
+async function handleWeChatLogin(event?: { detail?: { code?: string; errMsg?: string } }) {
   wechatLoading.value = true
   wechatError.value = ''
-  const phoneCode = event?.detail?.code
+  const phoneCode = supportsPhoneLogin ? event?.detail?.code : undefined
   try {
     const result = await uni.login({ provider: 'weixin' })
     if (!result.code) throw new Error('微信未返回登录凭证')
     const data: AuthData = await auth.loginWithWeChat(result.code, phoneCode)
-    identified.value = {
-      displayName: data.displayName,
-      workbench: workbenchNames[data.defaultWorkbench],
-    }
+    identified.value = identifiedFor(data)
     await new Promise((resolve) => setTimeout(resolve, 900))
     uni.switchTab({ url: '/pages/home/index' })
   } catch (e) {
     const phoneError = event?.detail?.errMsg ?? ''
-    if (!phoneCode && /deny|cancel/i.test(phoneError)) {
+    if (supportsPhoneLogin && !phoneCode && /deny|cancel/i.test(phoneError)) {
       wechatError.value = '您取消了手机号授权，请重新点击并允许授权'
-    } else if (!phoneCode && !isDevBuild) {
+    } else if (supportsPhoneLogin && !phoneCode && !isDevBuild) {
       wechatError.value = '当前小程序未取得手机号授权凭证，请确认已使用正式 AppID 并开通手机号快速验证'
     } else {
       wechatError.value = e instanceof Error ? e.message : '微信登录失败，请重试'
     }
   } finally {
     wechatLoading.value = false
+  }
+}
+
+async function handleStaffLogin() {
+  if (staffLoginMode.value === 'admin') {
+    await handleAdminLogin()
+    return
+  }
+  const inviteCode = staffInviteCode.value.trim().toUpperCase()
+  if (inviteCode.length !== 10) {
+    staffError.value = '请输入有效的 10 位绑定码'
+    return
+  }
+  staffLoading.value = true
+  staffError.value = ''
+  try {
+    const result = await uni.login({ provider: 'weixin' })
+    if (!result.code) throw new Error('微信未返回登录凭证')
+    const data: AuthData = await auth.loginWithWeChatInvite(result.code, inviteCode)
+    identified.value = identifiedFor(data)
+    await new Promise((resolve) => setTimeout(resolve, 900))
+    uni.switchTab({ url: '/pages/home/index' })
+  } catch (e) {
+    staffError.value = e instanceof Error ? e.message : '工作人员登录失败，请重试'
+  } finally {
+    staffLoading.value = false
+  }
+}
+
+async function handleAdminLogin() {
+  const usernameValue = staffUsername.value.trim()
+  const passwordValue = staffPassword.value
+  if (!usernameValue || !passwordValue) {
+    staffError.value = '请输入平台管理员账号和密码'
+    return
+  }
+  staffLoading.value = true
+  staffError.value = ''
+  try {
+    const result = await uni.login({ provider: 'weixin' })
+    if (!result.code) throw new Error('微信未返回登录凭证')
+    const data: AuthData = await auth.loginWithWeChatAdmin(
+      result.code,
+      usernameValue,
+      passwordValue,
+    )
+    identified.value = identifiedFor(data)
+    await new Promise((resolve) => setTimeout(resolve, 900))
+    uni.switchTab({ url: '/pages/home/index' })
+  } catch (e) {
+    staffError.value = e instanceof Error ? e.message : '平台管理员登录失败，请重试'
+  } finally {
+    staffLoading.value = false
   }
 }
 
@@ -271,6 +423,12 @@ async function handleLogin() {
   font-size: 34rpx;
   font-weight: 730;
 }
+.login-card-tip {
+  margin-top: 8rpx;
+  color: #71877f;
+  font-size: 22rpx;
+  line-height: 1.55;
+}
 .wechat {
   display: flex;
   align-items: center;
@@ -339,6 +497,113 @@ async function handleLogin() {
 }
 .browser-tip {
   padding: 34rpx;
+}
+.staff-login-card {
+  margin-top: 20rpx;
+  padding: 30rpx 34rpx 34rpx;
+}
+.staff-login-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+.staff-login-heading .card-title {
+  margin-bottom: 0;
+}
+.staff-login-badge {
+  flex: 0 0 auto;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: #e3f6ee;
+  color: #0f7a62;
+  font-size: 20rpx;
+  font-weight: 700;
+}
+.staff-role-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12rpx;
+  margin: 20rpx 0 16rpx;
+}
+.staff-role-option {
+  height: 70rpx;
+  margin: 0;
+  border: 1rpx solid #dce9e5;
+  border-radius: 18rpx;
+  background: #f5faf8;
+  color: #55766c;
+  font-size: 24rpx;
+  line-height: 70rpx;
+}
+.staff-role-option::after {
+  border: 0;
+}
+.staff-role-option.active {
+  border-color: #0f7a62;
+  background: #e0f6ed;
+  color: #087056;
+  font-weight: 700;
+}
+.staff-credentials {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  margin-top: 18rpx;
+}
+.staff-login-guide {
+  margin-top: 18rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 18rpx;
+  background: #f2f8f5;
+}
+.staff-guide-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  color: #315f52;
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+.staff-guide-row + .staff-guide-row {
+  margin-top: 12rpx;
+}
+.staff-guide-row-muted {
+  color: #71877f;
+}
+.staff-guide-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30rpx;
+  height: 30rpx;
+  border-radius: 50%;
+  background: #cdeee2;
+  color: #0f7a62;
+  font-size: 18rpx;
+  font-weight: 700;
+  line-height: 30rpx;
+}
+.staff-invite-input {
+  margin-top: 18rpx;
+  text-transform: uppercase;
+}
+.staff-password-input {
+  margin-top: 0;
+}
+.staff-login-button {
+  width: 100%;
+  min-height: 84rpx;
+  margin-top: 18rpx;
+  border-radius: 22rpx;
+  font-size: 27rpx;
+}
+.staff-login-note {
+  margin-top: 14rpx;
+  color: #83938e;
+  text-align: center;
+  font-size: 20rpx;
 }
 .developer-trigger {
   display: flex;

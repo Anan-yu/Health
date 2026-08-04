@@ -22,8 +22,8 @@ from app.schemas.assessment import (
 from app.schemas.common import RaykModel
 
 logger = logging.getLogger(__name__)
-PROMPT_VERSION = "zhiyu-health-rag-v2.3"
-VERTICAL_ENGINE_VERSION = "ZHIYU_HEALTH_VERTICAL_2.3.0"
+PROMPT_VERSION = "zhiyu-health-rag-v2.5"
+VERTICAL_ENGINE_VERSION = "ZHIYU_HEALTH_VERTICAL_2.5.0"
 DEEPSEEK_MAX_OUTPUT_TOKENS = 384 * 1024
 
 _SYSTEM_PROMPT = """
@@ -32,6 +32,9 @@ _SYSTEM_PROMPT = """
 【唯一事实与知识来源】
 1. healthTimeline.analysisFocus 是本次优先分析区；先围绕其中的异常、档案信号和检查小结
    形成主线，再到完整快照核对，不得按原始资料顺序逐项复述。
+   其中 diagnosticSummaryFacts 是原报告检查小结的专门索引；疾病参考必须先核对这些小结，
+   将真正支持判断的原文结论及其 factId 写入 supportingEvidence。阴性、正常或“未见异常”的
+   小结同样是反证，不能被改写成疾病线索。
 2. healthTimeline.patientFacts 是本次患者事实，只能引用其中存在的事实编号。
 3. 检验异常必须以原报告 referenceLow、referenceHigh 和 referenceStatus 为首要判定依据。
 4. examinationSnapshot 按检查类目保存原报告的非数值检查所见和检查小结；二者必须联合
@@ -51,6 +54,12 @@ _SYSTEM_PROMPT = """
   具有医学意义的异常模式；PRIORITY_REVIEW 还必须存在明确危险信号。
 - 每项鉴别诊断都必须引用与该问题直接相关的 patientFactId 和 evidenceId，并在
   supportingEvidence 中使用患者能看懂的中文描述实际异常。
+- 每项疾病参考必须同时提供 treatmentPlan 和 nutritionInterventionPlan。treatmentPlan 必须有
+  2至4条可执行内容，依次写明：就诊时需完成的确认或分层、基于本次RAG证据的核心治疗策略、
+  疗效复核或随访；可直接使用“幽门螺杆菌根除治疗路径”“动脉粥样硬化危险因素强化管理”
+  “脂肪性肝病的体重与代谢共病干预”等指南定义的治疗类别。不得只写“由专科决定后续方案”。
+  nutritionInterventionPlan 必须与本次证据对应。两者都不是处方，不能包含具体药名、剂量、
+  侵入性操作、营养补充剂或让用户自行调整治疗。
 - 已在既往史中明确记录的疾病不是“新发现疾病”；可以说明相关指标值得关注。
 - 必须原样保留“可能、考虑、倾向、待排、建议复查”等限定语，不得把影像或其他文字
   检查中的提示升级为“已患有”或“已确诊”。不得把报告抬头、姓名、电话、日期当成医学结果。
@@ -280,11 +289,14 @@ class InterpretationService:
                 "diagnosticReferences允许为空，单项轻度异常不得强制生成疾病候选",
                 "疾病参考至少需要两项相关异常事实、明确疾病方向小结或危险信号之一",
                 "PRIORITY_REVIEW除至少两项患者事实外还必须存在明确危险信号",
+                "疾病参考必须优先核对analysisFocus.diagnosticSummaryFacts；引用疾病方向小结时，必须把对应factId写入patientFactIds，并在supportingEvidence中说明原报告小结内容",
+                "每个疾病参考必须提供2至4条treatmentPlan，分别写清确认或分层、基于RAG证据的核心治疗类别、疗效复核或随访；不得只写“由专科结合情况制定方案”",
+                "treatmentPlan可以直接使用RAG证据支持的指南治疗类别，但不得输出具体药名、剂量、侵入性操作或让用户自行调整治疗；nutritionInterventionPlan必须与本次证据对应",
                 "每个重点问题和疾病候选至少引用一个相关evidenceId",
                 "不得引用本次evidenceBundle之外的机构、指南、阈值或文献",
                 "不得输出输入中不存在的指标代码或事实编号",
                 "不得把既往明确疾病包装成新发现疾病",
-                "不得给出药物、营养补充剂剂量或治疗方案",
+                "不得给出药物、治疗操作、营养补充剂或任何剂量；不得建议自行停药、加药、减药或替换治疗",
                 "数据不足的健康维度不能解释为低风险",
                 "健康拍摄像头估算仅供趋势参考，不能作为疾病判断的唯一证据",
                 "建议只保留3至5条且必须与本次重点问题直接对应",
@@ -447,6 +459,8 @@ class InterpretationService:
                         reference.rationale,
                         *reference.supporting_evidence,
                         *reference.confirmation_advice,
+                        *reference.treatment_plan,
+                        *reference.nutrition_intervention_plan,
                     )
                 ],
             ]
@@ -496,6 +510,16 @@ class InterpretationService:
                 raise ValueError("Camera estimation used as sole diagnostic evidence")
             if reference.assessment in {"POSSIBLE", "PRIORITY_REVIEW"} and len(traceable_facts) < 2:
                 raise ValueError("Diagnostic reference lacks two independent patient facts")
+            if not reference.treatment_plan or not reference.nutrition_intervention_plan:
+                raise ValueError("Diagnostic reference lacks care and nutrition plans")
+            if len(reference.treatment_plan) < 2 or all(
+                re.fullmatch(
+                    r"(?:请|建议)?由[^。；]*?(?:结合|根据)[^。；]*?(?:决定|制定|明确)[^。；]*(?:方案|路径)。?",
+                    item.strip(),
+                )
+                for item in reference.treatment_plan
+            ):
+                raise ValueError("Diagnostic reference treatment plan is too generic")
 
     @staticmethod
     def _normalize_generated_output(
@@ -550,13 +574,17 @@ class InterpretationService:
             ]
             if not evidence_ids or not (patient_fact_ids or indicator_codes):
                 return None
-            return item.model_copy(
-                update={
-                    "indicator_codes": indicator_codes,
-                    "patient_fact_ids": patient_fact_ids,
-                    "evidence_ids": evidence_ids,
-                }
-            )
+            update: dict[str, object] = {
+                "indicator_codes": indicator_codes,
+                "patient_fact_ids": patient_fact_ids,
+                "evidence_ids": evidence_ids,
+            }
+            if isinstance(item, DiagnosticReference):
+                update["treatment_plan"] = unique_text(item.treatment_plan, 3)
+                update["nutrition_intervention_plan"] = unique_text(
+                    item.nutrition_intervention_plan, 4
+                )
+            return item.model_copy(update=update)
 
         normalized_findings = [
             item

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import type { AuthData, Role } from '@/types/api'
-import { mockLogin, logout, weChatLogin } from '@/api/auth'
+import { mockLogin, logout, weChatAdminLogin, weChatLogin, weChatStaffLogin } from '@/api/auth'
 import { switchWorkbench } from '@/api/workbench'
 
 export const useAuthStore = defineStore('auth', {
@@ -18,6 +18,16 @@ export const useAuthStore = defineStore('auth', {
     },
     async loginWithWeChat(code: string, phoneCode?: string) {
       const data = await weChatLogin(code, phoneCode)
+      this.saveSession(data)
+      return data
+    },
+    async loginWithWeChatInvite(code: string, inviteCode: string) {
+      const data = await weChatStaffLogin(code, inviteCode)
+      this.saveSession(data)
+      return data
+    },
+    async loginWithWeChatAdmin(code: string, username: string, password: string) {
+      const data = await weChatAdminLogin(code, username, password)
       this.saveSession(data)
       return data
     },

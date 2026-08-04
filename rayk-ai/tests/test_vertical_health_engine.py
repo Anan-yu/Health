@@ -104,6 +104,40 @@ def test_knowledge_retriever_returns_relevant_versioned_references() -> None:
     )
 
 
+def test_knowledge_retriever_returns_helicobacter_treatment_guideline() -> None:
+    request = AssessmentRequest(
+        taskId="TASK_HP",
+        patientId="PATIENT_HP",
+        indicators=[],
+        findings=[
+            OcrFinding(
+                section="呼气试验",
+                item="检查小结",
+                result="C14呼气试验阳性，提示幽门螺杆菌感染可能。",
+            )
+        ],
+    )
+    results = [
+        ModelResult(
+            modelCode="GUT_BARRIER",
+            modelName="消化与肠道健康",
+            status="EVALUATED",
+            score=70,
+            riskLevel="ATTENTION",
+            evidence=["C14呼气试验结果需要结合消化专科复核"],
+            supportingIndicators=[],
+            missingIndicators=[],
+            recommendations=["建议消化内科评估。"],
+        )
+    ]
+
+    reference_ids = {
+        item.reference_id for item in MedicalKnowledgeRetriever().retrieve(request, results)
+    }
+
+    assert "CSGE-HP-2022-001" in reference_ids
+
+
 def test_knowledge_corpus_covers_all_health_dimensions() -> None:
     retriever = MedicalKnowledgeRetriever()
     covered_model_codes = {
@@ -206,6 +240,10 @@ def test_clinical_timeline_is_deidentified_and_calculates_bmi() -> None:
     assert timeline["analysisFocus"]["abnormalFacts"]
     assert timeline["analysisFocus"]["profileSignals"]
     assert timeline["analysisFocus"]["reportConclusions"][0]["factId"] == ("EXAM:001:SUMMARY:001")
+    assert timeline["analysisFocus"]["diagnosticSummaryFacts"] == (
+        timeline["analysisFocus"]["reportConclusions"]
+    )
+    assert "考虑息肉样变" in timeline["analysisFocus"]["diagnosticSummaryFacts"][0]["result"]
     assert any(fact["factId"] == "EXAM:001:OBS:001" for fact in timeline["patientFacts"])
     assert any(fact["factId"] == "EXAM:001:SUMMARY:001" for fact in timeline["patientFacts"])
     assert any(fact["factId"] == "DERIVED:BMI" for fact in timeline["patientFacts"])
@@ -301,6 +339,7 @@ def test_vertical_prompt_contains_grounding_without_direct_identifiers() -> None
     assert user_message["data"]["evidenceBundle"]["evidence"]
     assert "patientFacts" in user_message["data"]["healthTimeline"]
     assert "examinationSnapshot" in user_message["data"]["healthTimeline"]
+    assert "diagnosticSummaryFacts" in user_message["data"]["healthTimeline"]["analysisFocus"]
     assert "久坐办公，工作日常在外就餐" in serialized
     assert "青霉素过敏" in serialized
     assert "正在服用医生开具的降压药" in serialized
@@ -310,6 +349,39 @@ def test_vertical_prompt_contains_grounding_without_direct_identifiers() -> None
     assert "TASK_SENSITIVE" not in serialized
     assert "PATIENT_SENSITIVE" not in serialized
     assert fake.last_payload["thinking"] == {"type": "disabled"}
+
+
+def test_diagnostic_reference_uses_report_summary_and_carries_safe_care_plans() -> None:
+    content = _generated_content()
+    content["diagnosticReferences"] = [
+        {
+            "conditionName": "胆囊息肉样变待排",
+            "assessment": "POSSIBLE",
+            "rationale": "原报告检查小结提示胆囊壁稍强回声，考虑息肉样变，需结合临床资料复核。",
+            "indicatorCodes": [],
+            "patientFactIds": ["EXAM:001:SUMMARY:001", "EXAM:001:OBS:001"],
+            "evidenceIds": ["NHC-LAB-GENERAL-001"],
+            "supportingEvidence": ["上腹部彩超检查小结提示胆囊壁稍强回声，考虑息肉样变。"],
+            "contradictingEvidence": [],
+            "confirmationAdvice": ["由专科结合症状和复查影像进一步判断。"],
+            "treatmentPlan": [
+                "消化内科复核胆囊超声，并完成症状、胆囊炎和结石风险评估。",
+                "根据复查影像和症状分层，确定观察、药物控制或外科评估的适用路径。",
+                "按专科安排复查影像，观察病灶变化和相关症状。",
+            ],
+            "nutritionInterventionPlan": ["记录高脂饮食摄入，由营养专业人员结合复查结果调整饮食。"],
+            "recommendedDepartment": "消化内科或肝胆外科",
+        }
+    ]
+    result = _service(_FakeClient(content)).interpret(_request(), _results())
+
+    assert result.status == "SUCCESS"
+    assert result.diagnostic_references[0].patient_fact_ids == [
+        "EXAM:001:SUMMARY:001",
+        "EXAM:001:OBS:001",
+    ]
+    assert result.diagnostic_references[0].treatment_plan
+    assert result.diagnostic_references[0].nutrition_intervention_plan
 
 
 def test_truncated_deepseek_output_is_retried_with_repair_instruction() -> None:

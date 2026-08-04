@@ -7,6 +7,8 @@ import com.rayk.health.platform.dto.CreatePlatformTenantRequest;
 import com.rayk.health.platform.dto.CreatePlatformDoctorRequest;
 import com.rayk.health.platform.dto.UpdatePlatformDoctorRequest;
 import com.rayk.health.platform.vo.PlatformOverviewVo;
+import com.rayk.health.security.dto.WeChatStaffInviteData;
+import com.rayk.health.security.wechat.WeChatStaffInviteService;
 import com.rayk.health.tenant.vo.TenantProfileVo;
 import com.rayk.health.tenant.vo.StaffVo;
 import java.util.List;
@@ -25,9 +27,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/platform")
 public class PlatformController {
     private final PlatformOverviewService overviewService;
+    private final WeChatStaffInviteService staffInviteService;
 
-    public PlatformController(PlatformOverviewService overviewService) {
+    public PlatformController(
+            PlatformOverviewService overviewService, WeChatStaffInviteService staffInviteService) {
         this.overviewService = overviewService;
+        this.staffInviteService = staffInviteService;
     }
 
     @GetMapping("/overview")
@@ -66,6 +71,13 @@ public class PlatformController {
     public ApiResponse<StaffVo> createDoctor(
             @PathVariable long tenantId, @Valid @RequestBody CreatePlatformDoctorRequest request) {
         return ApiResponse.success(overviewService.createDoctor(tenantId, request));
+    }
+
+    @PostMapping("/tenants/{tenantId}/doctors/{doctorId}/wechat-invite")
+    @PreAuthorize("hasAuthority('platform:tenant:list')")
+    public ApiResponse<WeChatStaffInviteData> createDoctorWeChatInvite(
+            @PathVariable long tenantId, @PathVariable long doctorId) {
+        return ApiResponse.success(staffInviteService.create(tenantId, doctorId));
     }
 
     @PutMapping("/tenants/{tenantId}/doctors/{doctorId}")

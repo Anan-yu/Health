@@ -235,6 +235,8 @@ public final class AiDtos {
       List<String> supportingEvidence,
       List<String> contradictingEvidence,
       List<String> confirmationAdvice,
+      List<String> treatmentPlan,
+      List<String> nutritionInterventionPlan,
       String recommendedDepartment) {}
 
   public record ComprehensiveInterpretation(

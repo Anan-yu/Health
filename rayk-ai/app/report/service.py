@@ -9,12 +9,17 @@ from reportlab.lib.pagesizes import A4  # type: ignore[import-untyped]
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet  # type: ignore[import-untyped]
 from reportlab.lib.units import mm  # type: ignore[import-untyped]
 from reportlab.pdfbase import pdfmetrics  # type: ignore[import-untyped]
-from reportlab.pdfbase.cidfonts import UnicodeCIDFont  # type: ignore[import-untyped]
+from reportlab.pdfbase.ttfonts import TTFont  # type: ignore[import-untyped]
 from reportlab.pdfgen.canvas import Canvas  # type: ignore[import-untyped]
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer  # type: ignore[import-untyped]
 
 from app.core.constants import DISCLAIMER
 from app.schemas.report import ReportGenerateData, ReportGenerateRequest
+
+_REPORT_FONT = "WQYMicroHei"
+_REPORT_BOLD_FONT = "WQYZenHei"
+_REPORT_FONT_PATH = "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc"
+_REPORT_BOLD_FONT_PATH = "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"
 
 
 class DemoReportService:
@@ -43,7 +48,7 @@ class DemoReportService:
         title = f"{request.patient_display_name}的健康评估报告"
         sections = ["整体健康状态", "本次重点发现"]
         if request.interpretation and request.interpretation.diagnostic_references:
-            sections.append("需要进一步确认的健康方向")
+            sections.append("疾病推断参考")
         sections.extend(["建议补充的信息", "下一步健康行动", "报告限制与免责声明"])
         return ReportGenerateData(
             title=title,
@@ -54,12 +59,12 @@ class DemoReportService:
         )
 
     def _build_pdf(self, request: ReportGenerateRequest, title: str, summary: str) -> bytes:
-        pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+        self._register_report_fonts()
         styles = getSampleStyleSheet()
         normal = ParagraphStyle(
             "RaykNormal",
             parent=styles["BodyText"],
-            fontName="STSong-Light",
+            fontName=_REPORT_FONT,
             fontSize=9,
             leading=15,
             textColor=colors.HexColor("#1F2937"),
@@ -96,7 +101,6 @@ class DemoReportService:
         )
         story = [
             Paragraph(self._safe(title), title_style),
-            Paragraph(f"报告编号：{self._safe(request.report_no)}", small),
             Paragraph(f"报告日期：{self._safe(request.published_at or '-')}", small),
             Spacer(1, 5 * mm),
             Paragraph("一、整体健康状态", heading),
@@ -155,9 +159,9 @@ class DemoReportService:
             story.extend(
                 [
                     Spacer(1, 3 * mm),
-                    Paragraph("三、需要进一步确认的健康方向", heading),
+                    Paragraph("三、疾病推断参考", heading),
                     Paragraph(
-                        "以下方向用于帮助医生确定进一步问诊和检查重点，不代表疾病诊断。",
+                        "以下内容用于帮助医生确定进一步问诊、检查和健康管理重点，不代表疾病诊断或治疗处方。",
                         small,
                     ),
                 ]
@@ -166,7 +170,7 @@ class DemoReportService:
                 story.extend(
                     [
                         Paragraph(
-                            f"<b>{self._safe(reference.condition_name)}</b>"
+                            f"可能疾病：<b>{self._safe(reference.condition_name)}</b>"
                             f" · {self._assessment_label(reference.assessment)}",
                             normal,
                         ),
@@ -190,10 +194,24 @@ class DemoReportService:
                 if reference.recommended_department:
                     story.append(
                         Paragraph(
-                            f"<b>建议咨询：</b>{self._safe(reference.recommended_department)}",
+                            "建议咨询科室："
+                            f"<b>{self._safe(reference.recommended_department)}</b>",
                             small,
                         )
                     )
+                story.extend(
+                    [
+                        Paragraph(
+                            "<b>疾病治疗方案：</b>" + self._safe(self._treatment_plan(reference)),
+                            small,
+                        ),
+                        Paragraph(
+                            "<b>营养干预修复方案：</b>"
+                            + self._safe(self._nutrition_intervention_plan(reference)),
+                            small,
+                        ),
+                    ]
+                )
                 story.append(Spacer(1, 3 * mm))
             section_number = 4
 
@@ -259,7 +277,7 @@ class DemoReportService:
     @staticmethod
     def _add_page_footer(canvas: Canvas, document: SimpleDocTemplate) -> None:
         canvas.saveState()
-        canvas.setFont("STSong-Light", 7)
+        canvas.setFont(_REPORT_FONT, 7)
         canvas.setFillColor(colors.HexColor("#718096"))
         canvas.drawString(document.leftMargin, 8 * mm, "致宇健康评估报告")
         canvas.drawRightString(
@@ -268,6 +286,21 @@ class DemoReportService:
             f"第 {canvas.getPageNumber()} 页",
         )
         canvas.restoreState()
+
+    @staticmethod
+    def _register_report_fonts() -> None:
+        registered = set(pdfmetrics.getRegisteredFontNames())
+        if _REPORT_FONT not in registered:
+            pdfmetrics.registerFont(TTFont(_REPORT_FONT, _REPORT_FONT_PATH))
+        if _REPORT_BOLD_FONT not in registered:
+            pdfmetrics.registerFont(TTFont(_REPORT_BOLD_FONT, _REPORT_BOLD_FONT_PATH))
+        pdfmetrics.registerFontFamily(
+            _REPORT_FONT,
+            normal=_REPORT_FONT,
+            bold=_REPORT_BOLD_FONT,
+            italic=_REPORT_FONT,
+            boldItalic=_REPORT_BOLD_FONT,
+        )
 
     @staticmethod
     def _safe(value: object) -> str:
@@ -476,6 +509,49 @@ class DemoReportService:
             "POSSIBLE": "建议结合临床排查",
             "PRIORITY_REVIEW": "建议医生优先排查",
         }.get(value, "建议结合临床排查")
+
+    @classmethod
+    def _treatment_plan(cls, reference: object) -> str:
+        plans = getattr(reference, "treatment_plan", None) or []
+        cleaned = [cls._display_text(str(item)) for item in plans if str(item).strip()]
+        if cleaned:
+            return "；".join(cleaned)
+        condition = cls._display_text(str(getattr(reference, "condition_name", "") or ""))
+        if "幽门螺杆菌" in condition:
+            return (
+                "消化内科先核对症状、既往根除史、药物过敏和近期抗菌药使用；如确认需要根除，"
+                "进入含铋四联根除治疗的标准路径，由医生选择具体药物组合和疗程；疗程后按医嘱"
+                "复查呼气试验或粪便抗原，确认是否根除成功。"
+            )
+        if "颈动脉" in condition or "粥样硬化" in condition or "斑块" in condition:
+            return (
+                "心血管内科应完成动脉粥样硬化心血管风险分层，复核血压、完整血脂、糖代谢和"
+                "颈动脉超声；在确认斑块与总体风险后，开展血脂、血压、血糖及吸烟等危险因素的"
+                "强化管理，并由医生判断是否需要降脂或抗血小板等药物治疗及复查安排。"
+            )
+        if "脂肪肝" in condition or "脂肪性肝病" in condition:
+            return (
+                "消化内科或肝病科应先排查饮酒、病毒性肝炎、药物和代谢共病，并结合肝功能、"
+                "血糖血脂及肝纤维化风险分层；如伴超重或肥胖，以体重管理和代谢共病干预为核心，"
+                "医生根据分层决定是否需要进一步药物治疗和肝脏随访。"
+            )
+        department = cls._display_text(str(getattr(reference, "recommended_department", "") or ""))
+        destination = department or "相关专科"
+        return (
+            f"尽快至{destination}完成病因与严重程度分层，带齐原报告、当前用药和症状记录；"
+            "由医生依据本次证据明确核心治疗类别、复查项目与疗效评估时间，避免自行用药或调整治疗。"
+        )
+
+    @classmethod
+    def _nutrition_intervention_plan(cls, reference: object) -> str:
+        plans = getattr(reference, "nutrition_intervention_plan", None) or []
+        cleaned = [cls._display_text(str(item)) for item in plans if str(item).strip()]
+        if cleaned:
+            return "；".join(cleaned)
+        return (
+            "建议由临床营养师或相关专科结合体重、肝肾功能、过敏史、当前用药和复查结果制定"
+            "个体化饮食方案；不自行高剂量补充营养素。"
+        )
 
     @staticmethod
     def _focus_name(model_code: str) -> str:

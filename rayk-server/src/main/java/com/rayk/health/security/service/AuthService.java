@@ -31,13 +31,17 @@ public class AuthService {
     }
 
     public AuthData login(MockLoginRequest request) {
-        UserAccount account = catalog.findByUsername(request.username());
+        return issue(authenticate(request.username(), request.password()));
+    }
+
+    public UserAccount authenticate(String username, String password) {
+        UserAccount account = catalog.findByUsername(username);
         if (account == null
                 || !account.isActive()
-                || !passwordEncoder.matches(request.password(), account.passwordHash())) {
+                || !passwordEncoder.matches(password, account.passwordHash())) {
             throw new BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS);
         }
-        return issue(account);
+        return account;
     }
 
     public AuthData issue(UserAccount account) {

@@ -2,9 +2,11 @@ package com.rayk.health.security.controller;
 
 import com.rayk.health.common.api.ApiResponse;
 import com.rayk.health.security.dto.AuthData;
+import com.rayk.health.security.dto.WeChatAdminLoginRequest;
 import com.rayk.health.security.dto.ProfileData;
 import com.rayk.health.security.dto.WeChatBindingData;
 import com.rayk.health.security.dto.WeChatLoginRequest;
+import com.rayk.health.security.dto.WeChatStaffLoginRequest;
 import com.rayk.health.security.service.AuthService;
 import com.rayk.health.security.service.CurrentUser;
 import com.rayk.health.security.wechat.WeChatAuthService;
@@ -30,6 +32,21 @@ public class AuthController {
     @PostMapping("/wechat-login")
     public ApiResponse<AuthData> weChatLogin(@Valid @RequestBody WeChatLoginRequest request) {
         return ApiResponse.success(weChatAuthService.login(request.code(), request.phoneCode()));
+    }
+
+    @PostMapping("/wechat-staff-login")
+    public ApiResponse<AuthData> weChatStaffLogin(
+            @Valid @RequestBody WeChatStaffLoginRequest request) {
+        return ApiResponse.success(
+                weChatAuthService.loginWithStaffInvite(request.code(), request.inviteCode()));
+    }
+
+    @PostMapping("/wechat-admin-login")
+    public ApiResponse<AuthData> weChatAdminLogin(
+            @Valid @RequestBody WeChatAdminLoginRequest request) {
+        return ApiResponse.success(
+                weChatAuthService.loginWithPlatformAdminPassword(
+                        request.code(), request.username(), request.password()));
     }
 
     @PostMapping("/wechat-bind")

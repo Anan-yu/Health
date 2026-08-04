@@ -130,6 +130,7 @@ import { computed, ref } from 'vue'
 import { onHide, onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import PageState from '@/components/PageState.vue'
 import CareFeedbackCard from '@/components/CareFeedbackCard.vue'
+import { getMyProfile } from '@/api/patient'
 import { getHomeSummary } from '@/api/workbench'
 import { menusFor } from '@/constants/menus'
 import { useAuthStore } from '@/stores/auth'
@@ -137,6 +138,7 @@ import type { HomeSummary, Role } from '@/types/api'
 
 const auth = useAuthStore()
 const summary = ref<HomeSummary>()
+const profileName = ref('')
 const loading = ref(true),
   error = ref('')
 const lastUpdatedAt = ref<Date | null>(null)
@@ -152,7 +154,11 @@ const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
 const roleLabel = computed(() =>
   auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '工作台',
 )
-const avatarText = computed(() => auth.user?.displayName?.slice(0, 1) || 'R')
+const homeDisplayName = computed(() => {
+  if (isCustomer.value) return profileName.value.trim() || ''
+  return auth.user?.displayName?.trim() || ''
+})
+const avatarText = computed(() => homeDisplayName.value.slice(0, 1) || 'R')
 const quickMenus = computed(() =>
   menusFor(auth.currentWorkbench)
     .filter((item) => !item.permission || auth.permissions.includes(item.permission))
@@ -167,8 +173,8 @@ const dayGreeting = computed(() => {
   return '晚上好'
 })
 const heroGreeting = computed(() => {
-  const name = auth.user?.displayName || ''
-  if (isCustomer.value) return `${dayGreeting.value}${name ? `，${name}` : ''}`
+  const name = homeDisplayName.value
+  if (isCustomer.value) return `${dayGreeting.value}${name ? `，${name}` : '，朋友'}`
   if (auth.currentWorkbench === 'DOCTOR') return `辛苦了${name ? `，${name}` : ''}`
   return `欢迎回来${name ? `，${name}` : ''}`
 })
@@ -287,7 +293,12 @@ async function refresh(silent = false) {
   if (!silent) loading.value = true
   error.value = ''
   try {
-    summary.value = await getHomeSummary()
+    const [homeSummary, profile] = await Promise.all([
+      getHomeSummary(),
+      isCustomer.value ? getMyProfile().catch(() => null) : Promise.resolve(null),
+    ])
+    summary.value = homeSummary
+    profileName.value = profile?.name?.trim() || ''
     lastUpdatedAt.value = new Date()
   } catch (e) {
     error.value = e instanceof Error ? e.message : '加载失败'

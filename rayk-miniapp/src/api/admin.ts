@@ -48,3 +48,9 @@ export const deletePlatformDoctor = (tenantId: string, doctorId: string) =>
     url: `/api/v1/platform/tenants/${tenantId}/doctors/${doctorId}`,
     method: 'DELETE',
   })
+
+export const createDoctorWeChatInvite = (tenantId: string, doctorId: string) =>
+  request<{ code: string; expiresIn: number }>({
+    url: `/api/v1/platform/tenants/${tenantId}/doctors/${doctorId}/wechat-invite`,
+    method: 'POST',
+  })

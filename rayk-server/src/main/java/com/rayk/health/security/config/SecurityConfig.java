@@ -41,6 +41,8 @@ public class SecurityConfig {
                                 auth.requestMatchers(
                                                 "/api/v1/auth/mock-login",
                                                 "/api/v1/auth/wechat-login",
+                                                "/api/v1/auth/wechat-staff-login",
+                                                "/api/v1/auth/wechat-admin-login",
                                                 "/actuator/health/**",
                                                 "/v3/api-docs/**",
                                                 "/swagger-ui/**",

@@ -5,7 +5,7 @@
       <view class="profile-top">
         <view class="avatar">{{ avatarText }}</view>
         <view class="profile-content">
-          <view class="profile-name">{{ auth.user?.displayName || '致宇用户' }}</view>
+          <view class="profile-name">{{ profileDisplayName }}</view>
           <view class="profile-meta">{{ tenantDisplayName }}</view>
           <view class="role-pill">{{ workbenchName }}</view>
         </view>
@@ -45,7 +45,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { getMyProfile } from '@/api/patient'
 import { useAuthStore } from '@/stores/auth'
 import type { Role } from '@/types/api'
 
@@ -55,7 +57,6 @@ const roleNames: Record<Role, string> = {
   DOCTOR: '医生工作台',
   CUSTOMER: '个人健康中心',
 }
-const avatarText = computed(() => auth.user?.displayName?.slice(0, 1) || 'R')
 const workbenchName = computed(() =>
   auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '当前工作台',
 )
@@ -65,6 +66,28 @@ const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
 const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
+const profileName = ref('')
+const profileDisplayName = computed(() => {
+  if (isCustomer.value) return profileName.value || '致宇用户'
+  return auth.user?.displayName?.trim() || '致宇用户'
+})
+const avatarText = computed(() => profileDisplayName.value.slice(0, 1) || 'R')
+
+async function loadProfileName() {
+  if (!isCustomer.value) {
+    profileName.value = ''
+    return
+  }
+  try {
+    const profile = await getMyProfile()
+    profileName.value = profile?.name?.trim() || ''
+  } catch {
+    profileName.value = ''
+  }
+}
+
+onShow(() => void loadProfileName())
+
 async function signOut() {
   await auth.signOut()
   uni.reLaunch({ url: '/pages/login/index' })

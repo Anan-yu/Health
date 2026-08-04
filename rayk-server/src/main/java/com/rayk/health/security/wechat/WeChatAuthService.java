@@ -23,6 +23,7 @@ public class WeChatAuthService {
     private final WeChatCode2SessionClient code2SessionClient;
     private final WeChatPhoneNumberClient phoneNumberClient;
     private final WeChatCustomerProvisioningService customerProvisioningService;
+    private final WeChatStaffInviteService staffInviteService;
     private final WeChatProperties properties;
     private final WeChatUserBindingMapper bindingMapper;
     private final UserCatalog catalog;
@@ -32,6 +33,7 @@ public class WeChatAuthService {
             WeChatCode2SessionClient code2SessionClient,
             WeChatPhoneNumberClient phoneNumberClient,
             WeChatCustomerProvisioningService customerProvisioningService,
+            WeChatStaffInviteService staffInviteService,
             WeChatProperties properties,
             WeChatUserBindingMapper bindingMapper,
             UserCatalog catalog,
@@ -39,6 +41,7 @@ public class WeChatAuthService {
         this.code2SessionClient = code2SessionClient;
         this.phoneNumberClient = phoneNumberClient;
         this.customerProvisioningService = customerProvisioningService;
+        this.staffInviteService = staffInviteService;
         this.properties = properties;
         this.bindingMapper = bindingMapper;
         this.catalog = catalog;
@@ -55,10 +58,17 @@ public class WeChatAuthService {
                 account = catalog.findByUsername(properties.autoBindUsername());
             }
             if (account == null) {
-                String phone = phoneNumberClient.resolve(phoneCode);
-                account = catalog.findByPhoneHash(PhoneIdentity.hash(phone));
-                if (account == null) {
-                    account = customerProvisioningService.provision(phone);
+                // Personal-subject mini programs may not expose the phone fast-verification
+                // component. Keep the verified-phone path for eligible apps, but let an
+                // unbound user enter as a least-privileged customer identified by OpenID.
+                if (StringUtils.hasText(phoneCode) || properties.mockEnabled()) {
+                    String phone = phoneNumberClient.resolve(phoneCode);
+                    account = catalog.findByPhoneHash(PhoneIdentity.hash(phone));
+                    if (account == null) {
+                        account = customerProvisioningService.provision(phone);
+                    }
+                } else {
+                    account = customerProvisioningService.provision(identity);
                 }
             }
             binding = createBinding(identity, account);
@@ -75,6 +85,65 @@ public class WeChatAuthService {
         binding.setUpdatedAt(now);
         binding.setUpdatedBy(account.userId());
         bindingMapper.updateById(binding);
+        return authService.issue(account);
+    }
+
+    @Transactional
+    public AuthData loginWithStaffInvite(String code, String inviteCode) {
+        WeChatSessionIdentity identity = code2SessionClient.exchange(code);
+        WeChatUserBindingEntity existingBinding = findByIdentity(identity);
+        if (existingBinding != null) {
+            if (!"ACTIVE".equals(existingBinding.getStatus())) {
+                throw new BusinessException(ErrorCode.WECHAT_ACCOUNT_NOT_BOUND);
+            }
+            UserAccount bound = catalog.findByUserId(existingBinding.getUserId());
+            if (bound == null || !bound.isActive()
+                    || (!bound.roles().contains("DOCTOR") && !bound.roles().contains("PLATFORM_ADMIN"))) {
+                throw new BusinessException(ErrorCode.WECHAT_ALREADY_BOUND);
+            }
+            return authService.issue(bound);
+        }
+
+        UserAccount account = catalog.findByUserId(staffInviteService.consume(inviteCode));
+        if (account == null || !account.isActive()
+                || (!account.roles().contains("DOCTOR") && !account.roles().contains("PLATFORM_ADMIN"))) {
+            throw new BusinessException(ErrorCode.WECHAT_ACCOUNT_NOT_BOUND);
+        }
+        WeChatUserBindingEntity existingUserBinding = findByUser(identity.appId(), account.userId());
+        if (existingUserBinding != null && !identity.openid().equals(existingUserBinding.getOpenid())) {
+            throw new BusinessException(ErrorCode.WECHAT_ALREADY_BOUND);
+        }
+        if (existingUserBinding == null) {
+            createBinding(identity, account);
+        }
+        return authService.issue(account);
+    }
+
+    @Transactional
+    public AuthData loginWithPlatformAdminPassword(
+            String code, String username, String password) {
+        WeChatSessionIdentity identity = code2SessionClient.exchange(code);
+        UserAccount account = authService.authenticate(username.trim(), password);
+        if (!account.roles().contains("PLATFORM_ADMIN")) {
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        }
+
+        WeChatUserBindingEntity occupied = findByIdentity(identity);
+        if (occupied != null && !occupied.getUserId().equals(account.userId())) {
+            throw new BusinessException(ErrorCode.WECHAT_ALREADY_BOUND);
+        }
+        WeChatUserBindingEntity existing = findByUser(identity.appId(), account.userId());
+        if (existing != null && !identity.openid().equals(existing.getOpenid())) {
+            throw new BusinessException(ErrorCode.WECHAT_ALREADY_BOUND);
+        }
+        if (existing == null) {
+            createBinding(identity, account);
+        } else if (!"ACTIVE".equals(existing.getStatus())) {
+            existing.setStatus("ACTIVE");
+            existing.setUpdatedBy(account.userId());
+            existing.setUpdatedAt(LocalDateTime.now());
+            bindingMapper.updateById(existing);
+        }
         return authService.issue(account);
     }
 

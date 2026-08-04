@@ -18,6 +18,7 @@ import com.rayk.health.system.mapper.SysTenantMapper;
 import com.rayk.health.system.mapper.SysUserMapper;
 import com.rayk.health.system.mapper.SysUserRoleMapper;
 import com.rayk.health.system.mapper.SysUserWorkbenchMapper;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.springframework.dao.DuplicateKeyException;
@@ -25,7 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Creates the smallest possible personal account when a verified phone is not pre-registered. */
+/** Creates the smallest possible customer account when a verified identity is not pre-registered. */
 @Service
 public class WeChatCustomerProvisioningService {
     private final WeChatProperties properties;
@@ -133,6 +134,92 @@ public class WeChatCustomerProvisioningService {
         profile.setVersion(0);
         profileMapper.insert(profile);
         return catalog.findByUserId(user.getId());
+    }
+
+    /**
+     * Creates a customer account without requiring phone authorization. This is the fallback for
+     * personal-subject mini programs, where the phone fast-verification component is unavailable.
+     */
+    @Transactional
+    public UserAccount provision(WeChatSessionIdentity identity) {
+        String username = "wx_" + identityKey(identity);
+        UserAccount existing = catalog.findByUsername(username);
+        if (existing != null) {
+            return existing;
+        }
+        SysTenantEntity tenant =
+                tenantMapper.selectActiveByTenantIdIgnoringTenant(properties.defaultCustomerTenantId());
+        if (tenant == null) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+        }
+        SysRoleEntity customerRole =
+                roleMapper.selectByTenantAndCodeIgnoringTenant(tenant.getTenantId(), "CUSTOMER");
+        if (customerRole == null) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+        }
+        LocalDateTime now = LocalDateTime.now();
+        SysUserEntity user = new SysUserEntity();
+        user.setTenantId(tenant.getTenantId());
+        user.setUsername(username);
+        user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+        user.setDisplayName("微信用户");
+        user.setPhoneMasked(null);
+        user.setPhoneHash(null);
+        user.setStatus("ACTIVE");
+        user.setCreatedBy(0L);
+        user.setCreatedAt(now);
+        user.setUpdatedBy(0L);
+        user.setUpdatedAt(now);
+        user.setDeleted(0);
+        user.setVersion(0);
+        try {
+            userMapper.insert(user);
+        } catch (DuplicateKeyException exception) {
+            UserAccount concurrent = catalog.findByUsername(username);
+            if (concurrent != null) {
+                return concurrent;
+            }
+            throw exception;
+        }
+        insertRole(tenant.getTenantId(), user.getId(), customerRole.getId(), now);
+        insertWorkbench(tenant.getTenantId(), user.getId(), now);
+
+        PatientEntity patient = new PatientEntity();
+        patient.setTenantId(tenant.getTenantId());
+        patient.setUserId(user.getId());
+        patient.setName(user.getDisplayName());
+        patient.setGender("UNKNOWN");
+        patient.setPhoneMasked(null);
+        patient.setPhoneHash(null);
+        patient.setStatus("ACTIVE");
+        patient.setCreatedBy(user.getId());
+        patient.setCreatedAt(now);
+        patient.setUpdatedBy(user.getId());
+        patient.setUpdatedAt(now);
+        patient.setDeleted(0);
+        patient.setVersion(0);
+        patientMapper.insert(patient);
+
+        HealthProfileEntity profile = new HealthProfileEntity();
+        profile.setTenantId(tenant.getTenantId());
+        profile.setPatientId(patient.getId());
+        profile.setProfileCompleteness(0);
+        profile.setCreatedBy(user.getId());
+        profile.setCreatedAt(now);
+        profile.setUpdatedBy(user.getId());
+        profile.setUpdatedAt(now);
+        profile.setDeleted(0);
+        profile.setVersion(0);
+        profileMapper.insert(profile);
+        return catalog.findByUserId(user.getId());
+    }
+
+    private String identityKey(WeChatSessionIdentity identity) {
+        return UUID.nameUUIDFromBytes(
+                        (identity.appId() + "\u0000" + identity.openid())
+                                .getBytes(StandardCharsets.UTF_8))
+                .toString()
+                .replace("-", "");
     }
 
     private void insertRole(long tenantId, long userId, long roleId, LocalDateTime now) {

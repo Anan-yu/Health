@@ -38,7 +38,6 @@ public class ReportTemplateBuilder {
         // Header
         html.append("<div class=\"report-header\">\n");
         html.append("<h1>健康管理评估报告</h1>\n");
-        html.append("<p class=\"report-no\">报告编号：").append(escapeHtml(report.getReportNo())).append("</p>\n");
         html.append("</div>\n");
 
         // Patient info
@@ -165,7 +164,6 @@ public class ReportTemplateBuilder {
                 body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; font-size: 14px; color: #333; line-height: 1.6; padding: 40px; max-width: 900px; margin: 0 auto; }
                 .report-header { text-align: center; border-bottom: 3px solid #1a73e8; padding-bottom: 20px; margin-bottom: 30px; }
                 .report-header h1 { font-size: 24px; color: #1a73e8; margin-bottom: 8px; }
-                .report-no { color: #666; font-size: 13px; }
                 .section { margin-bottom: 25px; }
                 .section h2 { font-size: 16px; color: #1a73e8; border-left: 4px solid #1a73e8; padding-left: 10px; margin-bottom: 12px; }
                 .info-table { width: 100%; border-collapse: collapse; }
