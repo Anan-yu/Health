@@ -17,10 +17,12 @@ npm run build:mp-weixin
 
 ## 当前微信双包
 
-- `dist/release/mp-weixin-dev`：development 开发联调包，API 为 `http://192.168.0.100:8088`，保留五角色开发登录。
+- `dist/release/mp-weixin-dev`：development 开发联调包，API 为 `http://192.168.0.100:8088`，保留平台管理员、医生和客户三个角色的开发登录。
 - `dist/release/mp-weixin-prod-lan`：production 优化的局域网验收包，API 同样为 `http://192.168.0.100:8088`，按当前验收要求保留开发登录。
 - `dist/build/mp-weixin`：同步为当前 development 联调包，便于原有微信开发者工具项目继续使用。
 
 这两份包用于同一 Wi-Fi 下的开发和验收。`mp-weixin-prod-lan` 虽然使用 production 构建优化，但仍包含 HTTP 局域网地址和开发身份入口，**不能直接提交微信审核或正式上线**。
 
 正式发布前必须把 `VITE_API_BASE_URL` 改成已备案的 HTTPS 合法域名，把 `VITE_ENABLE_DEVELOPMENT_LOGIN` 设为 `false`，关闭后端模拟微信登录，再重新执行 `npm run build:mp-weixin`。
+
+本地 H5 三角色调试请使用 `npm run build:h5:dev`，然后访问 `http://localhost:8088/`；完整的首次拉取、Docker 启动、H5 和微信开发者工具步骤见根目录 `docs/local-development-guide.md`。

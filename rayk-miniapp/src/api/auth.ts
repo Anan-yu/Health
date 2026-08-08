@@ -27,4 +27,11 @@ export const weChatAdminLogin = (code: string, username: string, password: strin
   })
 export const bindWeChat = (code: string) =>
   request<WeChatBinding>({ url: '/api/v1/auth/wechat-bind', method: 'POST', data: { code } })
-export const logout = () => request<void>({ url: '/api/v1/auth/logout', method: 'POST' })
+export const logout = (accessToken?: string) =>
+  request<void>({
+    url: '/api/v1/auth/logout',
+    method: 'POST',
+    // Keep the token available to the server while allowing the client to
+    // clear local state before waiting for this best-effort request.
+    header: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  })

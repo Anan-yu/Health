@@ -254,6 +254,16 @@ export interface Assessment {
       fallbackReason?: string
       summary: string
       priorityConcerns: string[]
+      abnormalExplanations?: Array<{
+        title: string
+        finding?: string
+        indicatorCodes?: string[]
+        patientFactIds?: string[]
+        evidenceIds?: string[]
+        explanation: string
+        possibleImpacts: string
+        nextStep: string
+      }>
       crossModelFindings: Array<{
         title: string
         indicatorCodes: string[]
@@ -269,6 +279,11 @@ export interface Assessment {
         confirmationAdvice: string[]
         treatmentPlan?: string[]
         nutritionInterventionPlan?: string[]
+        westernMedicineApproach?: string[]
+        traditionalChineseMedicineApproach?: string[]
+        westernMedicineMedicationPlan?: string[]
+        traditionalChineseMedicineMedicationPlan?: string[]
+        integratedTreatmentNotes?: string[]
         recommendedDepartment?: string
       }>
       recommendations: string[]

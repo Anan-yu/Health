@@ -41,7 +41,7 @@ public class HomeController {
             case "PLATFORM_ADMIN" -> platformMetrics();
             default -> doctorMetrics();
         };
-        return ApiResponse.success(new HomeSummaryData(current.workbench(), "欢迎使用致宇健康", metrics, null));
+        return ApiResponse.success(new HomeSummaryData(current.workbench(), "欢迎使用智能三羊", metrics, null));
     }
 
     private List<HomeMetric> platformMetrics() {

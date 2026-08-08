@@ -1,4 +1,4 @@
-# 致宇健康 AI 服务
+# 智能三羊 AI 服务
 
 FastAPI 服务负责 PaddleOCR、指标标准化、十二模型规则评分、DeepSeek 综合解读和报告文字生成。它通过 HTTP JSON 与 Java 通信，不连接业务数据库。
 
@@ -20,8 +20,10 @@ DEEPSEEK_ENABLED=true
 DEEPSEEK_API_KEY=
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-v4-flash
-DEEPSEEK_TIMEOUT_SECONDS=30
-DEEPSEEK_MAX_TOKENS=2000
+DEEPSEEK_TIMEOUT_SECONDS=60
+DEEPSEEK_MAX_TOKENS=16000
+DEEPSEEK_MAX_ATTEMPTS=3
+DEEPSEEK_RETRY_BACKOFF_SECONDS=1
 DEEPSEEK_THINKING=false
 ```
 
@@ -31,16 +33,16 @@ Docker 开发环境默认启用 PaddleOCR CPU 模式，首次识别会下载 PP-
 
 所有评估响应均包含：**该结果仅用于健康管理参考，不构成医学诊断。**
 
-## 致宇健康医疗垂直评估引擎
+## 智能三羊医疗垂直评估引擎
 
-当前垂直引擎版本为 `ZHIYU_HEALTH_VERTICAL_1.0.0`，采用“确定性规则 + 医学知识检索
+当前垂直引擎版本为 `ZHIYU_HEALTH_VERTICAL_2.7.0`，采用“确定性规则 + 医学知识检索
 + 大模型综合解读 + 输出安全复核”的组合架构：
 
 1. 规则引擎使用检验机构参考区间完成十二个健康维度的可解释评分。
 2. 临床上下文构建器将检验指标、健康档案与问卷整理为去标识化健康时间线，并确定性计算
    BMI、参考区间异常数、有效维度和数据缺口。
 3. 医学知识检索器按指标、健康维度、档案字段和随访反馈，从版本化知识库
-   `ZHIYU_MEDICAL_KB_2.1.0` 中选择本次所需知识；当前采用结构化命中、中文关键词和字符向量相似度混合检索。
+   `ZHIYU_MEDICAL_KB_2.2.0` 中选择本次所需知识；当前采用结构化命中、中文关键词和字符向量相似度混合检索。新增幽门螺杆菌、血脂异常和脂肪性肝病的中医药物参考证据，只有命中对应证据时才展示代表性方药/中成药方向。
 4. DeepSeek 只能基于健康时间线、规则结果和检索知识生成综合解读，不得自行补充患者事实、
    检验阈值、确诊结论或药物治疗方案。
 5. 输出经过指标引用、诊断证据、重复候选、确诊措辞和用药剂量安全校验；校验失败自动降级为

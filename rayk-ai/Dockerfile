@@ -8,7 +8,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 RUN groupadd --system rayk && useradd --system --gid rayk --home-dir /app rayk
-RUN apt-get update \
+RUN sed -i \
+        -e 's#http://deb.debian.org/debian#https://mirrors.cloud.tencent.com/debian#g' \
+        -e 's#http://deb.debian.org/debian-security#https://mirrors.cloud.tencent.com/debian-security#g' \
+        /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
     && apt-get install -y --no-install-recommends \
         libgl1 \
         libglib2.0-0 \

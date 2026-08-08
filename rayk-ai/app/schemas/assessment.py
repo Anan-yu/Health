@@ -107,9 +107,39 @@ class DiagnosticReference(RaykModel):
     nutrition_intervention_plan: list[str] = Field(
         default_factory=list, alias="nutritionInterventionPlan", max_length=5
     )
+    western_medicine_approach: list[str] = Field(
+        default_factory=list, alias="westernMedicineApproach", max_length=5
+    )
+    traditional_chinese_medicine_approach: list[str] = Field(
+        default_factory=list, alias="traditionalChineseMedicineApproach", max_length=5
+    )
+    western_medicine_medication_plan: list[str] = Field(
+        default_factory=list, alias="westernMedicineMedicationPlan", max_length=5
+    )
+    traditional_chinese_medicine_medication_plan: list[str] = Field(
+        default_factory=list,
+        alias="traditionalChineseMedicineMedicationPlan",
+        max_length=5,
+    )
+    integrated_treatment_notes: list[str] = Field(
+        default_factory=list, alias="integratedTreatmentNotes", max_length=5
+    )
     recommended_department: str | None = Field(
         default=None, alias="recommendedDepartment", max_length=100
     )
+
+
+class AbnormalExplanation(RaykModel):
+    """Patient-facing explanation for one or more verified abnormal facts."""
+
+    title: str = Field(min_length=1, max_length=100)
+    finding: str = Field(default="", max_length=300)
+    indicator_codes: list[str] = Field(default_factory=list, alias="indicatorCodes", max_length=20)
+    patient_fact_ids: list[str] = Field(default_factory=list, alias="patientFactIds", max_length=20)
+    evidence_ids: list[str] = Field(default_factory=list, alias="evidenceIds", max_length=10)
+    explanation: str = Field(min_length=1, max_length=600)
+    possible_impacts: str = Field(alias="possibleImpacts", min_length=1, max_length=600)
+    next_step: str = Field(alias="nextStep", min_length=1, max_length=500)
 
 
 class ComprehensiveInterpretation(RaykModel):
@@ -121,6 +151,9 @@ class ComprehensiveInterpretation(RaykModel):
     summary: str = Field(min_length=1, max_length=1000)
     priority_concerns: list[str] = Field(
         default_factory=list, alias="priorityConcerns", max_length=10
+    )
+    abnormal_explanations: list[AbnormalExplanation] = Field(
+        default_factory=list, alias="abnormalExplanations", max_length=10
     )
     cross_model_findings: list[CrossModelFinding] = Field(
         default_factory=list, alias="crossModelFindings", max_length=10

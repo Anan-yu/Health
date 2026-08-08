@@ -204,6 +204,21 @@ def test_report_generation_returns_a_real_pdf() -> None:
                         "nutritionInterventionPlan": [
                             "减少含糖饮料和精制主食摄入，记录一周饮食后由营养专业人员调整。"
                         ],
+                        "westernMedicineApproach": [
+                            "由内分泌科结合复查结果完成糖代谢风险分层并确定随访路径。"
+                        ],
+                        "traditionalChineseMedicineApproach": [
+                            "如考虑中医调理，由中医师辨证评估体质后制定非药物调养方向。"
+                        ],
+                        "westernMedicineMedicationPlan": [
+                            "如复核确认需要处理，由医生依据证据选择相应药物类别并核对禁忌。"
+                        ],
+                        "traditionalChineseMedicineMedicationPlan": [
+                            "如适合中医辅助，由中医师根据证型选择相应治法方向。"
+                        ],
+                        "integratedTreatmentNotes": [
+                            "中西医方案由医生统筹，结合当前用药、过敏史和复查指标变化调整。"
+                        ],
                         "recommendedDepartment": "内分泌科或全科",
                     }
                 ],
@@ -319,6 +334,21 @@ def test_report_backfills_a_specific_helicobacter_treatment_path_for_legacy_data
                         "supportingEvidence": ["C14呼气试验结果高于本次报告参考上限。"],
                         "contradictingEvidence": [],
                         "confirmationAdvice": ["消化内科结合病史和检查复核。"],
+                        "westernMedicineApproach": [
+                            "由消化内科结合病史和复查结果评估后续根除治疗路径。"
+                        ],
+                        "traditionalChineseMedicineApproach": [
+                            "如有调理需求，由中医师辨证评估后提供辅助调养方向。"
+                        ],
+                        "westernMedicineMedicationPlan": [
+                            "如复核确认需要根除，由消化内科依据证据选择抗菌药、铋剂和抑酸药类别。"
+                        ],
+                        "traditionalChineseMedicineMedicationPlan": [
+                            "如适合中医辅助，由中医师辨证后选择清热化湿或健脾和胃等治法方向。"
+                        ],
+                        "integratedTreatmentNotes": [
+                            "中西医方案由医生统筹，先核对过敏史、当前用药和复查安排。"
+                        ],
                         "recommendedDepartment": "消化内科",
                     }
                 ],
@@ -338,6 +368,9 @@ def test_report_backfills_a_specific_helicobacter_treatment_path_for_legacy_data
 
     assert "含铋四联根除治疗" in pdf_text
     assert "复查呼气试验或粪便抗原" in pdf_text
+    assert "中西医结合治疗建议" in pdf_text
+    assert "西医治疗思路" in pdf_text
+    assert "西医药物治疗参考" in pdf_text
 
 
 def test_report_overall_health_section_uses_real_coverage_and_profile_data() -> None:

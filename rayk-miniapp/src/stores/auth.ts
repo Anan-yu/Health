@@ -52,10 +52,18 @@ export const useAuthStore = defineStore('auth', {
       uni.setStorageSync('rayk_workbench', code)
     },
     async signOut() {
+      const accessToken = uni.getStorageSync('rayk_access_token') as string
+      // Clear local state first so in-flight page requests cannot redirect
+      // back to the login page with a misleading expiration banner.
+      this.$reset()
+      uni.removeStorageSync('rayk_access_token')
+      uni.removeStorageSync('rayk_user')
+      uni.removeStorageSync('rayk_workbench')
       try {
-        await logout()
+        await logout(accessToken)
+      } catch {
+        // Logout is best effort; local credentials must still be removed.
       } finally {
-        this.$reset()
         uni.removeStorageSync('rayk_access_token')
         uni.removeStorageSync('rayk_user')
         uni.removeStorageSync('rayk_workbench')

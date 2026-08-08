@@ -237,7 +237,28 @@ public final class AiDtos {
       List<String> confirmationAdvice,
       List<String> treatmentPlan,
       List<String> nutritionInterventionPlan,
+      List<String> westernMedicineApproach,
+      List<String> traditionalChineseMedicineApproach,
+      List<String> westernMedicineMedicationPlan,
+      List<String> traditionalChineseMedicineMedicationPlan,
+      List<String> integratedTreatmentNotes,
       String recommendedDepartment) {}
+
+  public record AbnormalExplanation(
+      String title,
+      String finding,
+      List<String> indicatorCodes,
+      List<String> patientFactIds,
+      List<String> evidenceIds,
+      String explanation,
+      String possibleImpacts,
+      String nextStep) {
+    public AbnormalExplanation {
+      indicatorCodes = indicatorCodes == null ? List.of() : indicatorCodes;
+      patientFactIds = patientFactIds == null ? List.of() : patientFactIds;
+      evidenceIds = evidenceIds == null ? List.of() : evidenceIds;
+    }
+  }
 
   public record ComprehensiveInterpretation(
       String status,
@@ -247,6 +268,7 @@ public final class AiDtos {
       String fallbackReason,
       String summary,
       List<String> priorityConcerns,
+      List<AbnormalExplanation> abnormalExplanations,
       List<CrossModelFinding> crossModelFindings,
       List<DiagnosticReference> diagnosticReferences,
       List<String> recommendations,
@@ -257,6 +279,7 @@ public final class AiDtos {
       String disclaimer) {
     public ComprehensiveInterpretation {
       priorityConcerns = priorityConcerns == null ? List.of() : priorityConcerns;
+      abnormalExplanations = abnormalExplanations == null ? List.of() : abnormalExplanations;
       crossModelFindings = crossModelFindings == null ? List.of() : crossModelFindings;
       diagnosticReferences = diagnosticReferences == null ? List.of() : diagnosticReferences;
       recommendations = recommendations == null ? List.of() : recommendations;

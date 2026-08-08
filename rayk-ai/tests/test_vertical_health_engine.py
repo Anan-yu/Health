@@ -2,6 +2,8 @@ import json
 from decimal import Decimal
 from typing import Any
 
+import httpx
+
 from app.clinical.timeline import ClinicalContextBuilder
 from app.interpretation.service import (
     DeepSeekSettings,
@@ -136,6 +138,7 @@ def test_knowledge_retriever_returns_helicobacter_treatment_guideline() -> None:
     }
 
     assert "CSGE-HP-2022-001" in reference_ids
+    assert "TCM-HP-2026-001" in reference_ids
 
 
 def test_knowledge_corpus_covers_all_health_dimensions() -> None:
@@ -320,6 +323,8 @@ def _service(client: _FakeClient) -> InterpretationService:
             timeout_seconds=1,
             max_tokens=2000,
             thinking_enabled=False,
+            max_attempts=3,
+            retry_backoff_seconds=0,
         ),
         client=client,  # type: ignore[arg-type]
     )
@@ -351,6 +356,29 @@ def test_vertical_prompt_contains_grounding_without_direct_identifiers() -> None
     assert fake.last_payload["thinking"] == {"type": "disabled"}
 
 
+def test_tcm_medication_reference_is_specific_only_with_matching_rag_evidence() -> None:
+    hp_reference = InterpretationService._evidence_backed_tcm_medication_reference(
+        "幽门螺杆菌感染风险",
+        ["TCM-HP-2026-001"],
+    )
+    assert hp_reference
+    assert "半夏泻心汤" in hp_reference[0]
+    assert "不替代幽门螺杆菌规范根除治疗" in hp_reference[0]
+    assert InterpretationService._evidence_backed_tcm_medication_reference(
+        "幽门螺杆菌感染风险",
+        ["NHC-LAB-GENERAL-001"],
+    ) == []
+
+
+def test_generic_tcm_placeholder_is_detected_for_legacy_reports() -> None:
+    assert InterpretationService._is_generic_tcm_medication_reference(
+        ["本次证据未支持具体中药方剂，需中医师辨证后处方。"]
+    )
+    assert not InterpretationService._is_generic_tcm_medication_reference(
+        ["可与中医师讨论半夏泻心汤颗粒，具体是否使用由医师辨证确认。"]
+    )
+
+
 def test_diagnostic_reference_uses_report_summary_and_carries_safe_care_plans() -> None:
     content = _generated_content()
     content["diagnosticReferences"] = [
@@ -370,6 +398,22 @@ def test_diagnostic_reference_uses_report_summary_and_carries_safe_care_plans() 
                 "按专科安排复查影像，观察病灶变化和相关症状。",
             ],
             "nutritionInterventionPlan": ["记录高脂饮食摄入，由营养专业人员结合复查结果调整饮食。"],
+            "westernMedicineApproach": [
+                "由消化内科复核超声并完成炎症、结石和症状风险分层。",
+                "根据复查结果评估观察随访或进一步专科处理路径。",
+            ],
+            "traditionalChineseMedicineApproach": [
+                "如有调理需求，由中医师辨证评估体质和症状后制定非药物调养方向。",
+            ],
+            "westernMedicineMedicationPlan": [
+                "如复核确认需要处理，由专科依据证据选择相应药物类别并核对禁忌。",
+            ],
+            "traditionalChineseMedicineMedicationPlan": [
+                "如适合中医辅助，由中医师根据证型选择清热化湿或健脾和胃等治法方向。",
+            ],
+            "integratedTreatmentNotes": [
+                "中西医方案由医生统筹，结合过敏史、当前用药和复查变化动态调整。",
+            ],
             "recommendedDepartment": "消化内科或肝胆外科",
         }
     ]
@@ -382,6 +426,11 @@ def test_diagnostic_reference_uses_report_summary_and_carries_safe_care_plans() 
     ]
     assert result.diagnostic_references[0].treatment_plan
     assert result.diagnostic_references[0].nutrition_intervention_plan
+    assert result.diagnostic_references[0].western_medicine_approach
+    assert result.diagnostic_references[0].traditional_chinese_medicine_approach
+    assert result.diagnostic_references[0].western_medicine_medication_plan
+    assert result.diagnostic_references[0].traditional_chinese_medicine_medication_plan
+    assert result.diagnostic_references[0].integrated_treatment_notes
 
 
 def test_truncated_deepseek_output_is_retried_with_repair_instruction() -> None:
@@ -400,6 +449,36 @@ def test_truncated_deepseek_output_is_retried_with_repair_instruction() -> None:
     assert fake.last_payload is not None
     repaired_message = json.loads(fake.last_payload["messages"][1]["content"])
     assert "finish_reason:length" in repaired_message["repairInstruction"]
+
+
+class _TimeoutOnceClient(_FakeClient):
+    def post(self, *args: Any, **kwargs: Any) -> _FakeResponse:
+        if self.call_count == 0:
+            self.call_count += 1
+            raise httpx.ReadTimeout("temporary upstream timeout")
+        return super().post(*args, **kwargs)
+
+
+def test_network_timeout_is_retried_before_falling_back() -> None:
+    fake = _TimeoutOnceClient(_generated_content())
+
+    result = _service(fake).interpret(_request(), _results())
+
+    assert result.status == "SUCCESS"
+    assert result.source == "DEEPSEEK"
+    assert result.generation_attempts == 2
+    assert fake.call_count == 2
+
+
+def test_safe_medical_boundaries_and_bmi_explanation_are_not_rejected() -> None:
+    content = _generated_content(
+        "BMI 24.2（超重）需要结合体重趋势观察；不要自行停药，应由医生评估当前药物。"
+    )
+
+    result = _service(_FakeClient(content)).interpret(_request(), _results())
+
+    assert result.status == "SUCCESS"
+    assert result.source == "DEEPSEEK"
 
 
 def test_unsafe_medication_or_diagnosis_output_falls_back() -> None:

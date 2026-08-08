@@ -40,7 +40,7 @@
     </view>
 
     <button class="logout" @click="signOut">退出当前账号</button>
-    <view class="version">致宇健康 · Version 0.1.0</view>
+    <view class="version">智能三羊 · Version 0.1.0</view>
   </view>
 </template>
 
@@ -60,7 +60,7 @@ const roleNames: Record<Role, string> = {
 const workbenchName = computed(() =>
   auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '当前工作台',
 )
-const tenantDisplayName = computed(() => '致宇健康平台')
+const tenantDisplayName = computed(() => '智能三羊平台')
 const canSwitch = computed(() => (auth.user?.availableWorkbenches.length || 0) > 1)
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
@@ -68,8 +68,8 @@ const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
 const profileName = ref('')
 const profileDisplayName = computed(() => {
-  if (isCustomer.value) return profileName.value || '致宇用户'
-  return auth.user?.displayName?.trim() || '致宇用户'
+  if (isCustomer.value) return profileName.value || '智能三羊用户'
+  return auth.user?.displayName?.trim() || '智能三羊用户'
 })
 const avatarText = computed(() => profileDisplayName.value.slice(0, 1) || 'R')
 

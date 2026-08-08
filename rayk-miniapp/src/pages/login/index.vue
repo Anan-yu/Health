@@ -6,7 +6,7 @@
       <view class="brand-row">
         <view class="logo">AI</view>
         <view>
-          <view class="brand-name">致宇健康</view>
+          <view class="brand-name">智能三羊</view>
           <view class="brand-tag">AI 智能健康管理</view>
         </view>
       </view>
@@ -31,7 +31,7 @@
         v-if="supportsPhoneLogin"
         class="wechat"
         :loading="wechatLoading"
-        :disabled="Boolean(identified)"
+        :disabled="Boolean(identified) || wechatLoading"
         open-type="getPhoneNumber"
         hover-class="wechat-hover"
         phone-number-no-quota-toast
@@ -43,7 +43,7 @@
         v-else
         class="wechat"
         :loading="wechatLoading"
-        :disabled="Boolean(identified)"
+        :disabled="Boolean(identified) || wechatLoading"
         hover-class="wechat-hover"
         @click="handleWeChatLogin()"
       >
@@ -118,7 +118,7 @@
       <button
         class="secondary staff-login-button"
         :loading="staffLoading"
-        :disabled="Boolean(identified)"
+        :disabled="Boolean(identified) || staffLoading"
         @click="handleStaffLogin"
       >
         {{ staffLoginMode === 'admin' ? '首次绑定管理员微信' : '首次绑定医生微信' }}
@@ -158,7 +158,7 @@
           :key="item.username"
           class="role"
           :class="{ active: username === item.username }"
-          @click="username = item.username"
+          @click="selectDeveloperAccount(item)"
         >
           <view class="role-icon">{{ item.icon }}</view>
           <view class="role-content">
@@ -170,7 +170,7 @@
       </view>
       <input v-model="password" class="input password" password placeholder="测试密码" />
       <button class="primary enter-button" :loading="loading" @click="handleLogin">
-        进入致宇健康
+        进入智能三羊
       </button>
       <view v-if="error" class="error">{{ error }}</view>
     </view>
@@ -182,14 +182,33 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 import type { AuthData, Role } from '@/types/api'
+import { ApiError } from '@/utils/request'
 
 const accounts = [
-  { username: 'platform_admin', icon: '平', name: '平台管理员', description: '平台基础查看' },
-  { username: 'doctor', icon: '医', name: '医生', description: '本院体检者查询与报告查看' },
-  { username: 'customer', icon: '客', name: '普通客户', description: '个人健康中心' },
+  {
+    username: 'admin',
+    password: '123456',
+    icon: '平',
+    name: '平台管理员',
+    description: '平台基础查看',
+  },
+  {
+    username: 'doctor',
+    password: 'RayK@123456',
+    icon: '医',
+    name: '医生',
+    description: '本院体检者查询与报告查看',
+  },
+  {
+    username: 'customer',
+    password: 'RayK@123456',
+    icon: '客',
+    name: '普通客户',
+    description: '个人健康中心',
+  },
 ]
-const username = ref('doctor'),
-  password = ref('RayK@123456'),
+const username = ref(accounts[1].username),
+  password = ref(accounts[1].password),
   loading = ref(false),
   wechatLoading = ref(false),
   showDeveloper = ref(true),
@@ -220,12 +239,24 @@ const identifiedFor = (data: AuthData) => ({
   category: identityLabels[data.defaultWorkbench],
   workbench: workbenchNames[data.defaultWorkbench],
 })
+const selectDeveloperAccount = (account: (typeof accounts)[number]) => {
+  username.value = account.username
+  password.value = account.password
+  error.value = ''
+}
+const staffLoginError = (error: unknown) => {
+  if (error instanceof ApiError && error.code === 10204) {
+    return '当前微信已绑定其他身份（可能是客户），请换用未绑定的工作人员微信。'
+  }
+  return error instanceof Error ? error.message : '工作人员登录失败，请重试'
+}
 
 onLoad((query) => {
   expired.value = query?.expired === '1'
 })
 
 async function handleWeChatLogin(event?: { detail?: { code?: string; errMsg?: string } }) {
+  if (wechatLoading.value) return
   wechatLoading.value = true
   wechatError.value = ''
   const phoneCode = supportsPhoneLogin ? event?.detail?.code : undefined
@@ -251,6 +282,7 @@ async function handleWeChatLogin(event?: { detail?: { code?: string; errMsg?: st
 }
 
 async function handleStaffLogin() {
+  if (staffLoading.value) return
   if (staffLoginMode.value === 'admin') {
     await handleAdminLogin()
     return
@@ -270,13 +302,14 @@ async function handleStaffLogin() {
     await new Promise((resolve) => setTimeout(resolve, 900))
     uni.switchTab({ url: '/pages/home/index' })
   } catch (e) {
-    staffError.value = e instanceof Error ? e.message : '工作人员登录失败，请重试'
+    staffError.value = staffLoginError(e)
   } finally {
     staffLoading.value = false
   }
 }
 
 async function handleAdminLogin() {
+  if (staffLoading.value) return
   const usernameValue = staffUsername.value.trim()
   const passwordValue = staffPassword.value
   if (!usernameValue || !passwordValue) {
@@ -297,7 +330,7 @@ async function handleAdminLogin() {
     await new Promise((resolve) => setTimeout(resolve, 900))
     uni.switchTab({ url: '/pages/home/index' })
   } catch (e) {
-    staffError.value = e instanceof Error ? e.message : '平台管理员登录失败，请重试'
+    staffError.value = staffLoginError(e)
   } finally {
     staffLoading.value = false
   }

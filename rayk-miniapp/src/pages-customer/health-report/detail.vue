@@ -52,6 +52,31 @@
       >
       <view v-else class="card good-card">当前数据不足，请补充资料后再进行健康评估。</view>
 
+      <view v-if="abnormalExplanations.length" class="section-head">
+        <view class="eyebrow">EXPLAIN</view><view class="title">异常结果解释</view>
+      </view>
+      <view v-if="abnormalExplanations.length" class="card abnormal-card">
+        <view
+          v-for="item in abnormalExplanations"
+          :key="`${item.title}-${item.explanation}`"
+          class="abnormal-explanation"
+        >
+          <view class="abnormal-title">{{ item.title }}</view>
+          <view v-if="item.finding" class="abnormal-finding">{{ item.finding }}</view>
+          <view class="abnormal-copy"
+            ><text class="abnormal-label">这说明什么：</text>{{ item.explanation }}</view
+          >
+          <view class="abnormal-copy"
+            ><text class="abnormal-label">可能影响的器官或系统：</text
+            >{{ item.possibleImpacts }}</view
+          >
+          <view class="abnormal-copy"
+            ><text class="abnormal-label">下一步建议：</text>{{ item.nextStep }}</view
+          >
+        </view>
+        <view class="abnormal-note">以上为健康管理和辅助参考，单次异常不能判断器官损害或确诊疾病。</view>
+      </view>
+
       <view class="section-head"
         ><view class="eyebrow">REASON</view><view class="title">为什么需要关注</view></view
       >
@@ -85,6 +110,16 @@
           <view class="diagnostic-plan">
             <view class="diagnostic-plan-title">疾病治疗方案</view>
             <view v-for="plan in treatmentPlanFor(item)" :key="plan" class="diagnostic-copy">• {{ plan }}</view>
+          </view>
+          <view class="diagnostic-plan integrated-treatment-plan">
+            <view class="diagnostic-plan-title">中西医结合治疗建议</view>
+            <view
+              v-for="plan in integratedTreatmentFor(item)"
+              :key="plan.label"
+              class="diagnostic-copy"
+            >
+              <text class="integrated-treatment-label">{{ plan.label }}：</text>{{ plan.text }}
+            </view>
           </view>
           <view class="diagnostic-plan">
             <view class="diagnostic-plan-title">营养干预修复方案</view>
@@ -151,7 +186,12 @@ import {
   getHealthReports,
 } from '@/api/health-report'
 import { getReportFiles } from '@/api/lab-report'
-import { getApiBaseUrl, getRequestHeaders, openProtectedFileInBrowser } from '@/utils/request'
+import {
+  downloadProtectedFileInBrowser,
+  getApiBaseUrl,
+  getRequestHeaders,
+  openProtectedFileInBrowser,
+} from '@/utils/request'
 import { useAuthStore } from '@/stores/auth'
 import type { Assessment, HealthReport } from '@/types/api'
 import { cleanHealthText } from '@/utils/health-text'
@@ -172,6 +212,11 @@ type DiagnosticReference = {
   recommendedDepartment?: string
   treatmentPlan?: string[]
   nutritionInterventionPlan?: string[]
+  westernMedicineApproach?: string[]
+  traditionalChineseMedicineApproach?: string[]
+  westernMedicineMedicationPlan?: string[]
+  traditionalChineseMedicineMedicationPlan?: string[]
+  integratedTreatmentNotes?: string[]
 }
 const labels: Record<string, string> = {
   GLUCOSE_METABOLISM: '糖代谢健康',
@@ -221,6 +266,17 @@ const concerns = computed<Focus[]>(() =>
 )
 const priorityItems = computed(() =>
   (interpretation.value?.priorityConcerns || []).map(cleanHealthText).filter(Boolean),
+)
+const abnormalExplanations = computed(() =>
+  (interpretation.value?.abnormalExplanations || [])
+    .map((item) => ({
+      title: cleanHealthText(item.title),
+      finding: cleanHealthText(item.finding || ''),
+      explanation: cleanHealthText(item.explanation),
+      possibleImpacts: cleanHealthText(item.possibleImpacts),
+      nextStep: cleanHealthText(item.nextStep),
+    }))
+    .filter((item) => item.title && item.explanation && item.possibleImpacts && item.nextStep),
 )
 const overallSummary = computed(() => {
   const aiSummary = cleanHealthText(interpretation.value?.summary || '')
@@ -299,6 +355,81 @@ const nutritionPlanFor = (item: DiagnosticReference) => {
   return plans.length
     ? plans
     : ['建议由临床营养师或相关专科结合体重、肝肾功能、过敏史、当前用药和复查结果制定个体化饮食方案。']
+}
+const isGenericTcmMedicationReference = (text: string) =>
+  !text ||
+  [
+    '本次证据未支持',
+    '未支持具体方药',
+    '未支持具体药物',
+    '具体方药由',
+    '具体方药方向',
+    '不自行购药或叠加中药',
+  ].some((marker) => text.includes(marker))
+const tcmMedicationReferenceFor = (condition: string, currentText: string) => {
+  if (!isGenericTcmMedicationReference(currentText)) return currentText
+  if (condition.includes('幽门螺杆菌') || condition.includes('胃炎') || condition.includes('消化不良')) {
+    return '若中医辨证属于寒热互结之痞证，可与中医师讨论半夏泻心汤颗粒或半夏泻心汤类方；该方向用于胃脘痞满、脾胃不和等证候的中医调理，不替代幽门螺杆菌规范根除治疗，具体方药须由医师辨证处方并核对过敏史、当前用药。'
+  }
+  if (condition.includes('粥样硬化') || condition.includes('斑块') || condition.includes('血脂') || condition.includes('心血管')) {
+    return '如辨证符合痰瘀阻滞且确需中成药辅助，可与心内科或中医师讨论血脂康胶囊等调脂类中成药；血脂康含天然他汀样成分，若正在使用他汀或存在肝酶、肌酶异常，不得自行叠加，须由医生先核对相互作用和复查指标。'
+  }
+  if (condition.includes('脂肪肝') || condition.includes('脂肪性肝病') || condition.includes('肝脏与代谢')) {
+    return '如辨证属于湿热中阻且评估符合脂肪性肝病管理方向，可与肝病科或中医师讨论化滞柔肝颗粒等中成药；须先结合肝功能、饮酒、现用药和证候评估，由医生决定是否使用，不能自行购买。'
+  }
+  return currentText || '当前证据未支持可安全列出的具体中药名称，请先由中医师结合证候、过敏史和现用药辨证处方。'
+}
+const integratedTreatmentFor = (item: DiagnosticReference) => {
+  const western = planItems(item.westernMedicineApproach)
+  const traditionalChinese = planItems(item.traditionalChineseMedicineApproach)
+  const westernMedications = planItems(item.westernMedicineMedicationPlan)
+  const traditionalChineseMedications = planItems(item.traditionalChineseMedicineMedicationPlan)
+  const condition = cleanHealthText(item.conditionName || '')
+  const department = cleanHealthText(item.recommendedDepartment || '') || '相关专科'
+  const isHelicobacter = condition.includes('幽门螺杆菌')
+  const isAtherosclerosis = condition.includes('粥样硬化') || condition.includes('斑块')
+  return [
+    {
+      label: '西医治疗思路',
+      text:
+        western.join('；') ||
+        (isHelicobacter
+          ? `请由${department}复核呼气试验、根除适应证、过敏史和既往抗菌药使用。`
+          : isAtherosclerosis
+            ? `请由${department}结合血脂、血压、糖代谢和整体心血管风险分层。`
+            : `请由${department}结合检查结果、症状和复查结果评估西医治疗路径。`),
+    },
+    {
+      label: '西医药物治疗参考',
+      text:
+        westernMedications.join('；') ||
+        (isHelicobacter
+          ? '如复核确认需要根除，医生通常在含铋四联方案中选择抗菌药、铋剂和抑酸药组合，具体药物与疗程必须由消化内科处方。'
+          : isAtherosclerosis
+            ? '医生可根据低密度脂蛋白胆固醇和总体风险评估是否需要他汀类降脂药；抗血小板药仅在明确适应证时考虑。'
+            : '本次证据未支持具体药物名称，由相关专科结合诊断和禁忌证决定是否需要处方。'),
+    },
+    {
+      label: '中医治疗思路',
+      text:
+        traditionalChinese.join('；') ||
+        (isHelicobacter
+          ? '先由中医师辨证判断脾胃湿热、脾胃虚弱等证候，再决定是否适合中医辅助调理。'
+          : isAtherosclerosis
+            ? '如需中医辅助管理，由中医师结合痰湿、血瘀等证候辨证评估。'
+            : '如考虑中医干预，请由中医师辨证评估体质和症状后制定方案。'),
+    },
+    {
+      label: '中医药物/治法参考',
+      text:
+        tcmMedicationReferenceFor(condition, traditionalChineseMedications.join('；')) ||
+        (isHelicobacter
+          ? '可围绕清热化湿或健脾和胃等治法选择药物方向，具体方药由中医师辨证开具。'
+          : isAtherosclerosis
+            ? '可围绕化痰祛瘀、调理脾胃等治法制定辅助方案，具体方药由中医师开具。'
+            : '本次证据未支持具体方药方向，不自行购药或叠加中药。'),
+    },
+  ]
 }
 const directions = computed(() => {
   const generated = (interpretation.value?.recommendations || [])
@@ -432,7 +563,10 @@ const download = async () => {
   downloading.value = true
   try {
     // #ifdef H5
-    await openProtectedFileInBrowser(`/api/v1/health-reports/${id.value}/content`, '_self')
+    await downloadProtectedFileInBrowser(
+      `/api/v1/health-reports/${id.value}/content`,
+      `健康评估报告-${id.value}.pdf`,
+    )
     // #endif
     // #ifdef MP-WEIXIN
     uni.downloadFile({
@@ -610,6 +744,45 @@ const download = async () => {
 .evidence-item:last-of-type {
   border-bottom: 0;
 }
+.abnormal-card {
+  padding: 12rpx 27rpx 18rpx;
+  background: linear-gradient(145deg, #fff8ed, #ffffff 72%);
+  border: 1rpx solid #f3dfbd;
+}
+.abnormal-explanation {
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f2e8d8;
+  color: #5d5b53;
+  font-size: 24rpx;
+  line-height: 1.65;
+}
+.abnormal-explanation:last-of-type {
+  border-bottom: 0;
+}
+.abnormal-title {
+  color: #8b5415;
+  font-size: 27rpx;
+  font-weight: 750;
+}
+.abnormal-copy {
+  margin-top: 10rpx;
+}
+.abnormal-finding {
+  margin-top: 6rpx;
+  color: #8b5415;
+  font-size: 23rpx;
+  line-height: 1.55;
+}
+.abnormal-label {
+  color: #35594e;
+  font-weight: 700;
+}
+.abnormal-note {
+  margin-top: 8rpx;
+  color: #8c7d67;
+  font-size: 21rpx;
+  line-height: 1.55;
+}
 .diagnostic-reference {
   padding: 19rpx 0 22rpx;
   border-bottom: 1rpx solid #edf1ef;
@@ -640,6 +813,14 @@ const download = async () => {
 }
 .diagnostic-plan-title {
   color: #0b765d;
+  font-weight: 700;
+}
+.integrated-treatment-plan {
+  background: #fff8ed;
+  border: 1rpx solid #f3dfbd;
+}
+.integrated-treatment-label {
+  color: #35594e;
   font-weight: 700;
 }
 .data-action {

@@ -1,4 +1,5 @@
 import logging
+import threading
 import time
 
 from fastapi import FastAPI, Request
@@ -16,6 +17,8 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
+logger = logging.getLogger("rayk.ai.startup")
+
 app = FastAPI(
     title="Rayk AI Service",
     version="0.1.0",
@@ -27,8 +30,27 @@ app.include_router(router)
 
 @app.on_event("startup")
 def warm_up_ocr() -> None:
-    if isinstance(ocr_service, PaddleOcrService):
-        ocr_service.warm_up()
+    """Warm the OCR model without blocking the HTTP service startup.
+
+    PaddleOCR can take several minutes to initialize on a cold local volume.
+    Keeping that work inside FastAPI's startup hook leaves ``/health``
+    unreachable and prevents the Java/Nginx services from starting through
+    Docker Compose.  OCR requests still use the same cached pipeline and will
+    complete normally while the background warm-up is in progress.
+    """
+    if not isinstance(ocr_service, PaddleOcrService):
+        return
+
+    def _warm_up() -> None:
+        try:
+            ocr_service.warm_up()
+            logger.info("PaddleOCR warm-up completed")
+        except Exception:
+            # Keep the API available so callers receive a normal OCR error and
+            # the service can be diagnosed/restarted without a dead healthcheck.
+            logger.exception("PaddleOCR warm-up failed")
+
+    threading.Thread(target=_warm_up, name="ocr-warm-up", daemon=True).start()
 
 
 @app.get("/health", response_model=ApiResponse[HealthData])

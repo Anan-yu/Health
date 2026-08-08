@@ -76,6 +76,8 @@ unpackage/
 *.key
 *.p12
 *.pfx
+crets/
+certs/
 secrets*.yml
 secrets*.yaml
 secrets*.json

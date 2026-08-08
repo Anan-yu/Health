@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import time
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Literal
@@ -13,6 +14,7 @@ from app.clinical.timeline import ClinicalContextBuilder
 from app.core.constants import DISCLAIMER
 from app.knowledge.service import KNOWLEDGE_BASE_VERSION, MedicalKnowledgeRetriever
 from app.schemas.assessment import (
+    AbnormalExplanation,
     AssessmentRequest,
     ComprehensiveInterpretation,
     CrossModelFinding,
@@ -22,12 +24,37 @@ from app.schemas.assessment import (
 from app.schemas.common import RaykModel
 
 logger = logging.getLogger(__name__)
-PROMPT_VERSION = "zhiyu-health-rag-v2.5"
-VERTICAL_ENGINE_VERSION = "ZHIYU_HEALTH_VERTICAL_2.5.0"
-DEEPSEEK_MAX_OUTPUT_TOKENS = 384 * 1024
+PROMPT_VERSION = "zhiyu-health-rag-v2.8"
+VERTICAL_ENGINE_VERSION = "ZHIYU_HEALTH_VERTICAL_2.8.0"
+DEEPSEEK_MAX_OUTPUT_TOKENS = 32 * 1024
+DEFAULT_DEEPSEEK_TIMEOUT_SECONDS = 60.0
+DEFAULT_DEEPSEEK_MAX_ATTEMPTS = 3
+DEFAULT_DEEPSEEK_RETRY_BACKOFF_SECONDS = 1.0
+
+# These are evidence-gated reference options, not prescriptions.  A condition is
+# enriched only when its matching RAG document was retrieved for that assessment.
+# Keeping the options here makes an old report that contains the former generic
+# placeholder readable without weakening the doctor-review and interaction checks.
+_TCM_MEDICATION_REFERENCE_OPTIONS: tuple[tuple[tuple[str, ...], str, str], ...] = (
+    (
+        ("幽门螺杆菌", "胃炎", "消化不良"),
+        "TCM-HP-2026-001",
+        "若中医辨证属于寒热互结之痞证，可与中医师讨论半夏泻心汤颗粒或半夏泻心汤类方；该方向用于胃脘痞满、脾胃不和等证候的中医调理，不替代幽门螺杆菌规范根除治疗，具体方药须由医师辨证处方并核对过敏史、当前用药。",
+    ),
+    (
+        ("粥样硬化", "斑块", "血脂", "心血管"),
+        "TCM-LIPID-2026-001",
+        "如辨证符合痰瘀阻滞且确需中成药辅助，可与心内科或中医师讨论血脂康胶囊等调脂类中成药；血脂康含天然他汀样成分，若正在使用他汀或存在肝酶、肌酶异常，不得自行叠加，须由医生先核对相互作用和复查指标。",
+    ),
+    (
+        ("脂肪肝", "脂肪性肝病", "肝脏与代谢"),
+        "TCM-LIVER-2026-001",
+        "如辨证属于湿热中阻且评估符合脂肪性肝病管理方向，可与肝病科或中医师讨论化滞柔肝颗粒等中成药；须先结合肝功能、饮酒、现用药和证候评估，由医生决定是否使用，不能自行购买。",
+    ),
+)
 
 _SYSTEM_PROMPT = """
-你是“致宇健康”的医学健康评估引擎，为中国用户和医生生成同一份、可复核的健康评估。
+你是“智能三羊”的医学健康评估引擎，为中国用户和医生生成同一份、可复核的健康评估。
 
 【唯一事实与知识来源】
 1. healthTimeline.analysisFocus 是本次优先分析区；先围绕其中的异常、档案信号和检查小结
@@ -47,6 +74,10 @@ _SYSTEM_PROMPT = """
 - 先描述整体健康状态，再归纳有直接证据支持的重点问题。
 - healthTimeline.abnormalFacts 是已由程序核对参考范围的异常事实，必须优先展示；不得因
   某个健康维度数据不足而遗漏其中任何一项。
+- abnormalExplanations 必须逐项解释 healthTimeline.abnormalFacts：每项至少绑定一个真实的
+  patientFactId 或异常 indicatorCode，并在 finding 中保留对应的异常结果和参考范围，使用 RAG 证据说明“这说明什么”、可能涉及的器官或系统
+  以及下一步建议。只能写“可能影响、长期持续异常可能增加风险”等限定语，不能写成已经造成器官
+  损害或确诊；单次异常必须明确不能判断器官损害。
 - diagnosticReferences 可以为空。只有至少两项相互独立且相关的异常事实形成异常模式、
   原报告检查小结明确使用“考虑、提示、倾向、待排”等疾病方向，或存在医生应优先排查的
   危险信号时，才允许生成疾病参考。单项轻度异常只能写成风险信号和补充检查方向。
@@ -58,8 +89,8 @@ _SYSTEM_PROMPT = """
   2至4条可执行内容，依次写明：就诊时需完成的确认或分层、基于本次RAG证据的核心治疗策略、
   疗效复核或随访；可直接使用“幽门螺杆菌根除治疗路径”“动脉粥样硬化危险因素强化管理”
   “脂肪性肝病的体重与代谢共病干预”等指南定义的治疗类别。不得只写“由专科决定后续方案”。
-  nutritionInterventionPlan 必须与本次证据对应。两者都不是处方，不能包含具体药名、剂量、
-  侵入性操作、营养补充剂或让用户自行调整治疗。
+  nutritionInterventionPlan 必须与本次证据对应。治疗方案不是处方，不能包含剂量、疗程指令、
+  侵入性操作、营养补充剂或让用户自行调整治疗；具体药物只能放在专门的药物治疗参考字段中。
 - 已在既往史中明确记录的疾病不是“新发现疾病”；可以说明相关指标值得关注。
 - 必须原样保留“可能、考虑、倾向、待排、建议复查”等限定语，不得把影像或其他文字
   检查中的提示升级为“已患有”或“已确诊”。不得把报告抬头、姓名、电话、日期当成医学结果。
@@ -85,9 +116,23 @@ _SYSTEM_PROMPT = """
 - 整个JSON保持精炼：重点发现不超过6条、跨维度发现不超过4条、疾病方向不超过3条、
   缺失数据不超过4条、追问不超过3条。不要为了填满数组而制造内容。
 - crossModelFindings 和 diagnosticReferences 必须填写 patientFactIds 与 evidenceIds。
+- abnormalExplanations 必须填写 patientFactIds 或 indicatorCodes，并尽量覆盖每个 abnormalFact；
+  每项的 explanation、possibleImpacts 和 nextStep 都要具体对应本次结果，不能使用泛泛的健康套话。
 - indicatorCodes、patientFactIds、evidenceIds 只能使用输入中真实存在的编号。
 - uncertainty 只记录本次数据覆盖边界，简短客观，不重复结论。
 """.strip()
+
+_SYSTEM_PROMPT = (
+    _SYSTEM_PROMPT
+    + """
+
+【中西医结合治疗建议】
+- 每个 diagnosticReferences 条目应优先输出有 RAG 证据支持的 westernMedicineApproach、traditionalChineseMedicineApproach、westernMedicineMedicationPlan 和 traditionalChineseMedicineMedicationPlan；四个字段可以按证据为空，禁止为了填满字段而编造治疗或药物内容。
+- westernMedicineMedicationPlan 和 traditionalChineseMedicineMedicationPlan 按 RAG 证据择一或同时输出；前者写有证据支持的西药类别或常用药物名称及适用前提，后者写有证据支持的中药治法、药物类别、代表性中成药或方药方向及辨证前提。命中 TCM-HP-2026-001、TCM-LIPID-2026-001 或 TCM-LIVER-2026-001 时，应优先给出对应的代表性药物/方药参考，不要用空泛的“本次证据未支持具体方药”替代；未命中时才保留证据不足提示。
+- westernMedicineApproach 只写就诊后的分层评估、检查确认、治疗类别和复查方向；traditionalChineseMedicineApproach 只写辨证评估、适用的非药物调养或在医师指导下的中医干预方向。
+- 药物治疗参考不得输出剂量、疗程指令、处方组合或让用户自行购药、停药、加药、减药；中药不得擅自给出方剂、穴位或保证疗效，必须写明由具备资质的医生辨证/处方。
+"""
+).strip()
 
 _OUTPUT_EXAMPLE = {
     "summary": (
@@ -96,6 +141,18 @@ _OUTPUT_EXAMPLE = {
         "下一步应优先核对缺失项目并按医生意见复查。"
     ),
     "priorityConcerns": ["空腹血糖高于本次报告参考上限"],
+    "abnormalExplanations": [
+        {
+            "title": "空腹血糖",
+            "finding": "空腹血糖为 6.4 mmol/L，高于本次报告参考上限 6.1 mmol/L。",
+            "indicatorCodes": ["fasting_glucose"],
+            "patientFactIds": ["LAB:fasting_glucose"],
+            "evidenceIds": ["NHC-HYPERGLYCEMIA-2024-001"],
+            "explanation": "结果高于本次报告参考上限，说明当前糖代谢指标存在偏离。单次结果不能用于诊断疾病。",
+            "possibleImpacts": "若长期或反复偏高，可能增加血管、肾脏、眼底和周围神经等糖代谢相关并发症风险，是否存在风险还需结合复查和临床资料判断。",
+            "nextStep": "结合症状和用药情况复查空腹血糖及糖化血红蛋白，并由医生判断是否需要进一步检查。",
+        }
+    ],
     "crossModelFindings": [
         {
             "title": "糖代谢相关指标需要关注",
@@ -134,6 +191,8 @@ class DeepSeekSettings:
     timeout_seconds: float
     max_tokens: int
     thinking_enabled: bool
+    max_attempts: int = DEFAULT_DEEPSEEK_MAX_ATTEMPTS
+    retry_backoff_seconds: float = DEFAULT_DEEPSEEK_RETRY_BACKOFF_SECONDS
 
     @classmethod
     def from_env(cls) -> "DeepSeekSettings":
@@ -142,12 +201,33 @@ class DeepSeekSettings:
             api_key=os.getenv("DEEPSEEK_API_KEY", "").strip(),
             base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").rstrip("/"),
             model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash").strip(),
-            timeout_seconds=float(os.getenv("DEEPSEEK_TIMEOUT_SECONDS", "30")),
+            timeout_seconds=max(
+                5.0,
+                float(
+                    os.getenv(
+                        "DEEPSEEK_TIMEOUT_SECONDS",
+                        str(int(DEFAULT_DEEPSEEK_TIMEOUT_SECONDS)),
+                    )
+                ),
+            ),
             max_tokens=min(
-                max(1, int(os.getenv("DEEPSEEK_MAX_TOKENS", str(DEEPSEEK_MAX_OUTPUT_TOKENS)))),
+                max(1, int(os.getenv("DEEPSEEK_MAX_TOKENS", "16000"))),
                 DEEPSEEK_MAX_OUTPUT_TOKENS,
             ),
             thinking_enabled=_env_bool("DEEPSEEK_THINKING_ENABLED"),
+            max_attempts=max(1, min(int(os.getenv("DEEPSEEK_MAX_ATTEMPTS", "3")), 3)),
+            retry_backoff_seconds=max(
+                0.0,
+                min(
+                    float(
+                        os.getenv(
+                            "DEEPSEEK_RETRY_BACKOFF_SECONDS",
+                            str(DEFAULT_DEEPSEEK_RETRY_BACKOFF_SECONDS),
+                        )
+                    ),
+                    5.0,
+                ),
+            ),
         )
 
 
@@ -155,6 +235,9 @@ class DeepSeekGeneratedInterpretation(RaykModel):
     summary: str = Field(min_length=1, max_length=1000)
     priority_concerns: list[str] = Field(
         default_factory=list, alias="priorityConcerns", max_length=10
+    )
+    abnormal_explanations: list[AbnormalExplanation] = Field(
+        default_factory=list, alias="abnormalExplanations", max_length=10
     )
     cross_model_findings: list[CrossModelFinding] = Field(
         default_factory=list, alias="crossModelFindings", max_length=10
@@ -189,7 +272,12 @@ class InterpretationService:
         clinical_context_builder: ClinicalContextBuilder | None = None,
     ) -> None:
         self.settings = settings or DeepSeekSettings.from_env()
-        self.client = client or httpx.Client(timeout=self.settings.timeout_seconds)
+        self.client = client or httpx.Client(
+            timeout=httpx.Timeout(
+                self.settings.timeout_seconds,
+                connect=min(10.0, self.settings.timeout_seconds),
+            )
+        )
         self.knowledge_retriever = knowledge_retriever or MedicalKnowledgeRetriever()
         self.clinical_context_builder = clinical_context_builder or ClinicalContextBuilder()
 
@@ -213,11 +301,17 @@ class InterpretationService:
         fallback_reason: str | None = None
         try:
             grounding = self._prepare_grounding(request, results, timeline)
-            for generation_attempts in range(1, 3):
+            for generation_attempts in range(1, self.settings.max_attempts + 1):
                 try:
                     generated = self._call_deepseek(
                         grounding,
-                        repair_reason=fallback_reason if generation_attempts > 1 else None,
+                        repair_reason=(
+                            fallback_reason
+                            if generation_attempts > 1
+                            and fallback_reason
+                            and not fallback_reason.startswith(("network_", "http_"))
+                            else None
+                        ),
                     )
                     generated = self._normalize_generated_output(
                         generated, abnormal_facts, request, grounding
@@ -232,15 +326,28 @@ class InterpretationService:
                         disclaimer=DISCLAIMER,
                         **generated.model_dump(),
                     )
+                except httpx.HTTPStatusError as exception:
+                    fallback_reason = f"http_{exception.response.status_code}"
+                    if not self._should_retry_http_status(
+                        exception.response.status_code, generation_attempts
+                    ):
+                        raise
+                    self._wait_before_retry(generation_attempts, fallback_reason)
+                except httpx.TimeoutException as exception:
+                    fallback_reason = f"network_{type(exception).__name__}"
+                    if generation_attempts >= self.settings.max_attempts:
+                        raise
+                    self._wait_before_retry(generation_attempts, fallback_reason)
+                except httpx.HTTPError as exception:
+                    fallback_reason = f"network_{type(exception).__name__}"
+                    if generation_attempts >= self.settings.max_attempts:
+                        raise
+                    self._wait_before_retry(generation_attempts, fallback_reason)
                 except (KeyError, IndexError, TypeError, ValueError) as exception:
                     fallback_reason = self._safe_failure_reason(exception)
-                    if generation_attempts == 1:
-                        logger.info(
-                            "DeepSeek interpretation needs repair: reason=%s retry=true",
-                            fallback_reason,
-                        )
-                        continue
-                    raise
+                    if generation_attempts >= self.settings.max_attempts:
+                        raise
+                    self._wait_before_retry(generation_attempts, fallback_reason)
         except httpx.HTTPStatusError as exception:
             fallback_reason = f"http_{exception.response.status_code}"
             logger.warning(
@@ -269,6 +376,24 @@ class InterpretationService:
             generation_attempts=generation_attempts,
         )
 
+    def _wait_before_retry(self, attempt: int, reason: str) -> None:
+        next_attempt = attempt + 1
+        delay = self.settings.retry_backoff_seconds * attempt
+        logger.info(
+            "DeepSeek interpretation retrying: attempt=%s nextAttempt=%s reason=%s delaySeconds=%.1f",
+            attempt,
+            next_attempt,
+            reason,
+            delay,
+        )
+        if delay > 0:
+            time.sleep(delay)
+
+    def _should_retry_http_status(self, status_code: int, attempt: int) -> bool:
+        if attempt >= self.settings.max_attempts:
+            return False
+        return status_code in {408, 409, 425, 429} or status_code >= 500
+
     def _call_deepseek(
         self,
         grounding: GroundingBundle,
@@ -290,8 +415,13 @@ class InterpretationService:
                 "疾病参考至少需要两项相关异常事实、明确疾病方向小结或危险信号之一",
                 "PRIORITY_REVIEW除至少两项患者事实外还必须存在明确危险信号",
                 "疾病参考必须优先核对analysisFocus.diagnosticSummaryFacts；引用疾病方向小结时，必须把对应factId写入patientFactIds，并在supportingEvidence中说明原报告小结内容",
+                "abnormalExplanations逐项解释healthTimeline.abnormalFacts；必须绑定真实patientFactId或异常indicatorCode，并使用本次RAG证据说明异常含义、可能涉及的器官或系统和下一步建议",
+                "异常解释只能使用可能提示、长期持续可能增加风险等限定语，不得声称已经造成器官损害、确诊疾病或仅凭单次结果判断器官受损",
+                "异常解释要优先覆盖原报告中已核对的异常事实；不得把正常、未知参考范围或缺失指标写成异常",
                 "每个疾病参考必须提供2至4条treatmentPlan，分别写清确认或分层、基于RAG证据的核心治疗类别、疗效复核或随访；不得只写“由专科结合情况制定方案”",
-                "treatmentPlan可以直接使用RAG证据支持的指南治疗类别，但不得输出具体药名、剂量、侵入性操作或让用户自行调整治疗；nutritionInterventionPlan必须与本次证据对应",
+                "treatmentPlan可以使用RAG证据支持的指南治疗类别；westernMedicineMedicationPlan和traditionalChineseMedicineMedicationPlan才用于列出有证据支持的药物类别、常用药物名称或中药治法方向，nutritionInterventionPlan必须与本次证据对应",
+                "每个diagnosticReferences应填写有证据支持的westernMedicineApproach、traditionalChineseMedicineApproach、westernMedicineMedicationPlan和traditionalChineseMedicineMedicationPlan；命中对应中医药证据时优先写出代表性药物或方药方向，未命中时才保留证据不足提示，禁止为了填满字段而编造治疗或药物内容",
+                "药物治疗参考不得输出剂量、疗程指令、处方组合或自行购药/停药/加药/减药建议；中药不得擅自给出方剂或穴位，必须保留医生辨证、处方和复查边界",
                 "每个重点问题和疾病候选至少引用一个相关evidenceId",
                 "不得引用本次evidenceBundle之外的机构、指南、阈值或文献",
                 "不得输出输入中不存在的指标代码或事实编号",
@@ -411,6 +541,11 @@ class InterpretationService:
             for reference in generated.diagnostic_references
             for code in reference.indicator_codes
         )
+        cited.update(
+            code
+            for explanation in generated.abnormal_explanations
+            for code in explanation.indicator_codes
+        )
         if cited - allowed:
             raise ValueError("DeepSeek cited indicators absent from input")
 
@@ -431,11 +566,30 @@ class InterpretationService:
             raise ValueError("DeepSeek cited evidence absent from RAG bundle")
         if cited_facts - grounding.patient_fact_ids:
             raise ValueError("DeepSeek cited patient facts absent from input")
+        explanation_cited_evidence = {
+            evidence_id
+            for item in generated.abnormal_explanations
+            for evidence_id in item.evidence_ids
+        }
+        explanation_cited_facts = {
+            fact_id
+            for item in generated.abnormal_explanations
+            for fact_id in item.patient_fact_ids
+        }
+        if explanation_cited_evidence - grounding.evidence_ids:
+            raise ValueError("DeepSeek cited evidence absent from RAG bundle")
+        if explanation_cited_facts - grounding.patient_fact_ids:
+            raise ValueError("DeepSeek cited patient facts absent from input")
         for item in grounded_items:
             if not item.evidence_ids:
                 raise ValueError("Grounded finding lacks medical evidence citation")
             if not item.patient_fact_ids and not item.indicator_codes:
                 raise ValueError("Grounded finding lacks patient fact citation")
+        for item in generated.abnormal_explanations:
+            if not item.evidence_ids:
+                raise ValueError("Abnormal explanation lacks medical evidence citation")
+            if not item.patient_fact_ids and not item.indicator_codes:
+                raise ValueError("Abnormal explanation lacks patient fact citation")
 
     @classmethod
     def _validate_generated_output(
@@ -454,6 +608,17 @@ class InterpretationService:
                 *generated.red_flags,
                 *[
                     text
+                    for item in generated.abnormal_explanations
+                    for text in (
+                        item.title,
+                        item.finding,
+                        item.explanation,
+                        item.possible_impacts,
+                        item.next_step,
+                    )
+                ],
+                *[
+                    text
                     for reference in generated.diagnostic_references
                     for text in (
                         reference.rationale,
@@ -461,20 +626,26 @@ class InterpretationService:
                         *reference.confirmation_advice,
                         *reference.treatment_plan,
                         *reference.nutrition_intervention_plan,
+                        *reference.western_medicine_approach,
+                        *reference.traditional_chinese_medicine_approach,
+                        *reference.western_medicine_medication_plan,
+                        *reference.traditional_chinese_medicine_medication_plan,
+                        *reference.integrated_treatment_notes,
                     )
                 ],
             ]
         )
         unsafe_patterns = (
-            r"(?<!不能)(?<!无法)(?:确诊为|诊断为|已经患有|就是.+病)",
-            r"(?:停药|加量|减量|改用|换用).{0,12}(?:药|剂)",
-            r"\b\d+(?:\.\d+)?\s*(?:mg|g|μg|ug)\s*(?:/次|每日|一天)",
-            r"(?:每日|一天)\s*\d+\s*次.{0,16}(?:服用|口服|注射)",
             r"(?:EVALUATED|INSUFFICIENT_DATA|ATTENTION|RULE_FALLBACK|RULE_\w+)",
-            r"BMI\s*[\d.]+.{0,8}(?:偏瘦|正常|超重|肥胖)",
             r"\b[a-z]+(?:_[a-z0-9]+)+\b",
         )
         if any(re.search(pattern, combined_text, re.IGNORECASE) for pattern in unsafe_patterns):
+            raise ValueError("DeepSeek output crossed medical safety boundary")
+        if cls._contains_unqualified_diagnosis(combined_text):
+            raise ValueError("DeepSeek output crossed medical safety boundary")
+        if cls._contains_unqualified_medication_change(combined_text):
+            raise ValueError("DeepSeek output crossed medical safety boundary")
+        if cls._contains_unqualified_dose_instruction(combined_text):
             raise ValueError("DeepSeek output crossed medical safety boundary")
 
         timeline = grounding.payload.get("healthTimeline", {})
@@ -483,6 +654,19 @@ class InterpretationService:
             for item in timeline.get("abnormalFacts", [])
             if item.get("factId")
         }
+        abnormal_indicator_codes = {
+            str(item.get("factId", "")).removeprefix("LAB:")
+            for item in timeline.get("abnormalFacts", [])
+            if str(item.get("factId", "")).startswith("LAB:")
+        }
+        for explanation in generated.abnormal_explanations:
+            traceable_facts = set(explanation.patient_fact_ids) | {
+                f"LAB:{code}" for code in explanation.indicator_codes
+            }
+            if not traceable_facts & abnormal_fact_ids:
+                raise ValueError("Abnormal explanation lacks verified abnormal fact")
+            if not set(explanation.indicator_codes).issubset(abnormal_indicator_codes):
+                raise ValueError("Abnormal explanation cited non-abnormal indicator")
         disease_summary_fact_ids = {
             str(item.get("factId"))
             for item in timeline.get("patientFacts", [])
@@ -512,6 +696,16 @@ class InterpretationService:
                 raise ValueError("Diagnostic reference lacks two independent patient facts")
             if not reference.treatment_plan or not reference.nutrition_intervention_plan:
                 raise ValueError("Diagnostic reference lacks care and nutrition plans")
+            has_treatment_direction = bool(
+                reference.western_medicine_approach
+                or reference.traditional_chinese_medicine_approach
+            )
+            has_medication_reference = bool(
+                reference.western_medicine_medication_plan
+                or reference.traditional_chinese_medicine_medication_plan
+            )
+            if not has_treatment_direction or not has_medication_reference:
+                raise ValueError("Diagnostic reference lacks evidence-backed treatment plan")
             if len(reference.treatment_plan) < 2 or all(
                 re.fullmatch(
                     r"(?:请|建议)?由[^。；]*?(?:结合|根据)[^。；]*?(?:决定|制定|明确)[^。；]*(?:方案|路径)。?",
@@ -520,6 +714,74 @@ class InterpretationService:
                 for item in reference.treatment_plan
             ):
                 raise ValueError("Diagnostic reference treatment plan is too generic")
+
+    @staticmethod
+    def _contains_unqualified_diagnosis(text: str) -> bool:
+        qualifiers = ("可能", "考虑", "提示", "倾向", "待排", "需进一步", "不能", "无法", "不代表")
+        pattern = re.compile(r"(?:确诊为|诊断为|已经患有|就是[^。；，]*病)")
+        for match in pattern.finditer(text):
+            prefix = text[max(0, match.start() - 12) : match.start()]
+            if not any(qualifier in prefix for qualifier in qualifiers):
+                return True
+        return False
+
+    @staticmethod
+    def _contains_unqualified_medication_change(text: str) -> bool:
+        negations = ("不要", "不得", "不可", "不建议", "请勿", "避免", "禁止", "不应", "不能")
+        pattern = re.compile(r"(?:停药|加量|减量|改用|换用).{0,12}(?:药|剂)")
+        for match in pattern.finditer(text):
+            prefix = text[max(0, match.start() - 12) : match.start()]
+            if not any(negation in prefix for negation in negations):
+                return True
+        return False
+
+    @staticmethod
+    def _contains_unqualified_dose_instruction(text: str) -> bool:
+        negations = ("不要", "不得", "不可", "不建议", "请勿", "避免", "禁止", "不应", "不能")
+        patterns = (
+            re.compile(r"\b\d+(?:\.\d+)?\s*(?:mg|g|μg|ug)\s*(?:/次|每日|一天)"),
+            re.compile(r"(?:每日|一天)\s*\d+\s*次.{0,16}(?:服用|口服|注射)"),
+        )
+        for pattern in patterns:
+            for match in pattern.finditer(text):
+                prefix = text[max(0, match.start() - 12) : match.start()]
+                if not any(negation in prefix for negation in negations):
+                    return True
+        return False
+
+    @staticmethod
+    def _is_generic_tcm_medication_reference(values: list[str]) -> bool:
+        """Identify the old empty placeholder without rejecting a safe named option."""
+
+        if not values:
+            return True
+        text = "；".join(values)
+        return any(
+            marker in text
+            for marker in (
+                "本次证据未支持",
+                "未支持具体方药",
+                "未支持具体药物",
+                "具体方药由",
+                "具体方药方向",
+                "不自行购药或叠加中药",
+            )
+        )
+
+    @classmethod
+    def _evidence_backed_tcm_medication_reference(
+        cls,
+        condition_name: str,
+        evidence_ids: list[str],
+    ) -> list[str]:
+        """Return a patient-readable, evidence-gated TCM option, never a prescription."""
+
+        condition = condition_name.strip()
+        cited_evidence = set(evidence_ids)
+        for keywords, evidence_id, text in _TCM_MEDICATION_REFERENCE_OPTIONS:
+            if evidence_id in cited_evidence and any(keyword in condition for keyword in keywords):
+                return [text]
+        return []
 
     @staticmethod
     def _normalize_generated_output(
@@ -557,10 +819,20 @@ class InterpretationService:
         ]
 
         allowed_indicators = {item.code for item in request.indicators if item.code}
+        abnormal_fact_ids = {
+            str(item.get("factId"))
+            for item in abnormal_facts
+            if item.get("factId")
+        }
+        abnormal_indicator_codes = {
+            str(item.get("factId", "")).removeprefix("LAB:")
+            for item in abnormal_facts
+            if str(item.get("factId", "")).startswith("LAB:")
+        }
 
         def normalize_citations(
-            item: CrossModelFinding | DiagnosticReference,
-        ) -> CrossModelFinding | DiagnosticReference | None:
+            item: CrossModelFinding | DiagnosticReference | AbnormalExplanation,
+        ) -> CrossModelFinding | DiagnosticReference | AbnormalExplanation | None:
             indicator_codes = [code for code in item.indicator_codes if code in allowed_indicators]
             patient_fact_ids = [
                 fact_id
@@ -584,6 +856,37 @@ class InterpretationService:
                 update["nutrition_intervention_plan"] = unique_text(
                     item.nutrition_intervention_plan, 4
                 )
+                update["western_medicine_approach"] = unique_text(
+                    item.western_medicine_approach, 3
+                )
+                update["traditional_chinese_medicine_approach"] = unique_text(
+                    item.traditional_chinese_medicine_approach, 3
+                )
+                update["western_medicine_medication_plan"] = unique_text(
+                    item.western_medicine_medication_plan, 3
+                )
+                tcm_medication_plan = unique_text(
+                    item.traditional_chinese_medicine_medication_plan, 3
+                )
+                if InterpretationService._is_generic_tcm_medication_reference(tcm_medication_plan):
+                    evidence_backed_reference = InterpretationService._evidence_backed_tcm_medication_reference(
+                        item.condition_name,
+                        evidence_ids,
+                    )
+                    if evidence_backed_reference:
+                        tcm_medication_plan = evidence_backed_reference
+                update["traditional_chinese_medicine_medication_plan"] = tcm_medication_plan
+                update["integrated_treatment_notes"] = unique_text(
+                    item.integrated_treatment_notes, 3
+                )
+            if isinstance(item, AbnormalExplanation):
+                if not (
+                    set(patient_fact_ids) & abnormal_fact_ids
+                    or set(indicator_codes) & abnormal_indicator_codes
+                ):
+                    return None
+                if not set(indicator_codes).issubset(abnormal_indicator_codes):
+                    return None
             return item.model_copy(update=update)
 
         normalized_findings = [
@@ -596,9 +899,15 @@ class InterpretationService:
             for reference in generated.diagnostic_references[:3]
             if (item := normalize_citations(reference)) is not None
         ]
+        normalized_explanations = [
+            item
+            for explanation in generated.abnormal_explanations[:10]
+            if (item := normalize_citations(explanation)) is not None
+        ]
         return generated.model_copy(
             update={
                 "priority_concerns": unique_text([*verified_concerns, *generated_concerns], 10),
+                "abnormal_explanations": normalized_explanations,
                 "cross_model_findings": normalized_findings,
                 "diagnostic_references": normalized_references,
                 "recommendations": unique_text(generated.recommendations, 5),
@@ -623,6 +932,9 @@ class InterpretationService:
             ("safety boundary", "medical_safety_validation_failed"),
             ("qualifying evidence", "diagnostic_eligibility_failed"),
             ("Camera estimation", "camera_evidence_validation_failed"),
+            ("Abnormal explanation", "abnormal_explanation_validation_failed"),
+            ("integrated treatment", "integrated_treatment_validation_failed"),
+            ("evidence-backed treatment", "integrated_treatment_validation_failed"),
         )
         for marker, label in reason_labels:
             if marker.lower() in message.lower():
@@ -852,7 +1164,43 @@ class InterpretationService:
             ],
             uncertainty=uncertainty,
             disclaimer=DISCLAIMER,
+            abnormal_explanations=cls._fallback_abnormal_explanations(abnormal_facts),
         )
+
+    @staticmethod
+    def _fallback_abnormal_explanations(
+        abnormal_facts: list[dict[str, Any]],
+    ) -> list[AbnormalExplanation]:
+        """Keep a safe, non-diagnostic explanation visible when AI generation is unavailable."""
+        explanations: list[AbnormalExplanation] = []
+        for fact in abnormal_facts[:10]:
+            fact_id = str(fact.get("factId") or "").strip()
+            name = str(fact.get("displayName") or "异常指标").strip()
+            if not fact_id or not name:
+                continue
+            explanations.append(
+                AbnormalExplanation(
+                    title=name,
+                    finding=str(fact.get("displayText") or "本项结果超出原报告参考范围"),
+                    # Rule fallback is patient-facing and must not leak internal fact or code IDs.
+                    indicator_codes=[],
+                    patient_fact_ids=[],
+                    evidence_ids=[],
+                    explanation=(
+                        f"{fact.get('displayText') or '本项结果超出原报告参考范围'}"
+                        "这说明本次指标与报告参考区间存在偏离，单次异常不能用于诊断疾病。"
+                    ),
+                    possible_impacts=(
+                        "当前规则结果没有足够医学证据判断器官是否受损；如果异常持续或反复，"
+                        "需要结合相关指标、症状和原报告检查小结评估长期风险。"
+                    ),
+                    next_step=(
+                        "请结合原报告检查小结和相关指标，由医生判断是否需要复查或进一步检查，"
+                        "不要据此自行用药或调整治疗。"
+                    ),
+                )
+            )
+        return explanations
 
     @staticmethod
     def _public_text(value: str) -> str:

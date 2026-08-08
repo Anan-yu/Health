@@ -12,6 +12,10 @@ services:
   rayk-ai:
     ports:
       - "${AI_PORT:-8000}:8000"
+    # Mount the local AI source for development so code changes take effect
+    # without waiting for the OCR-heavy image rebuild to finish.
+    volumes:
+      - ./rayk-ai/app:/app/app:ro
   rayk-server:
     environment:
       RAYK_DEVELOPMENT_LOGIN_ENABLED: "true"

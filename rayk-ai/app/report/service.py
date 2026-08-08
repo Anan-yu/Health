@@ -47,6 +47,13 @@ class DemoReportService:
         )
         title = f"{request.patient_display_name}的健康评估报告"
         sections = ["整体健康状态", "本次重点发现"]
+        abnormal_explanations = (
+            request.interpretation.abnormal_explanations
+            if request.interpretation is not None
+            else []
+        )
+        if abnormal_explanations:
+            sections.append("异常结果解释")
         if request.interpretation and request.interpretation.diagnostic_references:
             sections.append("疾病推断参考")
         sections.extend(["建议补充的信息", "下一步健康行动", "报告限制与免责声明"])
@@ -78,6 +85,15 @@ class DemoReportService:
             spaceBefore=8,
             spaceAfter=5,
         )
+        subheading = ParagraphStyle(
+            "RaykSubheading",
+            parent=normal,
+            fontSize=10,
+            leading=16,
+            textColor=colors.HexColor("#0F766E"),
+            spaceBefore=4,
+            spaceAfter=3,
+        )
         title_style = ParagraphStyle(
             "RaykTitle",
             parent=normal,
@@ -97,7 +113,7 @@ class DemoReportService:
             topMargin=14 * mm,
             bottomMargin=16 * mm,
             title=title,
-            author="致宇健康",
+            author="智能三羊",
         )
         story = [
             Paragraph(self._safe(title), title_style),
@@ -134,6 +150,9 @@ class DemoReportService:
                 )
             )
         interpretation = request.interpretation
+        abnormal_explanations = (
+            interpretation.abnormal_explanations if interpretation is not None else []
+        )
         priority_concerns = interpretation.priority_concerns if interpretation is not None else []
         if not priority_concerns:
             priority_concerns = [
@@ -150,6 +169,54 @@ class DemoReportService:
             story.append(Paragraph("当前已确认的数据未触发重点关注规则。", normal))
         else:
             story.append(Paragraph("当前数据不足，尚不能形成有效的重点发现。", normal))
+
+        if abnormal_explanations:
+            story.extend(
+                [
+                    Spacer(1, 2 * mm),
+                    Paragraph("异常结果解释", subheading),
+                    Paragraph(
+                        "以下说明对应原报告中已核对的异常结果；“可能影响”表示风险方向，不代表已经造成器官损害。",
+                        small,
+                    ),
+                ]
+            )
+            for explanation in abnormal_explanations[:10]:
+                story.extend(
+                    [
+                        Paragraph(
+                            "<b>异常项目：</b>" + self._safe(self._display_text(explanation.title)),
+                            normal,
+                        ),
+                        *(
+                            [
+                                Paragraph(
+                                    "<b>本次结果：</b>"
+                                    + self._safe(self._display_text(explanation.finding)),
+                                    small,
+                                )
+                            ]
+                            if explanation.finding.strip()
+                            else []
+                        ),
+                        Paragraph(
+                            "<b>这说明什么：</b>"
+                            + self._safe(self._display_text(explanation.explanation)),
+                            small,
+                        ),
+                        Paragraph(
+                            "<b>可能影响的器官或系统：</b>"
+                            + self._safe(self._display_text(explanation.possible_impacts)),
+                            small,
+                        ),
+                        Paragraph(
+                            "<b>下一步建议：</b>"
+                            + self._safe(self._display_text(explanation.next_step)),
+                            small,
+                        ),
+                        Spacer(1, 1.5 * mm),
+                    ]
+                )
 
         diagnostic_references = (
             interpretation.diagnostic_references if interpretation is not None else []
@@ -203,6 +270,11 @@ class DemoReportService:
                     [
                         Paragraph(
                             "<b>疾病治疗方案：</b>" + self._safe(self._treatment_plan(reference)),
+                            small,
+                        ),
+                        Paragraph(
+                            "<b>中西医结合治疗建议：</b>"
+                            + self._safe(self._integrated_treatment_plan(reference)),
                             small,
                         ),
                         Paragraph(
@@ -279,7 +351,7 @@ class DemoReportService:
         canvas.saveState()
         canvas.setFont(_REPORT_FONT, 7)
         canvas.setFillColor(colors.HexColor("#718096"))
-        canvas.drawString(document.leftMargin, 8 * mm, "致宇健康评估报告")
+        canvas.drawString(document.leftMargin, 8 * mm, "智能三羊评估报告")
         canvas.drawRightString(
             A4[0] - document.rightMargin,
             8 * mm,
@@ -552,6 +624,111 @@ class DemoReportService:
             "建议由临床营养师或相关专科结合体重、肝肾功能、过敏史、当前用药和复查结果制定"
             "个体化饮食方案；不自行高剂量补充营养素。"
         )
+
+    @classmethod
+    def _integrated_treatment_plan(cls, reference: object) -> str:
+        western = [
+            cls._display_text(str(item))
+            for item in (getattr(reference, "western_medicine_approach", None) or [])
+            if str(item).strip()
+        ]
+        traditional_chinese = [
+            cls._display_text(str(item))
+            for item in (
+                getattr(reference, "traditional_chinese_medicine_approach", None) or []
+            )
+            if str(item).strip()
+        ]
+        western_medications = [
+            cls._display_text(str(item))
+            for item in (
+                getattr(reference, "western_medicine_medication_plan", None) or []
+            )
+            if str(item).strip()
+        ]
+        traditional_chinese_medications = [
+            cls._display_text(str(item))
+            for item in (
+                getattr(reference, "traditional_chinese_medicine_medication_plan", None)
+                or []
+            )
+            if str(item).strip()
+        ]
+        condition = cls._display_text(str(getattr(reference, "condition_name", "") or ""))
+        tcm_medication_text = "；".join(traditional_chinese_medications)
+        if cls._is_generic_tcm_medication_reference(tcm_medication_text):
+            tcm_medication_text = cls._tcm_medication_reference(condition)
+        parts: list[str] = []
+        if western:
+            parts.append("西医治疗思路：" + "；".join(western))
+        if western_medications:
+            parts.append("西医药物治疗参考：" + "；".join(western_medications))
+        if traditional_chinese:
+            parts.append("中医治疗思路：" + "；".join(traditional_chinese))
+        if tcm_medication_text:
+            parts.append("中医药物/治法参考：" + tcm_medication_text)
+        if parts:
+            return " ".join(parts)
+        department = cls._display_text(
+            str(getattr(reference, "recommended_department", "") or "")
+        ) or "相关专科"
+        if "幽门螺杆菌" in condition:
+            return (
+                f"西医治疗思路：请由{department}复核呼气试验、根除适应证、过敏史和既往抗菌药使用。"
+                "西医药物治疗参考：如复核确认需要根除，医生通常在含铋四联方案中选择抗菌药、铋剂和抑酸药的组合，具体药物与疗程必须由消化内科处方。"
+                "中医治疗思路：先由中医师辨证判断脾胃湿热、脾胃虚弱等证候，再决定是否适合中医辅助调理。"
+                "中医药物/治法参考：可围绕清热化湿或健脾和胃等治法选择药物方向，具体方药由中医师辨证开具。"
+            )
+        if "粥样硬化" in condition or "斑块" in condition:
+            return (
+                f"西医治疗思路：请由{department}结合血脂、血压、糖代谢和整体心血管风险分层。"
+                "西医药物治疗参考：医生可根据低密度脂蛋白胆固醇和总体风险评估是否需要他汀类降脂药；抗血小板药仅在明确适应证时考虑。"
+                "中医治疗思路：如需中医辅助管理，由中医师结合痰湿、血瘀等证候辨证评估。"
+                "中医药物/治法参考：可围绕化痰祛瘀、调理脾胃等治法制定辅助方案，具体方药由中医师开具。"
+            )
+        return (
+            f"西医治疗思路：请由{department}结合检查结果、症状和复查结果评估治疗路径。"
+            "西医药物治疗参考：本次证据未支持具体药物名称，由相关专科结合诊断和禁忌证决定是否需要处方。"
+            "中医治疗思路：如考虑中医干预，请由中医师辨证评估后制定方案。"
+            "中医药物/治法参考：本次证据未支持具体方药方向，不自行购药或叠加中药。"
+        )
+
+    @staticmethod
+    def _is_generic_tcm_medication_reference(text: str) -> bool:
+        if not text:
+            return True
+        return any(
+            marker in text
+            for marker in (
+                "本次证据未支持",
+                "未支持具体方药",
+                "未支持具体药物",
+                "具体方药由",
+                "具体方药方向",
+                "不自行购药或叠加中药",
+            )
+        )
+
+    @classmethod
+    def _tcm_medication_reference(cls, condition: str) -> str:
+        if "幽门螺杆菌" in condition or "胃炎" in condition or "消化不良" in condition:
+            return (
+                "若中医辨证属于寒热互结之痞证，可与中医师讨论半夏泻心汤颗粒或半夏泻心汤类方；"
+                "该方向用于胃脘痞满、脾胃不和等证候的中医调理，不替代幽门螺杆菌规范根除治疗，"
+                "具体方药须由医师辨证处方并核对过敏史、当前用药。"
+            )
+        if any(keyword in condition for keyword in ("粥样硬化", "斑块", "血脂", "心血管")):
+            return (
+                "如辨证符合痰瘀阻滞且确需中成药辅助，可与心内科或中医师讨论血脂康胶囊等调脂类中成药；"
+                "血脂康含天然他汀样成分，若正在使用他汀或存在肝酶、肌酶异常，不得自行叠加，"
+                "须由医生先核对相互作用和复查指标。"
+            )
+        if any(keyword in condition for keyword in ("脂肪肝", "脂肪性肝病", "肝脏与代谢")):
+            return (
+                "如辨证属于湿热中阻且评估符合脂肪性肝病管理方向，可与肝病科或中医师讨论化滞柔肝颗粒等中成药；"
+                "须先结合肝功能、饮酒、现用药和证候评估，由医生决定是否使用，不能自行购买。"
+            )
+        return "当前证据未支持可安全列出的具体中药名称，请先由中医师结合证候、过敏史和现用药辨证处方。"
 
     @staticmethod
     def _focus_name(model_code: str) -> str:
