@@ -5,6 +5,7 @@ import com.rayk.health.common.exception.BusinessException;
 import com.rayk.health.common.exception.ErrorCode;
 import com.rayk.health.patient.entity.PatientEntity;
 import com.rayk.health.patient.mapper.PatientMapper;
+import com.rayk.health.membership.application.MembershipEntitlementService;
 import com.rayk.health.reminder.config.TencentTtsProperties;
 import com.rayk.health.reminder.dto.UpdateVoiceReminderSettingRequest;
 import com.rayk.health.reminder.entity.VoiceReminderAudioEntity;
@@ -45,6 +46,7 @@ public class VoiceReminderService {
     private final TencentTtsProperties ttsProperties;
     private final MinioClient minioClient;
     private final MinioProperties minioProperties;
+    private final MembershipEntitlementService membershipEntitlementService;
 
     public VoiceReminderService(
             VoiceReminderSettingMapper settingMapper,
@@ -54,7 +56,8 @@ public class VoiceReminderService {
             TencentTtsClient ttsClient,
             TencentTtsProperties ttsProperties,
             MinioClient minioClient,
-            MinioProperties minioProperties) {
+            MinioProperties minioProperties,
+            MembershipEntitlementService membershipEntitlementService) {
         this.settingMapper = settingMapper;
         this.audioMapper = audioMapper;
         this.patientMapper = patientMapper;
@@ -63,6 +66,7 @@ public class VoiceReminderService {
         this.ttsProperties = ttsProperties;
         this.minioClient = minioClient;
         this.minioProperties = minioProperties;
+        this.membershipEntitlementService = membershipEntitlementService;
     }
 
     public VoiceReminderSettingVo getSetting() {
@@ -107,7 +111,15 @@ public class VoiceReminderService {
         String type = normalizeType(requestedType);
         VoiceChoice voice = chooseVoice(patient.getGender());
         String text = textFactory.create(type, patient.getName());
-        byte[] audio = ttsClient.synthesize(text, voice.type());
+        String benefit = "SLEEP".equals(type) ? "TTS_SLEEP_REMINDER" : "TTS_MEAL_REMINDER";
+        MembershipEntitlementService.UsageReservation usage =
+                membershipEntitlementService.reserve(
+                        benefit,
+                        "TTS_PREVIEW",
+                        type,
+                        "TTS:" + current.userId() + ":" + type + ":" + UUID.randomUUID());
+        try {
+            byte[] audio = ttsClient.synthesize(text, voice.type());
         String objectPath =
                 "voice-reminders/%d/%d/%s.mp3"
                         .formatted(current.tenantId(), current.userId(), UUID.randomUUID());
@@ -129,12 +141,17 @@ public class VoiceReminderService {
         entity.setDeleted(0);
         entity.setVersion(0);
         audioMapper.insert(entity);
+        membershipEntitlementService.confirm(usage.usageId());
         return new VoiceReminderPreviewVo(
                 entity.getId(),
                 type,
                 text,
                 voice.name(),
                 "/api/v1/me/voice-reminders/audio/%d/content".formatted(entity.getId()));
+        } catch (RuntimeException exception) {
+            membershipEntitlementService.release(usage.usageId());
+            throw exception;
+        }
     }
 
     public DownloadedAudio openAudio(long id) {

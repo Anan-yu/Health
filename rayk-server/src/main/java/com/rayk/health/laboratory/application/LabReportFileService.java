@@ -12,6 +12,7 @@ import com.rayk.health.laboratory.mapper.LabReportMapper;
 import com.rayk.health.laboratory.vo.LabReportFileVo;
 import com.rayk.health.laboratory.vo.LabReportUploadVo;
 import com.rayk.health.laboratory.vo.LabReportVo;
+import com.rayk.health.laboratory.vo.OcrTaskVo;
 import com.rayk.health.patient.application.DataScopeService;
 import com.rayk.health.security.service.CurrentPrincipal;
 import com.rayk.health.security.service.CurrentUser;
@@ -23,6 +24,7 @@ import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.errors.ErrorResponseException;
 import io.minio.http.Method;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -34,7 +36,10 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +47,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class LabReportFileService {
+    private static final Logger logger = LoggerFactory.getLogger(LabReportFileService.class);
+
     private final MinioClient minioClient;
     private final MinioClient minioPublicClient;
     private final MinioProperties properties;
@@ -50,6 +57,7 @@ public class LabReportFileService {
     private final LabReportFileMapper fileMapper;
     private final LabReportMapper reportMapper;
     private final OcrTaskService ocrTaskService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public LabReportFileService(
             MinioClient minioClient,
@@ -59,7 +67,8 @@ public class LabReportFileService {
             DataScopeService dataScopeService,
             LabReportFileMapper fileMapper,
             LabReportMapper reportMapper,
-            OcrTaskService ocrTaskService) {
+            OcrTaskService ocrTaskService,
+            ApplicationEventPublisher eventPublisher) {
         this.minioClient = minioClient;
         this.minioPublicClient = minioPublicClient;
         this.properties = properties;
@@ -68,12 +77,24 @@ public class LabReportFileService {
         this.fileMapper = fileMapper;
         this.reportMapper = reportMapper;
         this.ocrTaskService = ocrTaskService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
     @PreAuthorize("hasAuthority('lab-report:manage') or (hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER')")
     public LabReportUploadVo upload(
             long patientId, String reportName, LocalDate reportDate, MultipartFile file) {
+        return upload(patientId, reportName, reportDate, file, true);
+    }
+
+    @Transactional
+    @PreAuthorize("hasAuthority('lab-report:manage') or (hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER')")
+    public LabReportUploadVo upload(
+            long patientId,
+            String reportName,
+            LocalDate reportDate,
+            MultipartFile file,
+            boolean startOcr) {
         ValidatedFile validated = validate(file);
         String normalizedReportName =
                 reportName == null || reportName.isBlank()
@@ -88,6 +109,103 @@ public class LabReportFileService {
                                 "MINIO_UPLOAD"));
         long reportId = Long.parseLong(report.id());
         CurrentPrincipal current = CurrentUser.require();
+        try {
+            LabReportFileEntity entity = storeFile(reportId, patientId, validated, current);
+            OcrTaskVo ocrTask = null;
+            if (startOcr) {
+                if (isImage(validated.mimeType())) {
+                    publishImageReportSubmitted(reportId, current.tenantId());
+                } else {
+                    ocrTask = ocrTaskService.start(reportId, entity.getId());
+                }
+            }
+            return new LabReportUploadVo(
+                    workflowService.getLabReport(reportId), toVo(entity, true), ocrTask);
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            logStorageFailure("upload", reportId, null, exception);
+            markReportFailed(reportId, current.userId());
+            throw new BusinessException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+        }
+    }
+
+    /** Stores an additional page on an existing report without starting OCR yet. */
+    @Transactional
+    @PreAuthorize("hasAuthority('lab-report:manage') or (hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER')")
+    public LabReportFileVo append(long reportId, MultipartFile file) {
+        LabReportVo report = workflowService.getLabReport(reportId);
+        ensureFilesCanBeAdded(report);
+        ValidatedFile validated = validate(file);
+        try {
+            LabReportFileEntity entity =
+                    storeFile(
+                            reportId,
+                            Long.parseLong(report.patientId()),
+                            validated,
+                            CurrentUser.require());
+            return toVo(entity, false);
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            logStorageFailure("append", reportId, null, exception);
+            throw new BusinessException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+        }
+    }
+
+    /** Starts OCR for PDF reports, or the qwen direct-read assessment for image-only reports. */
+    @Transactional
+    @PreAuthorize("hasAuthority('lab-report:manage') or (hasAuthority('self:lab-report') and principal.workbench == 'CUSTOMER')")
+    public OcrTaskVo completeUpload(long reportId) {
+        LabReportVo report = workflowService.getLabReport(reportId);
+        ensureFilesCanBeAdded(report);
+        LabReportFileEntity first =
+                fileMapper.selectOne(
+                        new LambdaQueryWrapper<LabReportFileEntity>()
+                                .eq(LabReportFileEntity::getReportId, reportId)
+                                .eq(LabReportFileEntity::getStatus, "STORED")
+                                .eq(LabReportFileEntity::getDeleted, 0)
+                                .orderByAsc(LabReportFileEntity::getCreatedAt)
+                                .last("LIMIT 1"));
+        if (first == null) {
+            throw new BusinessException(ErrorCode.FILE_NOT_FOUND);
+        }
+        if (isImageReport(reportId)) {
+            publishImageReportSubmitted(reportId, CurrentUser.require().tenantId());
+            return null;
+        }
+        return ocrTaskService.start(reportId, first.getId());
+    }
+
+    private void ensureFilesCanBeAdded(LabReportVo report) {
+        if (report != null && "PUBLISHED".equals(report.status())) {
+            throw new BusinessException(ErrorCode.LAB_REPORT_INVALID_STATUS);
+        }
+    }
+
+    private boolean isImageReport(long reportId) {
+        List<LabReportFileEntity> files =
+                fileMapper.selectList(
+                        new LambdaQueryWrapper<LabReportFileEntity>()
+                                .eq(LabReportFileEntity::getReportId, reportId)
+                                .eq(LabReportFileEntity::getStatus, "STORED")
+                                .eq(LabReportFileEntity::getDeleted, 0));
+        return !files.isEmpty()
+                && files.stream().allMatch(file -> isImage(file.getMimeType()));
+    }
+
+    private boolean isImage(String mimeType) {
+        return mimeType != null
+                && mimeType.toLowerCase(Locale.ROOT).startsWith("image/");
+    }
+
+    private void publishImageReportSubmitted(long reportId, long tenantId) {
+        eventPublisher.publishEvent(new OcrTaskService.ImageReportSubmitted(reportId, tenantId));
+    }
+
+    private LabReportFileEntity storeFile(
+            long reportId, long patientId, ValidatedFile validated, CurrentPrincipal current)
+            throws Exception {
         String objectPath = objectPath(current.tenantId(), patientId, reportId, validated.extension());
         boolean objectStored = false;
         try {
@@ -121,20 +239,12 @@ public class LabReportFileService {
             entity.setDeleted(0);
             entity.setVersion(0);
             fileMapper.insert(entity);
-            var ocrTask = ocrTaskService.start(reportId, entity.getId());
-            return new LabReportUploadVo(
-                    workflowService.getLabReport(reportId), toVo(entity, true), ocrTask);
-        } catch (BusinessException exception) {
-            if (objectStored) {
-                removeQuietly(objectPath);
-            }
-            throw exception;
+            return entity;
         } catch (Exception exception) {
             if (objectStored) {
                 removeQuietly(objectPath);
             }
-            markReportFailed(reportId, current.userId());
-            throw new BusinessException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+            throw exception;
         }
     }
 
@@ -181,6 +291,7 @@ public class LabReportFileService {
                     entity.getOriginalName(),
                     entity.getMimeType());
         } catch (Exception exception) {
+            logStorageFailure("open_content", reportId, entity.getId(), exception);
             throw new BusinessException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
         }
     }
@@ -202,6 +313,7 @@ public class LabReportFileService {
                                         .build());
                 expiresAt = LocalDateTime.now().plusSeconds(properties.presignExpirySeconds());
             } catch (Exception exception) {
+                logStorageFailure("presign", entity.getReportId(), entity.getId(), exception);
                 throw new BusinessException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
             }
         }
@@ -316,8 +428,18 @@ public class LabReportFileService {
                 minioClient.bucketExists(
                         BucketExistsArgs.builder().bucket(properties.bucketReports()).build());
         if (!exists) {
-            minioClient.makeBucket(
-                    MakeBucketArgs.builder().bucket(properties.bucketReports()).build());
+            try {
+                minioClient.makeBucket(
+                        MakeBucketArgs.builder().bucket(properties.bucketReports()).build());
+            } catch (ErrorResponseException exception) {
+                // Two first uploads can observe the bucket as absent at the same time.
+                // The losing request can safely continue when the other request created it.
+                String code = exception.errorResponse().code();
+                if (!"BucketAlreadyOwnedByYou".equals(code)
+                        && !"BucketAlreadyExists".equals(code)) {
+                    throw exception;
+                }
+            }
         }
     }
 
@@ -342,6 +464,29 @@ public class LabReportFileService {
             report.setUpdatedAt(LocalDateTime.now());
             reportMapper.updateById(report);
         }
+    }
+
+    private void logStorageFailure(
+            String operation, long reportId, Long fileId, Exception exception) {
+        logger.error(
+                "Lab report file operation failed operation={} reportId={} fileId={} "
+                        + "errorType={} minioCode={}",
+                operation,
+                reportId,
+                fileId,
+                exception.getClass().getSimpleName(),
+                minioErrorCode(exception));
+    }
+
+    private String minioErrorCode(Throwable exception) {
+        Throwable current = exception;
+        while (current != null) {
+            if (current instanceof ErrorResponseException error) {
+                return error.errorResponse().code();
+            }
+            current = current.getCause();
+        }
+        return "none";
     }
 
     private record ValidatedFile(

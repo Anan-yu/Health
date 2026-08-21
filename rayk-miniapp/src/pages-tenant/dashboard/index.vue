@@ -16,8 +16,18 @@
           ><view v-for="item in metrics" :key="item.label" class="card metric-card"
             ><view class="metric-value">{{ item.value }}</view
             ><view class="metric-label">{{ item.label }}</view></view
-          ></view
-        ><view class="section-heading"
+           ></view
+         ><view class="card admin-phone-card">
+           <view class="section-title">管理员登录手机号</view>
+           <view class="muted admin-phone-tip">预录入后，平台管理员与医生一样通过微信授权手机号登录。</view>
+           <view v-if="adminPhoneMasked" class="muted admin-phone-current">当前手机号：{{ adminPhoneMasked }}</view>
+           <input v-model="adminPhone" class="input" type="number" maxlength="11" placeholder="请输入管理员手机号" />
+           <view v-if="adminPhoneError" class="form-error">{{ adminPhoneError }}</view>
+           <button class="secondary admin-phone-button" :loading="adminPhoneSaving" @click="saveAdminPhone">
+             保存管理员手机号
+           </button>
+         </view
+         ><view class="section-heading"
           ><view class="section-title">合作医院</view
           ><view class="muted"
             >正常 {{ overview.activeTenantCount }} / {{ overview.tenantCount }}</view
@@ -42,20 +52,24 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getPlatformOverview } from '@/api/admin'
+import { getPlatformAdminProfile, getPlatformOverview, updatePlatformAdminPhone } from '@/api/admin'
 import type { PlatformOverview } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 const overview = ref<PlatformOverview>(),
   loading = ref(true),
-  error = ref('')
+  error = ref(''),
+  adminPhone = ref(''),
+  adminPhoneMasked = ref(''),
+  adminPhoneError = ref(''),
+  adminPhoneSaving = ref(false)
 const metrics = computed(() =>
   !overview.value
     ? []
     : [
         { label: '合作医院', value: overview.value.tenantCount },
         { label: '预录入医生', value: overview.value.userCount },
-        { label: '健康客户', value: overview.value.patientCount },
+        { label: '手机号用户', value: overview.value.phoneCustomerCount },
         { label: '健康随访任务', value: overview.value.pendingFollowupCount },
       ],
 )
@@ -63,7 +77,10 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    overview.value = await getPlatformOverview()
+    const [overviewData, admin] = await Promise.all([getPlatformOverview(), getPlatformAdminProfile()])
+    overview.value = overviewData
+    adminPhone.value = ''
+    adminPhoneMasked.value = admin.phoneMasked || ''
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '平台概览加载失败'
   } finally {
@@ -74,6 +91,25 @@ onShow(load)
 const createTenant = () => uni.navigateTo({ url: '/pages-tenant/dashboard/tenant-create' })
 const editTenant = (tenantId: string) =>
   uni.navigateTo({ url: `/pages-tenant/dashboard/tenant-edit?id=${tenantId}` })
+async function saveAdminPhone() {
+  const phone = adminPhone.value.trim()
+  if (!/^1[3-9]\d{9}$/.test(phone)) {
+    adminPhoneError.value = '请输入有效的 11 位手机号'
+    return
+  }
+  adminPhoneSaving.value = true
+  adminPhoneError.value = ''
+  try {
+    const admin = await updatePlatformAdminPhone(phone)
+    adminPhone.value = ''
+    adminPhoneMasked.value = admin.phoneMasked || ''
+    uni.showToast({ title: '管理员手机号已保存', icon: 'success' })
+  } catch (cause) {
+    adminPhoneError.value = cause instanceof Error ? cause.message : '保存失败，请稍后重试'
+  } finally {
+    adminPhoneSaving.value = false
+  }
+}
 </script>
 <style scoped>
 .admin-page {
@@ -132,6 +168,21 @@ const editTenant = (tenantId: string) =>
   margin-top: 5rpx;
   color: #657b74;
   font-size: 22rpx;
+}
+.admin-phone-card {
+  margin: 24rpx 0 8rpx;
+  padding: 26rpx;
+}
+.admin-phone-tip {
+  margin: 10rpx 0 18rpx;
+  line-height: 1.5;
+}
+.admin-phone-current {
+  margin: 0 0 14rpx;
+  color: #0d765e;
+}
+.admin-phone-button {
+  margin-top: 16rpx;
 }
 .section-heading {
   display: flex;

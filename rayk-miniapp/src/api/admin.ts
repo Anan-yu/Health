@@ -1,4 +1,5 @@
 import type {
+  AiModelRuntimeConfig,
   CreatePlatformTenantPayload,
   PlatformOverview,
   TenantProfile,
@@ -9,6 +10,16 @@ import { request } from '@/utils/request'
 
 export const getPlatformOverview = () =>
   request<PlatformOverview>({ url: '/api/v1/platform/overview', method: 'GET' })
+
+export const getPlatformAdminProfile = () =>
+  request<TenantStaff>({ url: '/api/v1/platform/admin-profile', method: 'GET' })
+
+export const updatePlatformAdminPhone = (phone: string) =>
+  request<TenantStaff>({
+    url: '/api/v1/platform/admin-phone',
+    method: 'PUT',
+    data: { phone },
+  })
 
 export const getPlatformTenant = (tenantId: string) =>
   request<TenantProfile>({ url: `/api/v1/platform/tenants/${tenantId}`, method: 'GET' })
@@ -53,4 +64,21 @@ export const createDoctorWeChatInvite = (tenantId: string, doctorId: string) =>
   request<{ code: string; expiresIn: number }>({
     url: `/api/v1/platform/tenants/${tenantId}/doctors/${doctorId}/wechat-invite`,
     method: 'POST',
+  })
+
+export const getAiModelRuntimeConfigs = () =>
+  request<AiModelRuntimeConfig[]>({ url: '/api/v1/platform/ai-models', method: 'GET' })
+
+export const switchAiModel = (modelCode: string) =>
+  request<AiModelRuntimeConfig>({
+    url: `/api/v1/platform/ai-models/${encodeURIComponent(modelCode)}`,
+    method: 'PUT',
+    data: { modelCode },
+  })
+
+export const switchAiThinking = (enabled: boolean) =>
+  request<AiModelRuntimeConfig>({
+    url: '/api/v1/platform/ai-models/thinking',
+    method: 'PUT',
+    data: { enabled },
   })

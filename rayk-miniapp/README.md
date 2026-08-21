@@ -11,18 +11,37 @@ npm run build:h5
 npm run build:mp-weixin
 ```
 
-微信小程序联调时，运行 `npm run dev:mp-weixin` 并保持进程运行，然后让微信开发者工具导入 `dist/dev/mp-weixin`。一次性构建的默认输出目录是 `dist/build/mp-weixin`，不要在开发者工具中混用两个目录，否则真机可能继续运行旧的 API 地址。
+微信小程序联调时，运行 `npm run dev:mp-weixin` 并保持进程运行，然后让微信开发者工具导入 `dist/dev/mp-weixin`。一次性构建开发包请运行 `npm run build:mp-weixin:dev`，脚本会强制读取 `.env.development`，避免误加载生产域名。默认输出目录是 `dist/build/mp-weixin`，不要在开发者工具中混用两个目录，否则真机可能继续运行旧的 API 地址。
 
-登录页已接入 `uni.login` 与微信手机号快速验证，报告页已接入真实 PDF/JPG/PNG 文件选择与上传进度。微信包已配置正式 AppID；正式发布前还需要配置对应 AppSecret、开通手机号快速验证能力，并配置 API 和对象存储的 HTTPS 合法域名。
+登录页已接入 `uni.login` 与微信手机号快速验证。企业主体包通过授权手机号匹配客户、平台预录入医生和平台管理员；平台工作台可维护管理员手机号，登录页不再使用账号密码或绑定码。微信包已配置企业主体 AppID `wxf6f4549c8c962948`；正式发布前还需要在部署环境配置对应 AppSecret、开通手机号快速验证能力，并配置 API 和对象存储的 HTTPS 合法域名。
 
 ## 当前微信双包
 
-- `dist/release/mp-weixin-dev`：development 开发联调包，API 为 `http://192.168.0.100:8088`，保留平台管理员、医生和客户三个角色的开发登录。
-- `dist/release/mp-weixin-prod-lan`：production 优化的局域网验收包，API 同样为 `http://192.168.0.100:8088`，按当前验收要求保留开发登录。
+- `dist/release/mp-weixin-dev`：development 开发联调包，API 使用 `.env.development` 中的局域网地址，保留平台管理员、医生和客户三个角色的开发登录。
+- `dist/release/mp-weixin-prod-lan`：production 优化的局域网验收包，API 使用当前电脑局域网地址（本机当前为 `http://192.168.0.100:8088`），按当前验收要求保留开发登录。
 - `dist/build/mp-weixin`：同步为当前 development 联调包，便于原有微信开发者工具项目继续使用。
+
+开发包会员验收时，客户进入“健康会员”页面即可使用“开发调试”卡片在免费客户和年度会员之间切换；该入口只在 development 登录构建中显示，后端也会校验开发模式，生产包不会开放。
+
+会员页面已按普通客户、年度会员和开通会员三种状态重做：页面使用会员接口返回的权益和有效期，保留原有订单、微信虚拟支付和开发调试流程；会员中心不再展示权益使用记录入口，开通页在权益对比上方展示脱敏动态播报。会员 SVG 资源放在 `src/pages-customer/static/member/`，作为 `pages-customer` 分包静态资源发布；开通页四个小组件的替换 SVG 放在该目录的 `replacements/` 下，不会进入微信主包。
+
+检验报告上传支持同一份报告连续添加多张 PDF/图片文件；系统会逐页保存并在提交后合并 OCR，选择器单次达到平台上限时可再次点击添加，不设应用层总张数限制。
 
 这两份包用于同一 Wi-Fi 下的开发和验收。`mp-weixin-prod-lan` 虽然使用 production 构建优化，但仍包含 HTTP 局域网地址和开发身份入口，**不能直接提交微信审核或正式上线**。
 
-正式发布前必须把 `VITE_API_BASE_URL` 改成已备案的 HTTPS 合法域名，把 `VITE_ENABLE_DEVELOPMENT_LOGIN` 设为 `false`，关闭后端模拟微信登录，再重新执行 `npm run build:mp-weixin`。
+正式发布前必须把 `VITE_API_BASE_URL` 改成已备案的 HTTPS 合法域名，把 `VITE_ENABLE_DEVELOPMENT_LOGIN` 设为 `false`、`VITE_WECHAT_PHONE_LOGIN` 设为 `true`，关闭后端模拟微信登录，并在 Java 服务设置 `WECHAT_PHONE_LOGIN_REQUIRED=true`，再重新执行 `npm run build:mp-weixin`。如果管理员账号还没有手机号，可临时在 Java 部署环境设置 `WECHAT_PLATFORM_ADMIN_PHONE` 和 `WECHAT_PLATFORM_ADMIN_USERNAME=admin` 完成首次进入，之后在平台工作台维护手机号；真实号码不能写入源码或 Git。
 
 本地 H5 三角色调试请使用 `npm run build:h5:dev`，然后访问 `http://localhost:8088/`；完整的首次拉取、Docker 启动、H5 和微信开发者工具步骤见根目录 `docs/local-development-guide.md`。
+
+## 微信代码包体与性能检查
+
+微信开发包和局域网验收包由当次构建产物完整同步生成，不能直接复制旧的 `dist` 目录。推荐执行：
+
+```powershell
+npm run build:mp-weixin:dev
+npm run build:mp-weixin
+```
+
+两个构建命令都会把当次构建完整同步到对应的 release 目录，并在微信开发者工具占用目录时递归镜像清理子目录，避免旧哈希资源重复进入主包或分包。会员 SVG 会在同步阶段显式复制到 `pages-customer/static/member/`，确保微信包与 H5 使用相同资源。需要单独同步时仍可运行 `npm run sync:mp-weixin:dev` 或 `npm run sync:mp-weixin:prod`。当前登录页图片均已压缩到 200 KB 以下，`pages.json` 已开启组件按需注入，`manifest.json` 已开启脚本、WXML、WXSS 压缩。
+
+在微信开发者工具中仍需打开“详情 > 本地设置”，勾选“上传代码时自动压缩脚本文件”“上传代码时自动压缩 WXML 文件”和“上传代码时自动压缩 WXSS 文件”。代码质量扫描出现“无依赖文件”时，先确认该文件不是 `app.json/pages.json` 配置页面，再按扫描建议处理；不要把旧 release 目录继续作为项目目录使用。

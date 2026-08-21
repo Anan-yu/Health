@@ -29,6 +29,14 @@
       </view>
     </view>
     <view v-if="!isPlatform" class="card settings-card">
+      <view v-if="isCustomer" class="setting" @click="goMembership">
+        <view class="setting-icon green">会</view>
+        <view class="setting-content">
+          <view class="setting-title">健康会员</view>
+          <view class="muted">查看会员权益与使用记录</view>
+        </view>
+        <view class="setting-arrow">›</view>
+      </view>
       <view class="setting last" @click="goSupport">
         <view class="setting-icon purple">帮</view>
         <view class="setting-content">
@@ -40,7 +48,7 @@
     </view>
 
     <button class="logout" @click="signOut">退出当前账号</button>
-    <view class="version">智能三羊 · Version 0.1.0</view>
+    <view class="version">三羊健康 · Version 0.1.0</view>
   </view>
 </template>
 
@@ -60,16 +68,17 @@ const roleNames: Record<Role, string> = {
 const workbenchName = computed(() =>
   auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '当前工作台',
 )
-const tenantDisplayName = computed(() => '智能三羊平台')
+const tenantDisplayName = computed(() => '三羊健康平台')
 const canSwitch = computed(() => (auth.user?.availableWorkbenches.length || 0) > 1)
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
+const goMembership = () => uni.navigateTo({ url: '/pages-customer/member/index' })
 const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
 const profileName = ref('')
 const profileDisplayName = computed(() => {
-  if (isCustomer.value) return profileName.value || '智能三羊用户'
-  return auth.user?.displayName?.trim() || '智能三羊用户'
+  if (isCustomer.value) return profileName.value || '三羊健康用户'
+  return auth.user?.displayName?.trim() || '三羊健康用户'
 })
 const avatarText = computed(() => profileDisplayName.value.slice(0, 1) || 'R')
 

@@ -22,7 +22,10 @@ class WeChatCode2SessionClientTest {
                         "dev-openid",
                         "13800000005",
                         20001L,
-                        "customer");
+                        "customer",
+                        false,
+                        "",
+                        "admin");
         WeChatCode2SessionClient client =
                 new WeChatCode2SessionClient(properties, WebClient.builder());
 
@@ -46,7 +49,10 @@ class WeChatCode2SessionClientTest {
                         "",
                         "",
                         20001L,
-                        "");
+                        "",
+                        false,
+                        "",
+                        "admin");
         WeChatCode2SessionClient client =
                 new WeChatCode2SessionClient(properties, WebClient.builder());
 

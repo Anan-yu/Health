@@ -31,6 +31,10 @@ public class AiServiceClient {
 
     public AiDtos.AssessmentData evaluate(AiDtos.EvaluateRequest request) {
         long started = System.nanoTime();
+        log.info(
+                "AI evaluate request prepared model={} imageCount={}",
+                request.model(),
+                request.reportImages() == null ? 0 : request.reportImages().size());
         try {
             AiDtos.ApiEnvelope<AiDtos.AssessmentData> response =
                     webClient

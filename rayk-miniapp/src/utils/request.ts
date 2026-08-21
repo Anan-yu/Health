@@ -82,12 +82,23 @@ export async function downloadProtectedFileInBrowser(path: string, filename: str
 
 export function request<T>(options: UniApp.RequestOptions): Promise<T> {
   return new Promise((resolve, reject) => {
+    // Authentication endpoints must remain usable after a previous session
+    // expires or the user switches roles.  In particular, WeChat/mock login
+    // requests are public endpoints; forwarding an old Bearer token can make
+    // the gateway reject or stall the request before the new credentials are
+    // processed.
+    const isAuthRequest = options.url.startsWith('/api/v1/auth/')
+    const requestHeaders = isAuthRequest
+      ? {
+          'X-Request-Id': `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        }
+      : getRequestHeaders()
     uni.request({
       ...options,
       url: `${getApiBaseUrl()}${options.url}`,
       header: {
         ...options.header,
-        ...getRequestHeaders(),
+        ...requestHeaders,
       },
       success: (response) => {
         const body = response.data as ApiResponse<T>

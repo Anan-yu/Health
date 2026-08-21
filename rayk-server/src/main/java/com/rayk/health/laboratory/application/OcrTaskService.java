@@ -31,6 +31,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -40,11 +45,14 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class OcrTaskService {
     private static final String TASK_TYPE = "LAB_REPORT_OCR";
     private static final Set<String> ACTIVE_STATUSES = Set.of("PENDING", "PROCESSING");
+    private static final Logger log = LoggerFactory.getLogger(OcrTaskService.class);
     private final AiTaskMapper taskMapper;
     private final WorkflowApplicationService workflowApplicationService;
     private final LabReportMapper reportMapper;
@@ -56,6 +64,7 @@ public class OcrTaskService {
     private final ApplicationEventPublisher eventPublisher;
     private final TransactionTemplate transactionTemplate;
     private final TaskIdempotencyGuard idempotencyGuard;
+    private final Executor ocrFileExecutor;
 
     public OcrTaskService(
             AiTaskMapper taskMapper,
@@ -68,7 +77,8 @@ public class OcrTaskService {
             ObjectMapper objectMapper,
             ApplicationEventPublisher eventPublisher,
             PlatformTransactionManager transactionManager,
-            TaskIdempotencyGuard idempotencyGuard) {
+            TaskIdempotencyGuard idempotencyGuard,
+            @Qualifier("ocrFileExecutor") Executor ocrFileExecutor) {
         this.taskMapper = taskMapper;
         this.workflowApplicationService = workflowApplicationService;
         this.reportMapper = reportMapper;
@@ -80,6 +90,7 @@ public class OcrTaskService {
         this.eventPublisher = eventPublisher;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.idempotencyGuard = idempotencyGuard;
+        this.ocrFileExecutor = ocrFileExecutor;
     }
 
     @Transactional
@@ -138,27 +149,12 @@ public class OcrTaskService {
                     }
                     AiTaskEntity task = context.task();
                     LabReportEntity report = context.report();
-                    LabReportFileEntity file = context.file();
                     try {
-                        String downloadUrl =
-                                minioClient.getPresignedObjectUrl(
-                                        GetPresignedObjectUrlArgs.builder()
-                                                .method(Method.GET)
-                                                .bucket(file.getBucketName())
-                                                .object(file.getObjectPath())
-                                                .expiry(600)
-                                                .build());
-                        AiDtos.OcrRecognizeData result =
-                                aiServiceClient.recognize(
-                                        new AiDtos.OcrRecognizeRequest(
-                                                task.getTaskCode(),
-                                                String.valueOf(file.getId()),
-                                                file.getOriginalName(),
-                                                file.getMimeType(),
-                                                downloadUrl));
+                        AiDtos.OcrRecognizeData result = recognizeFiles(task, context.files());
                         if (!isUsableOcrResult(result)) {
                             transactionTemplate.executeWithoutResult(
                                     status -> markFailed(task, report, ocrFailureReason(result)));
+                            submitImageAssessmentAfterOcrFailure(report, context.files(), event.tenantId());
                             return;
                         }
                         transactionTemplate.executeWithoutResult(
@@ -169,25 +165,86 @@ public class OcrTaskService {
                                         throw new OcrPersistenceException(exception);
                                     }
                                 });
+                        updateReportProgress(
+                                report.getId(),
+                                task.getCreatedBy(),
+                                78,
+                                "识别完成，正在生成健康评估");
                         try {
                             workflowApplicationService.submitAiAutomatically(
                                     report.getId(), event.tenantId());
-                        } catch (RuntimeException ignored) {
+                        } catch (RuntimeException exception) {
                             // submitAiAutomatically records the assessment failure on the report.
                             // OCR has succeeded and must not be retried solely because AI is unavailable.
+                            log.warn(
+                                    "Automatic health assessment failed: reportId={} ocrTaskId={} exceptionType={} errorCode={}",
+                                    report.getId(),
+                                    task.getId(),
+                                    exception.getClass().getSimpleName(),
+                                    errorCode(exception));
                         }
                     } catch (Exception exception) {
                         transactionTemplate.executeWithoutResult(
                                 status -> markFailed(task, report, "识别服务调用失败，请稍后重试"));
+                        submitImageAssessmentAfterOcrFailure(report, context.files(), event.tenantId());
                     }
                 });
     }
 
+    @Async("ocrTaskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void assessImageReport(ImageReportSubmitted event) {
+        TenantContext.execute(
+                event.tenantId(),
+                () -> {
+                    try {
+                        workflowApplicationService.submitAiAutomatically(
+                                event.reportId(), event.tenantId());
+                    } catch (RuntimeException exception) {
+                        log.warn(
+                                "Direct image health assessment failed after upload: reportId={} exceptionType={}",
+                                event.reportId(),
+                                exception.getClass().getSimpleName());
+                    }
+                });
+    }
+
+    private void submitImageAssessmentAfterOcrFailure(
+            LabReportEntity report, List<LabReportFileEntity> files, long tenantId) {
+        if (files.stream().noneMatch(this::isImageFile)) {
+            return;
+        }
+        try {
+            workflowApplicationService.submitAiAutomatically(report.getId(), tenantId);
+        } catch (RuntimeException exception) {
+            log.warn(
+                    "Direct image health assessment failed after OCR failure: reportId={} exceptionType={}",
+                    report.getId(),
+                    exception.getClass().getSimpleName());
+        }
+    }
+
+    private boolean isImageFile(LabReportFileEntity file) {
+        return file != null
+                && file.getMimeType() != null
+                && file.getMimeType().toLowerCase(java.util.Locale.ROOT).startsWith("image/");
+    }
+
+    private String errorCode(RuntimeException exception) {
+        if (exception instanceof BusinessException businessException) {
+            return businessException.getErrorCode().name();
+        }
+        return "UNEXPECTED";
+    }
+
     private boolean isUsableOcrResult(AiDtos.OcrRecognizeData result) {
+        boolean hasStructuredContent =
+                result != null
+                        && ((result.indicators() != null && !result.indicators().isEmpty())
+                                || (result.findings() != null && !result.findings().isEmpty()));
         return result != null
                 && !"RETRY_REQUIRED".equals(result.status())
-                && result.indicators() != null
-                && !result.indicators().isEmpty()
+                && hasStructuredContent
                 && result.confidence() != null
                 && result.confidence().compareTo(new BigDecimal("0.55")) >= 0;
     }
@@ -211,16 +268,167 @@ public class OcrTaskService {
             return null;
         }
         LabReportEntity report = reportMapper.selectById(task.getReportId());
-        LabReportFileEntity file = fileMapper.selectById(fileId);
-        if (report == null || file == null || !file.getReportId().equals(report.getId())) {
+        if (report == null) {
+            markFailed(task, null, "报告文件不存在");
+            return null;
+        }
+        List<LabReportFileEntity> files = storedFiles(report.getId());
+        if (files.isEmpty()
+                || files.stream().noneMatch(file -> file.getId().equals(fileId))) {
             markFailed(task, report, "报告文件不存在");
             return null;
         }
         report.setStatus("OCR_PROCESSING");
+        report.setProcessingProgress(8);
+        report.setProcessingMessage("正在准备识别文件");
         report.setFailureReason(null);
         touch(report, task.getCreatedBy());
         reportMapper.updateById(report);
-        return new ProcessingContext(task, report, file);
+        return new ProcessingContext(task, report, files);
+    }
+
+    /**
+     * Recognizes every stored page in one report and merges the structured OCR
+     * snapshots before indicators are persisted.  PDF uploads remain a single
+     * request; photographed multi-page reports simply contribute one request
+     * per image.
+     */
+    private AiDtos.OcrRecognizeData recognizeFiles(
+            AiTaskEntity task, List<LabReportFileEntity> files) {
+        List<AiDtos.Indicator> indicators = new ArrayList<>();
+        List<AiDtos.OcrFinding> findings = new ArrayList<>();
+        List<String> rawLines = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
+        List<String> engines = new ArrayList<>();
+        BigDecimal confidenceTotal = BigDecimal.ZERO;
+        int successfulFiles = 0;
+        AtomicInteger completedFiles = new AtomicInteger();
+        updateReportProgress(task.getReportId(), task.getCreatedBy(), 12, "正在读取报告内容");
+        List<CompletableFuture<FileOcrResult>> requests =
+                files.stream()
+                        .map(
+                                file -> {
+                                    CompletableFuture<FileOcrResult> request =
+                                            CompletableFuture.supplyAsync(
+                                                    () -> recognizeFile(task, file), ocrFileExecutor);
+                                    request.whenComplete(
+                                            (ignored, failure) -> {
+                                                int completed = completedFiles.incrementAndGet();
+                                                int progress =
+                                                        12
+                                                                + (int)
+                                                                        Math.round(
+                                                                                completed
+                                                                                        * 60.0
+                                                                                        / Math.max(1, files.size()));
+                                                try {
+                                                    updateReportProgress(
+                                                            task.getReportId(),
+                                                            task.getCreatedBy(),
+                                                            progress,
+                                                            completed >= files.size()
+                                                                    ? "报告识别完成，正在整理结果"
+                                                                    : "正在读取报告内容");
+                                                } catch (RuntimeException exception) {
+                                                    log.warn(
+                                                            "OCR progress update skipped: reportId={} errorType={}",
+                                                            task.getReportId(),
+                                                            exception.getClass().getSimpleName());
+                                                }
+                                            });
+                                    return request;
+                                })
+                        .toList();
+        for (CompletableFuture<FileOcrResult> request : requests) {
+            FileOcrResult page;
+            try {
+                page = request.join();
+            } catch (RuntimeException exception) {
+                warnings.add("部分页面识别失败，请检查图片清晰度后重试");
+                continue;
+            }
+            if (page.warning() != null) {
+                warnings.add(page.warning());
+                continue;
+            }
+            AiDtos.OcrRecognizeData result = page.result();
+            if (!isUsableOcrResult(result)) {
+                if (result != null && result.warnings() != null) {
+                    warnings.addAll(result.warnings());
+                }
+                continue;
+            }
+            successfulFiles++;
+            confidenceTotal = confidenceTotal.add(result.confidence());
+            if (result.engine() != null && !result.engine().isBlank()) {
+                engines.add(result.engine());
+            }
+            if (result.indicators() != null) {
+                indicators.addAll(result.indicators());
+            }
+            if (result.findings() != null) {
+                findings.addAll(result.findings());
+            }
+            if (result.rawLines() != null) {
+                rawLines.addAll(result.rawLines());
+            }
+            if (result.warnings() != null) {
+                warnings.addAll(result.warnings());
+            }
+        }
+        if (successfulFiles == 0 || (indicators.isEmpty() && findings.isEmpty())) {
+            return new AiDtos.OcrRecognizeData(
+                    "MULTI_FILE", "RETRY_REQUIRED", BigDecimal.ZERO, List.of(), findings, rawLines, warnings);
+        }
+        return new AiDtos.OcrRecognizeData(
+                mergeEngineVersions(engines),
+                "SUCCESS",
+                confidenceTotal.divide(BigDecimal.valueOf(successfulFiles), 4, java.math.RoundingMode.HALF_UP),
+                indicators,
+                findings,
+                rawLines,
+                warnings);
+    }
+
+    private FileOcrResult recognizeFile(AiTaskEntity task, LabReportFileEntity file) {
+        try {
+            String downloadUrl =
+                    minioClient.getPresignedObjectUrl(
+                            GetPresignedObjectUrlArgs.builder()
+                                    .method(Method.GET)
+                                    .bucket(file.getBucketName())
+                                    .object(file.getObjectPath())
+                                    .expiry(600)
+                                    .build());
+            return new FileOcrResult(
+                    file,
+                    aiServiceClient.recognize(
+                            new AiDtos.OcrRecognizeRequest(
+                                    task.getTaskCode(),
+                                    String.valueOf(file.getId()),
+                                    file.getOriginalName(),
+                                    file.getMimeType(),
+                                    downloadUrl)),
+                    null);
+        } catch (Exception exception) {
+            return new FileOcrResult(file, null, "部分页面识别失败，请检查图片清晰度后重试");
+        }
+    }
+
+    /** Keeps the audit field within ai_task.engine_version VARCHAR(80). */
+    private String mergeEngineVersions(List<String> engines) {
+        if (engines == null || engines.isEmpty()) {
+            return "MULTI_FILE";
+        }
+        String merged =
+                engines.stream()
+                        .filter(engine -> engine != null && !engine.isBlank())
+                        .distinct()
+                        .collect(Collectors.joining("+"));
+        if (merged.isBlank()) {
+            return "MULTI_FILE";
+        }
+        return merged.length() <= 80 ? merged : merged.substring(0, 77) + "...";
     }
 
     private OcrTaskVo createTask(
@@ -249,6 +457,8 @@ public class OcrTaskService {
         task.setVersion(0);
         taskMapper.insert(task);
         report.setStatus("OCR_PENDING");
+        report.setProcessingProgress(0);
+        report.setProcessingMessage("等待进入识别队列");
         report.setFailureReason(null);
         touch(report, current.userId());
         reportMapper.updateById(report);
@@ -317,6 +527,7 @@ public class OcrTaskService {
         taskMapper.updateById(task);
         if (report != null) {
             report.setStatus("OCR_FAILED");
+            report.setProcessingMessage("识别失败，可重新上传清晰文件");
             report.setFailureReason(reason);
             touch(report, task.getCreatedBy());
             reportMapper.updateById(report);
@@ -351,7 +562,16 @@ public class OcrTaskService {
                         .eq(LabReportFileEntity::getStatus, "STORED")
                         .eq(LabReportFileEntity::getDeleted, 0)
                         .orderByDesc(LabReportFileEntity::getCreatedAt)
-                        .last("LIMIT 1"));
+                .last("LIMIT 1"));
+    }
+
+    private List<LabReportFileEntity> storedFiles(long reportId) {
+        return fileMapper.selectList(
+                new LambdaQueryWrapper<LabReportFileEntity>()
+                        .eq(LabReportFileEntity::getReportId, reportId)
+                        .eq(LabReportFileEntity::getStatus, "STORED")
+                        .eq(LabReportFileEntity::getDeleted, 0)
+                        .orderByAsc(LabReportFileEntity::getCreatedAt));
     }
 
     private int attemptCount(long reportId) {
@@ -403,6 +623,20 @@ public class OcrTaskService {
                 task.getCreatedAt());
     }
 
+    private void updateReportProgress(long reportId, long userId, int progress, String message) {
+        reportMapper.update(
+                null,
+                new LambdaUpdateWrapper<LabReportEntity>()
+                        .eq(LabReportEntity::getId, reportId)
+                        .eq(LabReportEntity::getDeleted, 0)
+                        .set(
+                                LabReportEntity::getProcessingProgress,
+                                Math.max(0, Math.min(100, progress)))
+                        .set(LabReportEntity::getProcessingMessage, message)
+                        .set(LabReportEntity::getUpdatedBy, userId)
+                        .set(LabReportEntity::getUpdatedAt, LocalDateTime.now()));
+    }
+
     private void auditNew(Object entity, long userId) {
         LocalDateTime now = LocalDateTime.now();
         if (entity instanceof IndicatorValueEntity value) {
@@ -427,8 +661,14 @@ public class OcrTaskService {
 
     public record OcrTaskCreated(long taskId, long fileId, long tenantId) {}
 
+    /** Image-only reports bypass OCR and start the qwen direct-read assessment directly. */
+    public record ImageReportSubmitted(long reportId, long tenantId) {}
+
     private record ProcessingContext(
-            AiTaskEntity task, LabReportEntity report, LabReportFileEntity file) {}
+            AiTaskEntity task, LabReportEntity report, List<LabReportFileEntity> files) {}
+
+    private record FileOcrResult(
+            LabReportFileEntity file, AiDtos.OcrRecognizeData result, String warning) {}
 
     private static final class OcrPersistenceException extends RuntimeException {
         private OcrPersistenceException(Throwable cause) {

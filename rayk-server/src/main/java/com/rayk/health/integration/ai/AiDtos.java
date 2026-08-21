@@ -12,14 +12,17 @@ public final class AiDtos {
       List<Indicator> indicators,
       List<OcrFinding> findings,
       List<String> modelCodes,
-      PatientContext patientContext) {
+      PatientContext patientContext,
+      String model,
+      Boolean thinkingEnabled,
+      List<ReportImage> reportImages) {
     public EvaluateRequest(String taskId, String patientId, List<Indicator> indicators) {
-      this(taskId, patientId, indicators, List.of(), null, null);
+      this(taskId, patientId, indicators, List.of(), null, null, null, null, List.of());
     }
 
     public EvaluateRequest(
         String taskId, String patientId, List<Indicator> indicators, List<String> modelCodes) {
-      this(taskId, patientId, indicators, List.of(), modelCodes, null);
+      this(taskId, patientId, indicators, List.of(), modelCodes, null, null, null, List.of());
     }
 
     public EvaluateRequest(
@@ -28,7 +31,36 @@ public final class AiDtos {
         List<Indicator> indicators,
         List<String> modelCodes,
         PatientContext patientContext) {
-      this(taskId, patientId, indicators, List.of(), modelCodes, patientContext);
+      this(taskId, patientId, indicators, List.of(), modelCodes, patientContext, null, null, List.of());
+    }
+  }
+
+  public record ReportImage(int page, String mimeType, String downloadUrl) {}
+
+  public record ImageAnalysisFinding(
+      String category,
+      String item,
+      String result,
+      String unit,
+      String referenceRange,
+      String abnormalFlag,
+      String conclusion,
+      String note) {}
+
+  public record ImageAnalysisPage(
+      int page,
+      String pageSummary,
+      List<ImageAnalysisFinding> findings,
+      List<String> uncertainties) {
+    public ImageAnalysisPage {
+      findings = findings == null ? List.of() : findings;
+      uncertainties = uncertainties == null ? List.of() : uncertainties;
+    }
+  }
+
+  public record ImageAnalysis(List<ImageAnalysisPage> pages) {
+    public ImageAnalysis {
+      pages = pages == null ? List.of() : pages;
     }
   }
 
@@ -117,7 +149,9 @@ public final class AiDtos {
       int maxCycles,
       int completionRate,
       String feedback,
-      List<FollowupActionFeedback> actions) {}
+      List<FollowupActionFeedback> actions,
+      String model,
+      Boolean thinkingEnabled) {}
 
   public record FollowupActionSuggestion(String section, String action) {}
 
@@ -164,7 +198,8 @@ public final class AiDtos {
             List<Indicator> indicators,
       List<ModelResult> results,
       ComprehensiveInterpretation interpretation,
-      PatientContext patientContext) {}
+      PatientContext patientContext,
+      ImageAnalysis imageAnalysis) {}
 
     public record ReportGenerateData(
       String title, String summary, List<String> sections, String disclaimer, String pdfBase64) {}
@@ -179,7 +214,8 @@ public final class AiDtos {
             String disclaimer,
       List<ModelResult> results,
       ComprehensiveInterpretation interpretation,
-      PatientContext patientContext) {}
+      PatientContext patientContext,
+      ImageAnalysis imageAnalysis) {}
 
     public record ModelResult(
             String modelCode,

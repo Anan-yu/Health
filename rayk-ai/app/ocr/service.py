@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import re
 import tempfile
@@ -15,7 +16,12 @@ from typing import Any
 import httpx
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 
-from app.ocr.qwen import QwenOcrClient, QwenOcrError, extract_qwen_document
+from app.ocr.qwen import (
+    QwenOcrClient,
+    QwenOcrError,
+    QwenOcrPageResult,
+    extract_qwen_document,
+)
 from app.schemas.indicator import IndicatorInput
 from app.schemas.ocr import OcrFinding, OcrRecognizeData, OcrRecognizeRequest
 
@@ -166,6 +172,42 @@ NON_FINDING_METADATA_CONTAINS = tuple(
         "仪器型号",
         "设备编号",
     )
+)
+
+# Qwen may return a faithful HTML/plain-text transcription instead of the requested TSV.  These
+# labels identify narrative portions of imaging, ultrasound and examination reports so they are
+# retained as findings rather than silently disappearing when no numeric row is present.
+QWEN_FINDING_LABELS = {
+    "检查所见",
+    "检查结果",
+    "检验结果",
+    "影像表现",
+    "影像所见",
+    "超声所见",
+    "病理所见",
+    "检查小结",
+    "检验小结",
+    "小结",
+    "印象",
+    "结论",
+    "诊断意见",
+    "诊断结论",
+    "提示",
+}
+QWEN_SECTION_WORDS = (
+    "检查",
+    "检验",
+    "超声",
+    "影像",
+    "病理",
+    "心电",
+    "生化",
+    "血常规",
+    "尿液",
+    "免疫",
+    "CT",
+    "MRI",
+    "磁共振",
 )
 
 
@@ -1682,10 +1724,33 @@ class PaddleOcrService(OcrService):
                 return self._recognize_with_qwen(request)
             except QwenOcrError:
                 local_result = self._recognize_locally(request)
+                is_pdf = (
+                    request.mime_type.lower() == "application/pdf"
+                    or request.object_name.lower().endswith(".pdf")
+                )
+                if is_pdf:
+                    primary_model = (
+                        getattr(getattr(self.qwen_client, "settings", None), "model", None)
+                        or "qwen3.7-flash-2026-07-15"
+                    )
+                    fallback_model = (
+                        getattr(
+                            getattr(self.qwen_client, "settings", None),
+                            "fallback_model",
+                            None,
+                        )
+                        or "qwen3.5-ocr"
+                    )
+                    warning = (
+                        f"{primary_model} 与 {fallback_model} 未完成 PDF 页面识别，"
+                        "已自动切换本地 PDF 原生解析/PaddleOCR。"
+                    )
+                else:
+                    warning = "阿里云增强识别暂不可用，已自动切换本地识别。"
                 return local_result.model_copy(
                     update={
                         "warnings": [
-                            "阿里云增强识别暂不可用，已自动切换本地识别。",
+                            warning,
                             *local_result.warnings,
                         ]
                     }
@@ -1785,8 +1850,16 @@ class PaddleOcrService(OcrService):
         )
 
     def _recognize_with_qwen(self, request: OcrRecognizeRequest) -> OcrRecognizeData:
+        qwen_model = (
+            getattr(getattr(self.qwen_client, "settings", None), "model", None)
+            or "qwen3.7-flash-2026-07-15"
+        )
+        qwen_fallback_model = (
+            getattr(getattr(self.qwen_client, "settings", None), "fallback_model", None)
+            or "qwen3.5-ocr"
+        )
         if not request.download_url:
-            raise ValueError("Qwen3.5-OCR requires a signed downloadUrl")
+            raise ValueError(f"{qwen_model} requires a signed downloadUrl")
         path = self._download(request)
         rendered_paths: list[Path] = []
         native_lines: list[str] = []
@@ -1795,17 +1868,54 @@ class PaddleOcrService(OcrService):
         cloud_indicators: list[IndicatorInput] = []
         cloud_findings: list[OcrFinding] = []
         cloud_lines: list[str] = []
+        cloud_outputs: list[str] = []
         image_column_recovery_used = False
+        qwen_fallback_pages = 0
         is_pdf = request.mime_type.lower() == "application/pdf" or path.suffix.lower() == ".pdf"
         try:
             if is_pdf:
                 native_lines = self._extract_pdf_text(path)
                 local_indicators = self.parser.parse_pdf_tables(path)
                 local_findings = self.parser.parse_pdf_findings(path)
-                rendered_paths = self._render_pdf_pages(
-                    path, max_pages=self.qwen_client.settings.max_pages
-                )
-                cloud_outputs = self.qwen_client.recognize_images(rendered_paths)
+                try:
+                    rendered_paths = self._render_pdf_pages(
+                        path, max_pages=self.qwen_client.settings.max_pages
+                    )
+                except (OSError, ValueError) as exc:
+                    raise QwenOcrError("Qwen PDF page rendering failed") from exc
+
+                page_results = self.qwen_client.recognize_images_best_effort(rendered_paths)
+                failed_pages = 0
+                for page_result in page_results:
+                    selected_result = page_result
+                    selected_content = self._parse_qwen_page_output(page_result.text)
+                    if not any(selected_content[:2]):
+                        if (
+                            qwen_fallback_model
+                            and qwen_fallback_model != qwen_model
+                        ):
+                            fallback_results = self.qwen_client.recognize_images_best_effort(
+                                [page_result.path], model=qwen_fallback_model
+                            )
+                            fallback_result = fallback_results[0] if fallback_results else None
+                            fallback_content = self._parse_qwen_page_output(
+                                fallback_result.text if fallback_result is not None else None
+                            )
+                            if fallback_result is not None and any(fallback_content[:2]):
+                                selected_result = fallback_result
+                                selected_content = fallback_content
+                                qwen_fallback_pages += 1
+                        if not any(selected_content[:2]):
+                            failed_pages += 1
+                            continue
+                    if selected_result.text:
+                        cloud_outputs.append(selected_result.text)
+
+                if failed_pages:
+                    raise QwenOcrError(
+                        f"{qwen_model} and {qwen_fallback_model or 'fallback OCR'} "
+                        f"failed on {failed_pages} PDF page(s)"
+                    )
             else:
                 cloud_outputs = self.qwen_client.recognize_images([path])
                 cloud_indicators, cloud_findings, cloud_lines = self._parse_qwen_outputs(
@@ -1845,7 +1955,13 @@ class PaddleOcrService(OcrService):
                 cloud_outputs
             )
         if not cloud_indicators and not cloud_findings:
-            raise QwenOcrError("Qwen3.5-OCR did not return structured medical content")
+            # Qwen occasionally returns a faithful plain-text transcription without the
+            # requested TSV/HTML separators.  Do not throw that page away and fall back to
+            # PaddleOCR (which cannot reliably represent imaging prose); preserve the source
+            # lines as explicitly-unconfirmed findings so the user can review them.
+            cloud_findings = self._qwen_unstructured_findings(cloud_lines)
+        if not cloud_indicators and not cloud_findings:
+            raise QwenOcrError(f"{qwen_model} did not return structured medical content")
 
         # Qwen is the primary source for images. For an electronic PDF, the native text layer is
         # lossless and carries the source category, order and wording. Do not append model-created
@@ -1862,20 +1978,48 @@ class PaddleOcrService(OcrService):
             trusted_structure=True,
         )
         warnings = list(quality.warnings)
+        if is_pdf and qwen_fallback_pages:
+            warnings.insert(
+                0,
+                f"{qwen_model} 未通过部分页面的识别校验，已使用 {qwen_fallback_model} "
+                f"重试 {qwen_fallback_pages} 页。",
+            )
         if not quality.indicators:
             warnings.insert(0, "已识别报告内容，但没有提取到可安全用于评估的数值指标。")
+        status = quality.status
+        confidence = quality.confidence
+        # Imaging/ultrasound pages can be completely valid while containing only narrative
+        # observations.  Keep those pages for manual confirmation instead of marking the whole
+        # upload as a retry.  Electronic/scanned PDF handling deliberately keeps its protected
+        # quality gate unchanged; this relaxation applies only to the independent image path.
+        if not is_pdf and findings and not quality.indicators:
+            status = "WAITING_CONFIRMATION"
+            confidence = Decimal("0.7000")
+            warnings = [
+                warning
+                for warning in warnings
+                if "可靠性不足" not in warning and "没有提取到可安全用于评估" not in warning
+            ]
+            warnings.insert(
+                0,
+                "已保留文字检查所见/小结，但本页未提取到数值指标；请人工核对原报告后再提交评估。",
+            )
         return OcrRecognizeData(
             engine=(
-                "Qwen3.5-OCR+PDF-native-validation"
+                (
+                    f"{qwen_model}>{qwen_fallback_model}+PDF-native-validation"
+                    if qwen_fallback_pages
+                    else f"{qwen_model}+PDF-native-validation"
+                )
                 if is_pdf
                 else (
-                    "Qwen3.5-OCR+multi-column-recovery"
+                    f"{qwen_model}+multi-column-recovery"
                     if image_column_recovery_used
-                    else "Qwen3.5-OCR"
+                    else qwen_model
                 )
             ),
-            status=quality.status,
-            confidence=quality.confidence,
+            status=status,
+            confidence=confidence,
             indicators=quality.indicators,
             findings=findings,
             raw_lines=cloud_lines,
@@ -1918,9 +2062,22 @@ class PaddleOcrService(OcrService):
         findings: list[OcrFinding] = []
         raw_lines: list[str] = []
         for output in outputs:
+            json_result = self._parse_qwen_json_output(output)
+            if json_result is not None:
+                json_indicators, json_findings, json_lines = json_result
+                indicators.extend(json_indicators)
+                findings.extend(json_findings)
+                raw_lines.extend(json_lines)
+                continue
             document = extract_qwen_document(output)
+            current_section: str | None = None
             for table in document.tables:
                 indicators.extend(self._qwen_table_indicators(table))
+                section_hint = next(
+                    (line for line in document.lines if self._qwen_section_heading(line)),
+                    None,
+                )
+                findings.extend(self._qwen_table_findings(table, section_hint))
                 raw_lines.extend("\t".join(cell for cell in row if cell) for row in table)
             for raw_line in document.lines:
                 line = raw_line.strip().strip("` ")
@@ -1937,6 +2094,7 @@ class PaddleOcrService(OcrService):
                     item = self._qwen_indicator(cells)
                     if item is not None:
                         indicators.append(item)
+                    continue
                 elif kind == "发现" and len(cells) >= 4:
                     result = " ".join(cell for cell in cells[3:] if cell).strip()
                     if result:
@@ -1947,6 +2105,13 @@ class PaddleOcrService(OcrService):
                                 result=result,
                             )
                         )
+                        current_section = cells[1] or current_section
+                    continue
+
+                fallback, section = self._qwen_narrative_finding(line, current_section)
+                current_section = section or current_section
+                if fallback is not None:
+                    findings.append(fallback)
 
         # Model output can occasionally lose separators. Reuse the proven local row parser as a
         # lossless recovery path, while still treating the cloud transcription as the source.
@@ -1954,7 +2119,356 @@ class PaddleOcrService(OcrService):
         indicators = [
             item for item in indicators if not self._qwen_metadata_name(item.name)
         ]
-        return indicators, self._merge_findings(findings, []), raw_lines
+        return indicators, self._merge_findings(
+            self._recover_qwen_generic_findings(findings), []
+        ), raw_lines
+
+    def _parse_qwen_page_output(
+        self, output: str | None
+    ) -> tuple[list[IndicatorInput], list[OcrFinding], list[str]]:
+        """Parse one page so PDF fallback can be limited to failed pages."""
+
+        if not output:
+            return [], [], []
+        indicators, findings, raw_lines = self._parse_qwen_outputs([output])
+        if not indicators and not findings:
+            findings = self._qwen_unstructured_findings(raw_lines)
+        return indicators, findings, raw_lines
+
+    def _parse_qwen_json_output(
+        self, output: str
+    ) -> tuple[list[IndicatorInput], list[OcrFinding], list[str]] | None:
+        """Parse the structured JSON variant returned by some vision deployments.
+
+        The prompt asks for TSV/HTML because those formats preserve source order well, but
+        compatible endpoints may still wrap rows in JSON.  This adapter only accepts a JSON
+        document that is wholly parseable; ordinary prose continues through the lossless text
+        parser above.
+        """
+
+        candidate = (output or "").strip()
+        fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", candidate, flags=re.IGNORECASE | re.DOTALL)
+        if fenced:
+            candidate = fenced.group(1).strip()
+        if not candidate or candidate[0] not in "[{":
+            return None
+        try:
+            payload = json.loads(candidate)
+        except (TypeError, ValueError):
+            return None
+
+        indicators: list[IndicatorInput] = []
+        findings: list[OcrFinding] = []
+        normalized_lines: list[str] = []
+        self._collect_qwen_json_rows(payload, indicators, findings, normalized_lines)
+        if not indicators and not findings:
+            # A valid JSON object that is unrelated to OCR should still be handled by the
+            # normal parser so it can be retained as raw text rather than silently accepted.
+            return None
+        return indicators, findings, normalized_lines
+
+    def _collect_qwen_json_rows(
+        self,
+        value: Any,
+        indicators: list[IndicatorInput],
+        findings: list[OcrFinding],
+        normalized_lines: list[str],
+        section_hint: str | None = None,
+    ) -> None:
+        if isinstance(value, list):
+            for item in value:
+                self._collect_qwen_json_rows(
+                    item, indicators, findings, normalized_lines, section_hint
+                )
+            return
+        if not isinstance(value, dict):
+            return
+
+        section = self._qwen_json_value(value, "section", "category", "categoryName", "类别", "分类")
+        section = str(section).strip() if section is not None else section_hint
+        name = self._qwen_json_value(
+            value,
+            "name",
+            "item",
+            "project",
+            "projectName",
+            "指标名称",
+            "项目名称",
+            "检验项目",
+            "检查项目",
+        )
+        result = self._qwen_json_value(
+            value,
+            "value",
+            "result",
+            "content",
+            "结果",
+            "检验结果",
+            "检测结果",
+            "测定结果",
+            "原文",
+        )
+        kind = str(self._qwen_json_value(value, "type", "kind", "类型") or "").strip()
+        if name is not None and result is not None:
+            name_text = str(name).strip()
+            result_text = str(result).strip()
+            unit = str(self._qwen_json_value(value, "unit", "单位") or "").strip()
+            low = self._qwen_json_value(
+                value,
+                "referenceLow",
+                "reference_low",
+                "low",
+                "lower",
+                "下限",
+                "参考下限",
+            )
+            high = self._qwen_json_value(
+                value,
+                "referenceHigh",
+                "reference_high",
+                "high",
+                "upper",
+                "上限",
+                "参考上限",
+            )
+            reference = self._qwen_json_value(
+                value,
+                "reference",
+                "referenceRange",
+                "reference_range",
+                "normalRange",
+                "normal_range",
+                "range",
+                "参考范围",
+                "参考值",
+            )
+            if reference is not None and (low is None or high is None):
+                parsed_low, parsed_high = self.parser._pdf_reference_values(str(reference))
+                low = low if low is not None else parsed_low
+                high = high if high is not None else parsed_high
+            cells = [
+                "指标",
+                name_text,
+                result_text,
+                unit,
+                "" if low is None else str(low),
+                "" if high is None else str(high),
+            ]
+            item = None if kind in {"发现", "finding", "qualitative", "文本"} else self._qwen_indicator(cells)
+            if item is not None:
+                indicators.append(item)
+                normalized_lines.append("\t".join(cells))
+            elif result_text and not is_non_finding_metadata_name(name_text):
+                finding = OcrFinding(
+                    section=section or "原检查结果",
+                    item=name_text,
+                    result=result_text,
+                )
+                findings.append(finding)
+                normalized_lines.append(
+                    "发现\t{}\t{}\t{}".format(finding.section, finding.item, finding.result)
+                )
+
+        for key, nested in value.items():
+            if key in {
+                # Common response envelopes used by vision deployments.  Keep this list
+                # explicit so arbitrary metadata objects are not mistaken for report rows.
+                "categories",
+                "categoryList",
+                "sections",
+                "sectionList",
+                "indicators",
+                "findings",
+                "rows",
+                "items",
+                "examinations",
+                "examinationItems",
+                "检验分类",
+                "检查分类",
+                "检查类别",
+                "检验类别",
+                "报告分类",
+                "results",
+                "data",
+                "records",
+                "检验项目",
+                "检查结果",
+            }:
+                self._collect_qwen_json_rows(
+                    nested, indicators, findings, normalized_lines, section
+                )
+
+    @staticmethod
+    def _qwen_json_value(value: dict[str, Any], *keys: str) -> Any:
+        for key in keys:
+            if key in value and value[key] not in (None, ""):
+                return value[key]
+        return None
+
+    def _qwen_unstructured_findings(self, raw_lines: list[str]) -> list[OcrFinding]:
+        findings: list[OcrFinding] = []
+        seen: set[str] = set()
+        for raw_line in raw_lines:
+            line = re.sub(r"^[-*•]\s*", "", (raw_line or "").strip())
+            if len(line) < 8 or line in seen or self._qwen_is_metadata_line(line):
+                continue
+            if line.lower() in {"tsv", "text", "html", "json"}:
+                continue
+            seen.add(line)
+            findings.append(OcrFinding(section="原文待核对", item="原文", result=line))
+        return findings
+
+    @staticmethod
+    def _qwen_section_heading(line: str) -> bool:
+        """Identify a short report category without inventing a category name."""
+
+        value = re.sub(r"\s+", "", line or "").strip("：:.-·•")
+        if not value or len(value) > 24 or re.search(r"[。；，,!?！？]", value):
+            return False
+        if re.search(r"[：:]", value):
+            return False
+        return any(word.casefold() in value.casefold() for word in QWEN_SECTION_WORDS)
+
+    @staticmethod
+    def _qwen_is_metadata_line(line: str) -> bool:
+        value = re.sub(r"\s+", "", line or "").casefold()
+        if not value:
+            return True
+        # A medical narrative can mention a date or department in a sentence.  Only suppress
+        # lines that look like administrative header rows by themselves or contain two markers.
+        if any(value.startswith(marker) for marker in NON_FINDING_METADATA_CONTAINS):
+            return True
+        marker_count = sum(marker in value for marker in set(NON_FINDING_METADATA_CONTAINS))
+        return marker_count >= 2
+
+    def _qwen_narrative_finding(
+        self, line: str, current_section: str | None
+    ) -> tuple[OcrFinding | None, str | None]:
+        if not line or self._qwen_is_metadata_line(line):
+            return None, current_section
+        # Numeric rows are already recovered by the structured parser.  Do not duplicate them as
+        # generic prose findings when a model omitted the TSV separators.
+        if self.parser.parse([line]):
+            return None, current_section
+        if self._qwen_section_heading(line):
+            return None, line.strip()
+
+        label_match = re.match(r"^([^:：]{2,16})\s*[:：]\s*(.+)$", line)
+        if label_match:
+            label = label_match.group(1).strip()
+            result = label_match.group(2).strip()
+            if result and label in QWEN_FINDING_LABELS:
+                return (
+                    OcrFinding(
+                        section=current_section or "原检查结果",
+                        item=label,
+                        result=result,
+                    ),
+                    current_section,
+                )
+
+        # Keep unlabelled imaging paragraphs under the last source category.  A minimum length
+        # avoids turning stray punctuation or table headings into findings.
+        if current_section and len(line) >= 6 and re.search(r"[\u4e00-\u9fffA-Za-z]", line):
+            return OcrFinding(section=current_section, item="原文", result=line), current_section
+        return None, current_section
+
+    @staticmethod
+    def _qwen_value_line(value: str) -> bool:
+        """Recognize the value half of a label/value pair emitted by vision OCR.
+
+        Some vision responses preserve the page reading order but emit two generic rows:
+        ``发现<TAB>类别<TAB>原文<TAB>项目名`` followed by the result.  This deliberately
+        conservative check only joins an obvious result row (numeric, qualitative result,
+        unit, or abnormal marker), leaving narrative paragraphs untouched for manual review.
+        """
+
+        text = re.sub(r"\s+", "", value or "")
+        if not text:
+            return False
+        if re.search(r"^(?:阳性|阴性|正常|异常|未见|有|无|待查|弱阳|弱阴)", text):
+            return True
+        if re.search(r"[↑↓]|[-+]?\d+(?:[.,]\d+)?", text):
+            return True
+        return bool(re.search(r"(?:mg|mmol|μmol|umol|g/L|U/L|%|ng/ml|S|fL)", value or "", re.I))
+
+    @classmethod
+    def _recover_qwen_generic_findings(
+        cls, findings: list[OcrFinding]
+    ) -> list[OcrFinding]:
+        """Pair adjacent generic OCR rows without changing source wording or order."""
+
+        recovered: list[OcrFinding] = []
+        index = 0
+        while index < len(findings):
+            current = findings[index]
+            if (
+                current.item.strip() == "原文"
+                and index + 1 < len(findings)
+                and findings[index + 1].item.strip() == "原文"
+                and findings[index + 1].section.strip() == current.section.strip()
+                and current.section.strip() != "原文待核对"
+                and not cls._qwen_value_line(current.result)
+                and cls._qwen_value_line(findings[index + 1].result)
+            ):
+                recovered.append(
+                    OcrFinding(
+                        section=current.section,
+                        item=current.result,
+                        result=findings[index + 1].result,
+                    )
+                )
+                index += 2
+                continue
+            recovered.append(current)
+            index += 1
+        return recovered
+
+    def _qwen_table_findings(
+        self, table: list[list[str]], section_hint: str | None
+    ) -> list[OcrFinding]:
+        """Preserve nonnumeric table rows (e.g. imaging conclusions and qualitative results)."""
+
+        findings: list[OcrFinding] = []
+        columns: dict[str, int] = {}
+        for row in table:
+            cells = [re.sub(r"\s+", " ", cell).strip() for cell in row]
+            if not any(cells):
+                continue
+            detected = self._qwen_header_columns(cells)
+            if "name" in detected and "value" in detected:
+                columns = detected
+                continue
+            if self._qwen_mapped_table_indicator(cells, columns) is not None:
+                continue
+            if self.parser._parse_pdf_table_row(cells) is not None:
+                continue
+            if columns.get("name", -1) >= 0 and columns.get("value", -1) < len(cells):
+                name = cells[columns["name"]]
+                result = " ".join(
+                    cell
+                    for cell in cells[columns["value"] :]
+                    if cell
+                ).strip()
+            elif len(cells) >= 2:
+                name, result = cells[0], " ".join(cell for cell in cells[1:] if cell).strip()
+            else:
+                continue
+            if (
+                not name
+                or not result
+                or self._qwen_is_metadata_line(" ".join(cells))
+                or name in HEADER_NAMES
+            ):
+                continue
+            findings.append(
+                OcrFinding(
+                    section=section_hint or "原检查结果",
+                    item=name,
+                    result=result,
+                )
+            )
+        return findings
 
     def _qwen_table_indicators(self, table: list[list[str]]) -> list[IndicatorInput]:
         """Map Qwen HTML tables without relying on a hospital-specific column order."""

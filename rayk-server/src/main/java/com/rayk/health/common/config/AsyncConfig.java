@@ -40,5 +40,22 @@ public class AsyncConfig {
         AsyncTaskExecutor secured = new DelegatingSecurityContextAsyncTaskExecutor(executor);
         return secured;
     }
+
+    /**
+     * OCR tasks are scheduled on a single worker, but a report can contain many
+     * photographed pages.  Keep the task worker available for other reports and
+     * run the per-page HTTP calls on a small, bounded pool instead of processing
+     * every page serially.
+     */
+    @Bean(name = "ocrFileExecutor")
+    Executor ocrFileExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setThreadNamePrefix("ocr-file-");
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(4);
+        executor.setQueueCapacity(100);
+        executor.initialize();
+        return executor;
+    }
 }
 

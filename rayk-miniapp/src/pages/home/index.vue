@@ -76,7 +76,7 @@
       </view>
       <view v-else class="metric-grid">
         <view
-          v-for="(item, index) in summary?.metrics"
+          v-for="(item, index) in homeMetrics"
           :key="item.code"
           class="metric-card"
           :class="`tone-${index % 4}`"
@@ -89,6 +89,19 @@
           <view class="metric">{{ item.value }}</view>
           <view class="metric-label">{{ item.label }}</view>
           <view class="metric-hint">点击查看详情</view>
+        </view>
+        <view
+          v-if="auth.currentWorkbench === 'PLATFORM_ADMIN'"
+          class="metric-card home-model-metric-card"
+          @click="open('/pages-platform/model/index')"
+        >
+          <view class="metric-head">
+            <view class="metric-icon home-model-metric-icon">模</view>
+            <text class="metric-arrow">↗</text>
+          </view>
+          <view class="home-model-metric-title">AI模型管理</view>
+          <view class="home-model-metric-copy">切换 Flash / Pro</view>
+          <view v-if="activeModelName" class="home-model-metric-current">当前：{{ activeModelName }}</view>
         </view>
       </view>
 
@@ -130,6 +143,7 @@ import { computed, ref } from 'vue'
 import { onHide, onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import PageState from '@/components/PageState.vue'
 import CareFeedbackCard from '@/components/CareFeedbackCard.vue'
+import { getAiModelRuntimeConfigs } from '@/api/admin'
 import { getMyProfile } from '@/api/patient'
 import { getHomeSummary } from '@/api/workbench'
 import { menusFor } from '@/constants/menus'
@@ -139,6 +153,7 @@ import type { HomeSummary, Role } from '@/types/api'
 const auth = useAuthStore()
 const summary = ref<HomeSummary>()
 const profileName = ref('')
+const activeModelName = ref('')
 const loading = ref(true),
   error = ref('')
 const lastUpdatedAt = ref<Date | null>(null)
@@ -192,6 +207,11 @@ const profileCompleteness = computed(() => {
   return Math.min(100, Math.max(0, Number(value) || 0))
 })
 const profileMetric = computed(() => summary.value?.metrics.find((item) => item.code === 'PROFILE'))
+const homeMetrics = computed(() =>
+  summary.value?.metrics.filter(
+    (item) => !(auth.currentWorkbench === 'PLATFORM_ADMIN' && item.code === 'CUSTOMER'),
+  ) ?? [],
+)
 const customerStats = computed(
   () => summary.value?.metrics.filter((item) => item.code !== 'PROFILE') ?? [],
 )
@@ -299,6 +319,16 @@ async function refresh(silent = false) {
     ])
     summary.value = homeSummary
     profileName.value = profile?.name?.trim() || ''
+    if (auth.currentWorkbench === 'PLATFORM_ADMIN') {
+      try {
+        const models = await getAiModelRuntimeConfigs()
+        activeModelName.value = models.find((item) => item.selected)?.modelName || ''
+      } catch {
+        activeModelName.value = ''
+      }
+    } else {
+      activeModelName.value = ''
+    }
     lastUpdatedAt.value = new Date()
   } catch (e) {
     error.value = e instanceof Error ? e.message : '加载失败'
@@ -648,6 +678,33 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.home-model-metric-card {
+  min-width: 0;
+}
+.home-model-metric-icon {
+  background: #fff0d9;
+  color: #ad6b10;
+}
+.home-model-metric-title {
+  margin-top: 8rpx;
+  color: #183c33;
+  font-size: 25rpx;
+  line-height: 1.4;
+  font-weight: 700;
+}
+.home-model-metric-copy,
+.home-model-metric-current {
+  overflow: hidden;
+  margin-top: 6rpx;
+  color: #748780;
+  font-size: 19rpx;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-model-metric-current {
+  color: #0d765e;
 }
 .insight-card {
   display: flex;

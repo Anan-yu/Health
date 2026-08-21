@@ -22,15 +22,6 @@
         <view class="fallback-copy">
           当前展示的是保守规则结果，不代表大模型已经完成综合分析。原始检查结果仍可正常查看。
         </view>
-        <button
-          v-if="isCustomer"
-          class="retry-button"
-          :loading="reassessing"
-          :disabled="reassessing"
-          @click="reassess"
-        >
-          {{ reassessing ? '正在重新生成…' : '重新生成 AI 解读' }}
-        </button>
       </view>
 
       <view class="section-head"><view class="title">整体健康状态</view></view>
@@ -85,9 +76,7 @@
           <view v-for="item in whyItems" :key="item" class="evidence-item">{{ item }}</view>
         </template>
         <view v-else class="muted">当前没有可进一步说明的异常依据。</view>
-        <view class="data-action" @click="openLabReport">{{
-          openingOriginal ? '正在打开…' : '查看原检验报告'
-        }}</view>
+        <view class="data-action" @click="openLabReport">查看原检验报告</view>
       </view>
 
       <view v-if="interpretation?.diagnosticReferences?.length" class="section-head">
@@ -180,17 +169,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { createAssessment } from '@/api/assessment'
-import {
-  getHealthReport,
-  getHealthReports,
-} from '@/api/health-report'
-import { getReportFiles } from '@/api/lab-report'
+import { getHealthReport } from '@/api/health-report'
 import {
   downloadProtectedFileInBrowser,
   getApiBaseUrl,
   getRequestHeaders,
-  openProtectedFileInBrowser,
 } from '@/utils/request'
 import { useAuthStore } from '@/stores/auth'
 import type { Assessment, HealthReport } from '@/types/api'
@@ -236,12 +219,19 @@ const id = ref(''),
   report = ref<HealthReport | null>(null),
   loading = ref(true),
   downloading = ref(false),
-  reassessing = ref(false),
-  openingOriginal = ref(false),
   error = ref('')
 const auth = useAuthStore()
 const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
 const assessment = computed<Assessment | undefined>(() => report.value?.assessment)
+const sanitizeFileName = (value: string) =>
+  value.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim() || '用户'
+const reportOwnerName = computed(() => {
+  const patientName = report.value?.patientName?.trim()
+  if (patientName) return patientName
+  const title = report.value?.title?.trim() || ''
+  return title.replace(/的?健康(?:管理)?评估报告(?:（演示）)?$/, '') || '用户'
+})
+const reportFileName = computed(() => `${sanitizeFileName(reportOwnerName.value)}健康报告.pdf`)
 const interpretation = computed(() => assessment.value?.results?.interpretation)
 const isFallback = computed(() => interpretation.value?.source === 'RULE_FALLBACK')
 const allResults = computed(() => assessment.value?.results?.results || [])
@@ -475,89 +465,95 @@ onLoad((options) => {
   id.value = options?.id || ''
 })
 onShow(load)
-const openLabReport = async () => {
+const openLabReport = () => {
   const reportId = assessment.value?.reportId
-  if (!reportId || openingOriginal.value) return
-  openingOriginal.value = true
-  try {
-    const files = await getReportFiles(reportId)
-    const file = files[0]
-    if (!file) {
-      uni.showToast({ title: '未找到原检验报告文件', icon: 'none' })
-      return
-    }
-    // #ifdef H5
-    await openProtectedFileInBrowser(
-      `/api/v1/lab-reports/${reportId}/files/${file.id}/content`,
-      '_self',
-    )
-    // #endif
-    // #ifdef MP-WEIXIN
-    uni.showLoading({ title: '正在打开' })
-    uni.downloadFile({
-      url: `${getApiBaseUrl()}/api/v1/lab-reports/${reportId}/files/${file.id}/content`,
-      header: getRequestHeaders(),
-      success: ({ tempFilePath, statusCode }) => {
-        if (statusCode !== 200) {
-          uni.showToast({ title: '原检验报告打开失败', icon: 'none' })
-          return
-        }
-        if (file.mimeType?.startsWith('image/')) {
-          uni.previewImage({ urls: [tempFilePath], current: tempFilePath })
-          return
-        }
-        uni.openDocument({
-          filePath: tempFilePath,
-          fileType: 'pdf',
-          showMenu: true,
-          fail: () => uni.showToast({ title: '文件打开失败', icon: 'none' }),
-        })
-      },
-      fail: () => uni.showToast({ title: '原检验报告下载失败', icon: 'none' }),
-      complete: () => uni.hideLoading(),
-    })
-    // #endif
-  } catch (cause) {
-    uni.showToast({
-      title: cause instanceof Error ? cause.message : '原检验报告打开失败',
-      icon: 'none',
-    })
-  } finally {
-    openingOriginal.value = false
+  if (!reportId) {
+    uni.showToast({ title: '未找到对应的检验报告', icon: 'none' })
+    return
   }
+  uni.navigateTo({ url: `/pages-customer/lab-report/detail?id=${reportId}` })
 }
 const openFollowup = () => uni.navigateTo({ url: '/pages-customer/followup/index' })
-const reassess = () => {
-  const labReportId = assessment.value?.reportId
-  if (!labReportId || !report.value || reassessing.value) return
-  uni.showModal({
-    title: '重新生成 AI 解读',
-    content: '将使用当前健康档案、检查报告和面部健康检测重新评估，并生成一份新的健康报告。是否继续？',
-    success: async ({ confirm }) => {
-      if (!confirm || !report.value) return
-      reassessing.value = true
-      try {
-        const generated = await createAssessment(labReportId)
-        const reports = await getHealthReports(report.value.patientId)
-        const generatedReport = reports.records.find(
-          (item) => item.assessment?.id === generated.id,
-        )
-        if (!generatedReport) {
-          uni.showToast({ title: '评估已生成，请稍后在报告列表查看', icon: 'none' })
-          return
-        }
-        uni.redirectTo({ url: `/pages-customer/health-report/detail?id=${generatedReport.id}` })
-      } catch (cause) {
-        uni.showToast({
-          title: cause instanceof Error ? cause.message : '重新生成失败，请稍后重试',
-          icon: 'none',
-        })
-      } finally {
-        reassessing.value = false
-      }
-    },
+type WechatFileManager = {
+  saveFile: (options: {
+    tempFilePath: string
+    filePath: string
+    success?: (result: { savedFilePath: string }) => void
+    fail?: () => void
+  }) => void
+  unlink?: (options: {
+    filePath: string
+    success?: () => void
+    fail?: () => void
+  }) => void
+}
+type WechatRuntime = {
+  env?: { USER_DATA_PATH?: string }
+  getFileSystemManager?: () => WechatFileManager
+}
+const saveWechatPdf = (tempFilePath: string) =>
+  new Promise<string>((resolve) => {
+    const fallback = () =>
+      uni.saveFile({
+        tempFilePath,
+        success: ({ savedFilePath }) => resolve(savedFilePath),
+        fail: () => resolve(tempFilePath),
+      })
+    const wechat = (globalThis as unknown as { wx?: WechatRuntime }).wx
+    const manager = wechat?.getFileSystemManager?.()
+    const userDataPath = wechat?.env?.USER_DATA_PATH
+    if (!manager || !userDataPath) {
+      fallback()
+      return
+    }
+    const filePath = `${userDataPath}/${reportFileName.value}`
+    const saveNamedFile = () =>
+      manager.saveFile({
+        tempFilePath,
+        filePath,
+        success: ({ savedFilePath }) => resolve(savedFilePath),
+        fail: fallback,
+      })
+    if (manager.unlink) {
+      manager.unlink({ filePath, success: saveNamedFile, fail: saveNamedFile })
+    } else {
+      saveNamedFile()
+    }
+  })
+const openDownloadedPdf = async (tempFilePath: string) => {
+  const filePath = await saveWechatPdf(tempFilePath)
+  await new Promise<void>((resolve) => {
+    uni.openDocument({
+      filePath,
+      fileType: 'pdf',
+      showMenu: true,
+      success: () => resolve(),
+      fail: () => {
+        uni.showToast({ title: '报告已下载，但当前工具无法打开 PDF', icon: 'none' })
+        resolve()
+      },
+    })
   })
 }
+const downloadWechatPdf = () =>
+  new Promise<void>((resolve) => {
+    uni.downloadFile({
+      url: `${getApiBaseUrl()}/api/v1/health-reports/${id.value}/content`,
+      header: getRequestHeaders(),
+      success: ({ tempFilePath, statusCode }) => {
+        if (statusCode !== 200 || !tempFilePath) {
+          uni.showToast({ title: '报告下载失败，请稍后重试', icon: 'none' })
+          resolve()
+          return
+        }
+        void openDownloadedPdf(tempFilePath).then(resolve)
+      },
+      fail: () => {
+        uni.showToast({ title: '报告下载失败，请检查网络连接', icon: 'none' })
+        resolve()
+      },
+    })
+  })
 const download = async () => {
   if (!id.value) return
   downloading.value = true
@@ -565,23 +561,19 @@ const download = async () => {
     // #ifdef H5
     await downloadProtectedFileInBrowser(
       `/api/v1/health-reports/${id.value}/content`,
-      `健康评估报告-${id.value}.pdf`,
+      reportFileName.value,
     )
     // #endif
     // #ifdef MP-WEIXIN
-    uni.downloadFile({
-      url: `${getApiBaseUrl()}/api/v1/health-reports/${id.value}/content`,
-      header: getRequestHeaders(),
-      success: ({ tempFilePath, statusCode }) =>
-        statusCode === 200
-          ? uni.openDocument({ filePath: tempFilePath, fileType: 'pdf', showMenu: true })
-          : uni.showToast({ title: '下载失败，请稍后重试', icon: 'none' }),
-      fail: () => uni.showToast({ title: '下载失败，请稍后重试', icon: 'none' }),
-    })
+    uni.showLoading({ title: '正在下载' })
+    await downloadWechatPdf()
     // #endif
   } catch (cause) {
     uni.showToast({ title: cause instanceof Error ? cause.message : '下载失败', icon: 'none' })
   } finally {
+    // #ifdef MP-WEIXIN
+    uni.hideLoading()
+    // #endif
     downloading.value = false
   }
 }
@@ -722,14 +714,6 @@ const download = async () => {
   color: #786445;
   font-size: 23rpx;
   line-height: 1.65;
-}
-.retry-button {
-  margin-top: 20rpx;
-  border: 0;
-  border-radius: 16rpx;
-  background: #0b8064;
-  color: #fff;
-  font-size: 24rpx;
 }
 .evidence-card {
   padding: 16rpx 27rpx;

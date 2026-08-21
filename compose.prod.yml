@@ -12,7 +12,7 @@ services:
       RAYK_DEVELOPMENT_LOGIN_ENABLED: "false"
       WECHAT_MOCK_ENABLED: "false"
       WECHAT_AUTO_BIND_USERNAME: ""
-      MINIO_PUBLIC_ENDPOINT: "https://xingxuyuantech.com"
+      MINIO_PUBLIC_ENDPOINT: "https://xingxuyuan.com"
     ports: []
   nginx:
     ports:
@@ -20,7 +20,7 @@ services:
       - "443:443"
     volumes:
       - ./deploy/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
-      - ./crets/xingxuyuantech.com_nginx:/etc/nginx/certs:ro
+      - ./crets/xingxuyuan.com_nginx:/etc/nginx/certs:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- --no-check-certificate https://127.0.0.1/health"]
       interval: 10s

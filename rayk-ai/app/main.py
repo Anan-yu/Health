@@ -16,6 +16,10 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
+# httpx logs complete request URLs at INFO. Some internal MinIO URLs are
+# short-lived signed URLs, so never emit that logger at the application level.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 logger = logging.getLogger("rayk.ai.startup")
 

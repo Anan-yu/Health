@@ -75,7 +75,7 @@ CREATE TABLE health_profile (
 );
 
 CREATE TABLE lab_report (
-  id BIGINT NOT NULL, tenant_id BIGINT NOT NULL, patient_id BIGINT NOT NULL, report_name VARCHAR(100) NOT NULL, report_date DATE NOT NULL, status VARCHAR(30) NOT NULL, source_type VARCHAR(30) NOT NULL, ocr_snapshot CLOB NULL, failure_reason VARCHAR(500) NULL,
+  id BIGINT NOT NULL, tenant_id BIGINT NOT NULL, patient_id BIGINT NOT NULL, report_name VARCHAR(100) NOT NULL, report_date DATE NOT NULL, status VARCHAR(30) NOT NULL, source_type VARCHAR(30) NOT NULL, ocr_snapshot CLOB NULL, image_analysis_snapshot CLOB NULL, failure_reason VARCHAR(500) NULL,
   created_by BIGINT NOT NULL, created_at DATETIME NOT NULL, updated_by BIGINT NOT NULL, updated_at DATETIME NOT NULL,
   deleted TINYINT NOT NULL DEFAULT 0, version INT NOT NULL DEFAULT 0,
   PRIMARY KEY (id)

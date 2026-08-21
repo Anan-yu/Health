@@ -26,7 +26,8 @@ public class MybatisPlusConfig {
                     "sys_role_permission",
                     "sys_user_workbench",
                     "sys_user_customer_scope",
-                    "wx_user_binding");
+                    "wx_user_binding",
+                    "ai_model_runtime_config");
 
     @Bean
     MybatisPlusInterceptor mybatisPlusInterceptor() {

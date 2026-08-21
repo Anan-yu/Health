@@ -1,21 +1,39 @@
 <template>
   <view class="page login-page elder-page">
     <view class="hero">
-      <view class="orb orb-one" />
-      <view class="orb orb-two" />
       <view class="brand-row">
-        <view class="logo">AI</view>
+        <image class="logo" :src="logoArt" mode="aspectFill" />
         <view>
-          <view class="brand-name">智能三羊</view>
+          <view class="brand-name">三羊健康</view>
           <view class="brand-tag">AI 智能健康管理</view>
         </view>
       </view>
+      <image class="hero-art" :src="heroArt" mode="aspectFit" />
       <view class="hero-title">让每一份健康数据<br /><text>清晰、有序、可行动</text></view>
       <view class="hero-copy">连接检验报告、AI评估与专业健康管理服务</view>
-      <view class="trust-row">
-        <view><text class="trust-dot" />隐私保护</view>
-        <view><text class="trust-dot" />专业复核</view>
-        <view><text class="trust-dot" />持续随访</view>
+    </view>
+
+    <view class="trust-panel">
+      <view class="trust-item">
+        <image class="trust-icon" :src="securityArt" mode="aspectFit" />
+        <view>
+          <view class="trust-name">隐私保护</view>
+          <view class="trust-copy">数据安全加密</view>
+        </view>
+      </view>
+      <view class="trust-item">
+        <image class="trust-icon" :src="membershipArt" mode="aspectFit" />
+        <view>
+          <view class="trust-name">专业可信</view>
+          <view class="trust-copy">医疗级 AI 分析</view>
+        </view>
+      </view>
+      <view class="trust-item">
+        <image class="trust-icon" :src="followupArt" mode="aspectFit" />
+        <view>
+          <view class="trust-name">持续随访</view>
+          <view class="trust-copy">健康管理跟踪</view>
+        </view>
       </view>
     </view>
 
@@ -24,9 +42,8 @@
     <!-- #ifdef MP-WEIXIN -->
     <view class="card login-card">
       <view class="card-title">{{ supportsPhoneLogin ? '微信授权手机号登录' : '微信一键登录' }}</view>
-      <view v-if="!supportsPhoneLogin" class="login-card-tip">
-        客户可通过微信一键登录，工作人员仅首次登录需要完成绑定。
-      </view>
+      <view class="login-subtitle">快捷登录，安全可靠</view>
+      <image class="wechat-mark" :src="wechatArt" mode="aspectFit" />
       <button
         v-if="supportsPhoneLogin"
         class="wechat"
@@ -37,7 +54,7 @@
         phone-number-no-quota-toast
         @getphonenumber="handleWeChatLogin"
       >
-        微信一键登录
+        {{ supportsPhoneLogin ? '授权手机号并登录' : '微信一键登录' }}
       </button>
       <button
         v-else
@@ -59,79 +76,32 @@
           ><text>将进入{{ identified.workbench }}</text></view
         >
       </view>
-      <view class="agreement">登录即表示同意《用户服务协议》和《隐私政策》</view>
+      <view class="agreement"><text class="agreement-mark">✓</text>登录即表示同意《用户服务协议》和《隐私政策》</view>
       <view v-if="wechatError" class="error">{{ wechatError }}</view>
-    </view>
-    <view v-if="!supportsPhoneLogin" class="card staff-login-card">
-      <view class="staff-login-heading">
-        <view class="card-title">工作人员登录</view>
-        <view class="staff-login-badge">首次绑定</view>
+      <view class="service-heading">
+        <view class="service-heading-line" />
+        <view>健康服务一站直达</view>
+        <view class="service-heading-line" />
       </view>
-      <view class="staff-role-switch">
-        <button
-          class="staff-role-option"
-          :class="{ active: staffLoginMode === 'admin' }"
-          @click="staffLoginMode = 'admin'"
-        >
-          平台管理员
-        </button>
-        <button
-          class="staff-role-option"
-          :class="{ active: staffLoginMode === 'doctor' }"
-          @click="staffLoginMode = 'doctor'"
-        >
-          医生
-        </button>
-      </view>
-      <view class="staff-login-guide">
-        <view class="staff-guide-row">
-          <text class="staff-guide-index">1</text>
-          <text>{{ staffLoginMode === 'admin' ? '填写账号密码并绑定当前微信' : '填写一次性绑定码并绑定当前微信' }}</text>
+      <view class="benefits-grid">
+        <view class="benefit-item">
+          <image class="benefit-icon" :src="profileArt" mode="aspectFit" />
+          <view class="benefit-name">健康档案</view>
+          <view class="benefit-copy">记录健康数据</view>
         </view>
-        <view class="staff-guide-row staff-guide-row-muted">
-          <text class="staff-guide-index">2</text>
-          <text>绑定成功后，日常登录直接点击上方“微信一键登录”</text>
+        <view class="benefit-item">
+          <image class="benefit-icon" :src="assessmentArt" mode="aspectFit" />
+          <view class="benefit-name">健康评估</view>
+          <view class="benefit-copy">智能 AI 解读</view>
+        </view>
+        <view class="benefit-item">
+          <image class="benefit-icon" :src="careArt" mode="aspectFit" />
+          <view class="benefit-name">持续管理</view>
+          <view class="benefit-copy">跟踪健康改善</view>
         </view>
       </view>
-      <view v-if="staffLoginMode === 'admin'" class="staff-credentials">
-        <input
-          v-model="staffUsername"
-          class="input staff-username-input"
-          maxlength="50"
-          placeholder="请输入平台管理员账号"
-        />
-        <input
-          v-model="staffPassword"
-          class="input staff-password-input"
-          password
-          maxlength="100"
-          placeholder="请输入平台管理员密码"
-        />
-      </view>
-      <input
-        v-else
-        v-model="staffInviteCode"
-        class="input staff-invite-input"
-        maxlength="10"
-        placeholder="请输入 10 位绑定码"
-      />
-      <button
-        class="secondary staff-login-button"
-        :loading="staffLoading"
-        :disabled="Boolean(identified) || staffLoading"
-        @click="handleStaffLogin"
-      >
-        {{ staffLoginMode === 'admin' ? '首次绑定管理员微信' : '首次绑定医生微信' }}
-      </button>
-      <view class="staff-login-note">
-        {{
-          staffLoginMode === 'admin'
-            ? '绑定成功后无需再次输入账号密码，直接使用微信一键登录。'
-            : '绑定码仅首次使用，绑定后无需重复输入。'
-        }}
-      </view>
-      <view v-if="staffError" class="error">{{ staffError }}</view>
     </view>
+    <view class="security-line"><image class="security-mark" :src="securityArt" mode="aspectFit" />数据安全保障中</view>
     <!-- #endif -->
 
     <!-- #ifdef H5 -->
@@ -170,7 +140,7 @@
       </view>
       <input v-model="password" class="input password" password placeholder="测试密码" />
       <button class="primary enter-button" :loading="loading" @click="handleLogin">
-        进入智能三羊
+        进入三羊健康
       </button>
       <view v-if="error" class="error">{{ error }}</view>
     </view>
@@ -182,7 +152,15 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 import type { AuthData, Role } from '@/types/api'
-import { ApiError } from '@/utils/request'
+import heroArt from '@/assets/ui/login/login-hero-ai.png'
+import wechatArt from '@/assets/ui/login/login-wechat.png'
+import securityArt from '@/assets/ui/login/login-security.png'
+import membershipArt from '@/assets/ui/login/login-membership.png'
+import followupArt from '@/assets/ui/login/login-followup.png'
+import profileArt from '@/assets/ui/login/login-profile.png'
+import assessmentArt from '@/assets/ui/login/login-assessment.png'
+import careArt from '@/assets/ui/login/login-care.png'
+import logoArt from '@/assets/ui/login/brand-logo-sheep.png'
 
 const accounts = [
   {
@@ -214,17 +192,16 @@ const username = ref(accounts[1].username),
   showDeveloper = ref(true),
   error = ref(''),
   wechatError = ref(''),
-  staffLoginMode = ref<'admin' | 'doctor'>('doctor'),
-  staffUsername = ref(''),
-  staffPassword = ref(''),
-  staffInviteCode = ref(''),
-  staffLoading = ref(false),
-  staffError = ref(''),
   expired = ref(false),
   identified = ref<{ category: string; workbench: string } | null>(null)
 const auth = useAuthStore()
 const isDevBuild = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEVELOPMENT_LOGIN === 'true'
-const supportsPhoneLogin = import.meta.env.VITE_WECHAT_PHONE_LOGIN === 'true'
+// Enterprise production builds must use the verified phone credential even when a
+// checkout does not contain the ignored local .env.production file. Development
+// builds can opt in explicitly through VITE_WECHAT_PHONE_LOGIN.
+const supportsPhoneLogin =
+  import.meta.env.VITE_WECHAT_PHONE_LOGIN === 'true' ||
+  (!isDevBuild && import.meta.env.MODE === 'production')
 const workbenchNames: Record<Role, string> = {
   PLATFORM_ADMIN: '平台管理工作台',
   DOCTOR: '医生工作台',
@@ -244,13 +221,6 @@ const selectDeveloperAccount = (account: (typeof accounts)[number]) => {
   password.value = account.password
   error.value = ''
 }
-const staffLoginError = (error: unknown) => {
-  if (error instanceof ApiError && error.code === 10204) {
-    return '当前微信已绑定其他身份（可能是客户），请换用未绑定的工作人员微信。'
-  }
-  return error instanceof Error ? error.message : '工作人员登录失败，请重试'
-}
-
 onLoad((query) => {
   expired.value = query?.expired === '1'
 })
@@ -281,61 +251,6 @@ async function handleWeChatLogin(event?: { detail?: { code?: string; errMsg?: st
   }
 }
 
-async function handleStaffLogin() {
-  if (staffLoading.value) return
-  if (staffLoginMode.value === 'admin') {
-    await handleAdminLogin()
-    return
-  }
-  const inviteCode = staffInviteCode.value.trim().toUpperCase()
-  if (inviteCode.length !== 10) {
-    staffError.value = '请输入有效的 10 位绑定码'
-    return
-  }
-  staffLoading.value = true
-  staffError.value = ''
-  try {
-    const result = await uni.login({ provider: 'weixin' })
-    if (!result.code) throw new Error('微信未返回登录凭证')
-    const data: AuthData = await auth.loginWithWeChatInvite(result.code, inviteCode)
-    identified.value = identifiedFor(data)
-    await new Promise((resolve) => setTimeout(resolve, 900))
-    uni.switchTab({ url: '/pages/home/index' })
-  } catch (e) {
-    staffError.value = staffLoginError(e)
-  } finally {
-    staffLoading.value = false
-  }
-}
-
-async function handleAdminLogin() {
-  if (staffLoading.value) return
-  const usernameValue = staffUsername.value.trim()
-  const passwordValue = staffPassword.value
-  if (!usernameValue || !passwordValue) {
-    staffError.value = '请输入平台管理员账号和密码'
-    return
-  }
-  staffLoading.value = true
-  staffError.value = ''
-  try {
-    const result = await uni.login({ provider: 'weixin' })
-    if (!result.code) throw new Error('微信未返回登录凭证')
-    const data: AuthData = await auth.loginWithWeChatAdmin(
-      result.code,
-      usernameValue,
-      passwordValue,
-    )
-    identified.value = identifiedFor(data)
-    await new Promise((resolve) => setTimeout(resolve, 900))
-    uni.switchTab({ url: '/pages/home/index' })
-  } catch (e) {
-    staffError.value = staffLoginError(e)
-  } finally {
-    staffLoading.value = false
-  }
-}
-
 async function handleLogin() {
   loading.value = true
   error.value = ''
@@ -358,31 +273,33 @@ async function handleLogin() {
   position: relative;
   overflow: hidden;
   margin: 0 -28rpx 28rpx;
-  padding: calc(48rpx + env(safe-area-inset-top)) 42rpx 54rpx;
-  border-radius: 0 0 54rpx 54rpx;
-  background: linear-gradient(145deg, #075744 0%, #0c7960 55%, #23a27f 100%);
-  color: #fff;
-  box-shadow: 0 24rpx 48rpx rgba(9, 92, 74, 0.2);
+  padding: calc(42rpx + env(safe-area-inset-top)) 42rpx 44rpx;
+  border-radius: 0 0 46rpx 46rpx;
+  background: linear-gradient(145deg, #f5fbfa 0%, #edf8f4 56%, #dff3ec 100%);
+  color: #163b35;
+  box-shadow: 0 18rpx 42rpx rgba(20, 103, 82, 0.08);
 }
 .orb {
   position: absolute;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.09);
+  border: 1rpx solid rgba(37, 174, 137, 0.12);
+  background: rgba(129, 229, 197, 0.16);
 }
 .orb-one {
-  top: -80rpx;
-  right: -30rpx;
-  width: 290rpx;
-  height: 290rpx;
+  top: -100rpx;
+  right: -54rpx;
+  width: 310rpx;
+  height: 310rpx;
 }
 .orb-two {
-  right: 120rpx;
-  bottom: -130rpx;
-  width: 240rpx;
-  height: 240rpx;
+  right: 100rpx;
+  bottom: -150rpx;
+  width: 260rpx;
+  height: 260rpx;
 }
 .brand-row {
   position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 18rpx;
@@ -393,9 +310,10 @@ async function handleLogin() {
   justify-content: center;
   width: 82rpx;
   height: 82rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.35);
+  border: 0;
   border-radius: 25rpx;
-  background: rgba(255, 255, 255, 0.16);
+  background: transparent;
+  object-fit: cover;
   font-size: 32rpx;
   font-weight: 800;
   backdrop-filter: blur(12rpx);
@@ -403,27 +321,40 @@ async function handleLogin() {
 .brand-name {
   font-size: 34rpx;
   font-weight: 750;
+  color: #145849;
+}
+.hero-art {
+  position: absolute;
+  z-index: 0;
+  top: 34rpx;
+  right: -10rpx;
+  width: 310rpx;
+  height: 310rpx;
+  opacity: 0.58;
 }
 .brand-tag {
   margin-top: 2rpx;
-  color: rgba(255, 255, 255, 0.66);
+  color: #6b9b8d;
   font-size: 18rpx;
   letter-spacing: 3rpx;
 }
 .hero-title {
   position: relative;
+  z-index: 1;
   margin-top: 48rpx;
   font-size: 49rpx;
   line-height: 1.38;
   font-weight: 760;
+  color: #102a36;
 }
 .hero-title text {
-  color: #c9f6e7;
+  color: #102a36;
 }
 .hero-copy {
   position: relative;
+  z-index: 1;
   margin-top: 18rpx;
-  color: rgba(255, 255, 255, 0.78);
+  color: #81939e;
   font-size: 25rpx;
 }
 .trust-row {
@@ -434,6 +365,50 @@ async function handleLogin() {
   color: rgba(255, 255, 255, 0.82);
   font-size: 22rpx;
 }
+.trust-panel {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10rpx;
+  margin: -2rpx 0 24rpx;
+  padding: 22rpx 16rpx;
+  border: 1rpx solid rgba(215, 230, 224, 0.94);
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 12rpx 28rpx rgba(20, 78, 63, 0.06);
+}
+.trust-item {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8rpx;
+  padding: 0 4rpx;
+}
+.trust-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  object-fit: contain;
+}
+.trust-icon-safe { background: #e0f7ec; color: #159a67; }
+.trust-icon-pro { background: #e7f8ef; color: #27a87a; }
+.trust-icon-care { background: #e6f7f1; color: #12a777; }
+.trust-name {
+  color: #244b41;
+  font-size: 22rpx;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.trust-copy {
+  margin-top: 4rpx;
+  color: #8b9da5;
+  font-size: 18rpx;
+  line-height: 1.3;
+  white-space: nowrap;
+}
 .trust-dot {
   display: inline-block;
   width: 9rpx;
@@ -443,7 +418,10 @@ async function handleLogin() {
   background: #9bf0d5;
 }
 .login-card {
-  padding: 36rpx;
+  padding: 38rpx 34rpx 28rpx;
+  margin-bottom: 20rpx;
+  border-radius: 34rpx;
+  background: rgba(255, 255, 255, 0.96);
 }
 .card-kicker {
   color: #0f7a62;
@@ -456,11 +434,17 @@ async function handleLogin() {
   font-size: 34rpx;
   font-weight: 730;
 }
-.login-card-tip {
-  margin-top: 8rpx;
-  color: #71877f;
-  font-size: 22rpx;
-  line-height: 1.55;
+.login-subtitle {
+  margin-top: 4rpx;
+  color: #8a9ca4;
+  font-size: 25rpx;
+}
+.wechat-mark {
+  display: block;
+  width: 220rpx;
+  height: 220rpx;
+  margin: 18rpx auto 0;
+  object-fit: contain;
 }
 .wechat {
   display: flex;
@@ -491,6 +475,20 @@ async function handleLogin() {
   color: #94a09c;
   text-align: center;
   font-size: 20rpx;
+}
+.agreement-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30rpx;
+  height: 30rpx;
+  margin-right: 10rpx;
+  border-radius: 50%;
+  background: #18af72;
+  color: #fff;
+  font-size: 18rpx;
+  font-weight: 800;
+  vertical-align: -3rpx;
 }
 .recognizing {
   margin-top: 18rpx;
@@ -527,6 +525,82 @@ async function handleLogin() {
   margin-top: 4rpx;
   color: #5d8377;
   font-size: 20rpx;
+}
+.login-benefits { padding-bottom: 28rpx; }
+.service-heading {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin: 30rpx 0 20rpx;
+  color: #718892;
+  font-size: 27rpx;
+  white-space: nowrap;
+}
+.service-heading-line { flex: 1; height: 1rpx; background: #e5eeeb; }
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12rpx;
+  margin-top: 0;
+}
+.benefit-item {
+  min-width: 0;
+  padding: 20rpx 10rpx 18rpx;
+  border-radius: 18rpx;
+  background: #f4faf7;
+  text-align: center;
+}
+.benefit-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 66rpx;
+  height: 66rpx;
+  margin: 0 auto 12rpx;
+  border-radius: 50%;
+  object-fit: contain;
+}
+.benefit-icon-profile {
+  background: #e0f4ed;
+  color: #0d765e;
+}
+.benefit-icon-report {
+  background: #e7efff;
+  color: #3970c7;
+}
+.benefit-icon-care {
+  background: #fff1d7;
+  color: #ae7208;
+}
+.benefit-name {
+  color: #31574b;
+  font-size: 23rpx;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.benefit-copy {
+  margin-top: 6rpx;
+  color: #82948d;
+  font-size: 19rpx;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.security-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  margin: 8rpx 0 24rpx;
+  color: #82949d;
+  font-size: 23rpx;
+}
+.security-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38rpx;
+  height: 38rpx;
+  object-fit: contain;
 }
 .browser-tip {
   padding: 34rpx;

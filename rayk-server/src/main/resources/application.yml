@@ -65,7 +65,7 @@ rayk:
     development-login-enabled: ${RAYK_DEVELOPMENT_LOGIN_ENABLED:false}
   jwt:
     secret: ${JWT_SECRET:rayk_dev_only_secret_change_before_production_123456}
-    expire-seconds: ${JWT_EXPIRE_SECONDS:7200}
+    expire-seconds: ${JWT_EXPIRE_SECONDS:604800}
   wechat:
     app-id: ${WECHAT_APP_ID:}
     secret: ${WECHAT_APP_SECRET:}
@@ -77,10 +77,15 @@ rayk:
     mock-phone-number: ${WECHAT_MOCK_PHONE_NUMBER:13800000005}
     default-customer-tenant-id: ${WECHAT_DEFAULT_CUSTOMER_TENANT_ID:20001}
     auto-bind-username: ${WECHAT_AUTO_BIND_USERNAME:}
+    phone-login-required: ${WECHAT_PHONE_LOGIN_REQUIRED:false}
+    # Optional bootstrap for the first platform administrator. Keep the phone in
+    # deployment secrets; once logged in, it can be changed from the workbench.
+    platform-admin-phone: ${WECHAT_PLATFORM_ADMIN_PHONE:}
+    platform-admin-username: ${WECHAT_PLATFORM_ADMIN_USERNAME:admin}
   ai:
     base-url: ${RAYK_AI_BASE_URL:http://localhost:8000}
     connect-timeout-seconds: 5
-    read-timeout-seconds: ${RAYK_AI_READ_TIMEOUT_SECONDS:300}
+    read-timeout-seconds: ${RAYK_AI_READ_TIMEOUT_SECONDS:600}
   minio:
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
     public-endpoint: ${MINIO_PUBLIC_ENDPOINT:http://127.0.0.1:9000}
@@ -116,6 +121,33 @@ rayk:
     speed: ${TENCENT_TTS_SPEED:-1}
     volume: ${TENCENT_TTS_VOLUME:0}
     sample-rate: ${TENCENT_TTS_SAMPLE_RATE:24000}
+  membership:
+    enabled: ${MEMBERSHIP_ENABLED:true}
+    payment-enabled: ${MEMBERSHIP_PAYMENT_ENABLED:false}
+    free-ai-assessment-trial: ${MEMBERSHIP_FREE_AI_ASSESSMENT_TRIAL:3}
+    free-ai-report-trial: ${MEMBERSHIP_FREE_AI_REPORT_TRIAL:3}
+    free-ai-followup-trial: ${MEMBERSHIP_FREE_AI_FOLLOWUP_TRIAL:1}
+    free-health-shot-trial: ${MEMBERSHIP_FREE_HEALTH_SHOT_TRIAL:3}
+    free-tts-meal-trial: ${MEMBERSHIP_FREE_TTS_MEAL_TRIAL:3}
+    free-tts-sleep-trial: ${MEMBERSHIP_FREE_TTS_SLEEP_TRIAL:3}
+    development-mode: ${MEMBERSHIP_DEVELOPMENT_MODE:false}
+    wechat-pay:
+      app-id: ${WECHAT_PAY_APP_ID:${WECHAT_APP_ID:}}
+      merchant-id: ${WECHAT_PAY_MERCHANT_ID:}
+      merchant-serial-number: ${WECHAT_PAY_MERCHANT_SERIAL_NUMBER:}
+      private-key-path: ${WECHAT_PAY_PRIVATE_KEY_PATH:}
+      api-v3-key: ${WECHAT_PAY_API_V3_KEY:}
+      notify-url: ${WECHAT_PAY_NOTIFY_URL:}
+    wechat-virtual-pay:
+      app-id: ${WECHAT_VIRTUAL_APP_ID:${WECHAT_APP_ID:}}
+      merchant-id: ${WECHAT_VIRTUAL_MERCHANT_ID:1116509042}
+      offer-id: ${WECHAT_VIRTUAL_OFFER_ID:1450618433}
+      app-key: ${WECHAT_VIRTUAL_APP_KEY:}
+      sandbox-app-key: ${WECHAT_VIRTUAL_SANDBOX_APP_KEY:}
+      env: ${WECHAT_VIRTUAL_ENV:0}
+      mode: ${WECHAT_VIRTUAL_MODE:short_series_goods}
+      product-id: ${WECHAT_VIRTUAL_PRODUCT_ID:}
+      notify-url: "${WECHAT_VIRTUAL_NOTIFY_URL:https://xingxuyuan.com/api/payments/wechat/virtual/notify}"
 
 logging:
   pattern:

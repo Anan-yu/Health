@@ -44,12 +44,25 @@
     <view class="card file-card">
       <view class="form-heading"><text class="form-index">02</text><text>报告文件</text></view>
       <view class="upload-zone" @click="choose">
-        <view class="file-icon" :class="{ selected: fileName }">{{ fileName ? '✓' : '+' }}</view>
-        <view class="file-title">{{ fileName || '选择检验报告文件' }}</view>
+        <view class="file-icon" :class="{ selected: files.length }">{{ files.length ? '✓' : '+' }}</view>
+        <view class="file-title">{{ files.length ? `已选择 ${files.length} 个文件` : '选择检验报告文件' }}</view>
         <view class="file-copy">
-          {{ fileName ? '文件已准备好，可重新选择' : '支持 PDF、JPG、PNG 格式' }}
+          {{
+            files.length
+              ? '可继续分批拍摄或添加文件，数量不限'
+              : '支持 PDF、JPG、PNG 格式，可上传多页，支持分批选择'
+          }}
         </view>
-        <view v-if="fileSize" class="file-chip">{{ formatSize(fileSize) }}</view>
+      </view>
+      <view v-if="files.length" class="selected-files">
+        <view v-for="(file, index) in files" :key="file.path" class="selected-file">
+          <view class="selected-file-info">
+            <text class="selected-file-name">{{ file.name }}</text>
+            <text class="selected-file-size">{{ formatSize(file.size) }}</text>
+          </view>
+          <text class="remove-file" @click.stop="removeFile(index)">删除</text>
+        </view>
+        <button class="add-more-button" @click.stop="choose">继续添加照片或文件</button>
       </view>
       <view v-if="progress > 0" class="progress-box">
         <view class="row"
@@ -72,20 +85,24 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { uploadLabReport } from '@/api/lab-report'
+import {
+  appendLabReportFile,
+  completeLabReportUpload,
+  uploadLabReport,
+} from '@/api/lab-report'
 import { getMyProfile } from '@/api/patient'
 import type { Patient } from '@/types/api'
 
 const today = new Date()
+type SelectedFile = { name: string; path: string; size: number }
+
 const patient = ref<Patient | null>(null),
   patientId = ref(''),
   reportName = ref('生化检验报告'),
   reportDate = ref(
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
   ),
-  fileName = ref(''),
-  filePath = ref(''),
-  fileSize = ref(0),
+  files = ref<SelectedFile[]>([]),
   progress = ref(0),
   state = ref('IDLE'),
   loading = ref(false),
@@ -146,9 +163,8 @@ const acceptFile = (
     error.value = '仅支持 PDF、JPG、PNG 文件'
     return
   }
-  fileName.value = name
-  filePath.value = file.path
-  fileSize.value = file.size || 0
+  if (files.value.some((item) => item.path === file.path)) return
+  files.value.push({ name, path: file.path, size: file.size || 0 })
   progress.value = 0
   state.value = 'SELECTED'
   error.value = ''
@@ -156,23 +172,32 @@ const acceptFile = (
 
 function chooseFromCamera() {
   uni.chooseImage({
-    count: 1,
+    // The platform picker may return at most nine at once; users can keep
+    // tapping “继续添加” without an application-level limit.
+    count: 9,
     sourceType: ['camera'],
     success: (result) => {
-      const selected = Array.isArray(result.tempFiles) ? result.tempFiles[0] : undefined
-      const path = Array.isArray(result.tempFilePaths)
-        ? result.tempFilePaths[0]
-        : result.tempFilePaths
-      if (!selected || typeof path !== 'string') return
-      const selectedPath = 'path' in selected ? selected.path : undefined
-      acceptFile(
-        {
-          name: selectedPath?.split('/').pop(),
-          path,
-          size: selected.size,
-        },
-        'camera-report.jpg',
-      )
+      const selectedFiles = (Array.isArray(result.tempFiles) ? result.tempFiles : []) as Array<{
+        path?: string
+        size?: number
+      }>
+      const paths = Array.isArray(result.tempFilePaths)
+        ? result.tempFilePaths
+        : typeof result.tempFilePaths === 'string'
+          ? [result.tempFilePaths]
+          : []
+      paths.forEach((path, index) => {
+        if (typeof path !== 'string') return
+        const selected = selectedFiles[index]
+        acceptFile(
+          {
+            name: selected?.path?.split('/').pop(),
+            path,
+            size: selected?.size,
+          },
+          'camera-report.jpg',
+        )
+      })
     },
   })
 }
@@ -180,25 +205,39 @@ function chooseFromCamera() {
 function chooseFromFiles() {
   // #ifdef MP-WEIXIN
   uni.chooseMessageFile({
-    count: 1,
+    // WeChat allows up to 100 files per picker invocation. There is no
+    // application-level cap: users can keep adding another batch later.
+    count: 100,
     type: 'all',
     extension: ['pdf', 'jpg', 'jpeg', 'png'],
-    success: (result) => acceptFile(result.tempFiles[0]),
+    success: (result) => {
+      result.tempFiles.forEach((file) =>
+        acceptFile({ name: file.name, path: file.path, size: file.size }),
+      )
+    },
   })
   // #endif
   // #ifdef H5
   uni.chooseFile({
-    count: 1,
+    // Keep the web picker aligned with its 100-file default; the selected
+    // list itself remains unbounded and can be filled in multiple batches.
+    count: 100,
     extension: ['.pdf', '.jpg', '.jpeg', '.png'],
     success: (result) => {
-      const selected = Array.isArray(result.tempFiles) ? result.tempFiles[0] : result.tempFiles
-      const path = Array.isArray(result.tempFilePaths)
-        ? result.tempFilePaths[0]
-        : result.tempFilePaths
-      acceptFile({
-        name: 'name' in selected ? selected.name : undefined,
-        path,
-        size: selected.size,
+      const selectedFiles = (Array.isArray(result.tempFiles) ? result.tempFiles : []) as Array<{
+        name?: string
+        path?: string
+        size?: number
+      }>
+      const paths = Array.isArray(result.tempFilePaths)
+        ? result.tempFilePaths
+        : typeof result.tempFilePaths === 'string'
+          ? [result.tempFilePaths]
+          : []
+      paths.forEach((path, index) => {
+        if (typeof path !== 'string') return
+        const selected = selectedFiles[index]
+        acceptFile({ name: selected?.name, path, size: selected?.size })
       })
     },
   })
@@ -210,27 +249,38 @@ async function submit() {
     error.value = '当前账号尚未关联客户档案，请联系机构管理员'
     return
   }
-  if (!reportName.value.trim() || !filePath.value) {
-    error.value = '请填写报告信息并选择文件'
+  if (!reportName.value.trim() || !files.value.length) {
+    error.value = '请填写报告信息并至少选择一个文件'
     return
   }
   loading.value = true
   error.value = ''
   state.value = 'UPLOADING'
   try {
-    const result = await uploadLabReport(
-      filePath.value,
+    const total = files.value.length
+    const first = await uploadLabReport(
+      files.value[0].path,
       patientId.value,
       reportName.value.trim(),
       reportDate.value,
-      (value) => (progress.value = value),
+      (value) => setOverallProgress(0, value, total),
+      total === 1,
     )
+    const reportId = first.report.id
+    for (let index = 1; index < total; index += 1) {
+      await appendLabReportFile(reportId, files.value[index].path, (value) =>
+        setOverallProgress(index, value, total),
+      )
+    }
+    if (total > 1) {
+      await completeLabReportUpload(reportId)
+    }
     state.value = 'OCR_PROCESSING'
     uni.showToast({ title: '报告已提交，正在整理', icon: 'success' })
     setTimeout(
       () =>
         uni.navigateTo({
-          url: `/pages-customer/lab-report/detail?id=${result.report.id}&autoReturn=1`,
+          url: `/pages-customer/lab-report/detail?id=${reportId}&autoReturn=1`,
         }),
       500,
     )
@@ -243,6 +293,15 @@ async function submit() {
 }
 
 const editOwner = () => uni.navigateTo({ url: '/pages-customer/profile/edit' })
+
+function removeFile(index: number) {
+  files.value.splice(index, 1)
+  if (!files.value.length) state.value = 'IDLE'
+}
+
+function setOverallProgress(index: number, value: number, total: number) {
+  progress.value = Math.min(100, Math.round(((index + value / 100) / total) * 100))
+}
 
 function changeDate(event: { detail: { value: string } }) {
   reportDate.value = event.detail.value
@@ -445,6 +504,58 @@ function formatSize(size: number) {
   margin-top: 9rpx;
   color: #879690;
   font-size: 27rpx;
+}
+.selected-files {
+  margin-top: 18rpx;
+  padding: 18rpx;
+  border-radius: 20rpx;
+  background: #f2f8f6;
+}
+.selected-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  padding: 14rpx 4rpx;
+  border-bottom: 1rpx solid #dcebe5;
+}
+.selected-file-info {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+.selected-file-name {
+  overflow: hidden;
+  color: #31544a;
+  font-size: 25rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.selected-file-size {
+  margin-top: 4rpx;
+  color: #8a9c95;
+  font-size: 21rpx;
+}
+.remove-file {
+  flex: 0 0 auto;
+  padding: 8rpx 10rpx;
+  color: #c2574d;
+  font-size: 22rpx;
+}
+.add-more-button {
+  height: 68rpx;
+  margin: 16rpx 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 16rpx;
+  background: #dff3ec;
+  color: #0f7a62;
+  font-size: 25rpx;
+  line-height: 68rpx;
+}
+.add-more-button::after {
+  border: 0;
 }
 .file-chip {
   margin-top: 18rpx;

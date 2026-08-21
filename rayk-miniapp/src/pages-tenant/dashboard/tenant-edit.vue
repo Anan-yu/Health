@@ -3,7 +3,7 @@
     <view class="page-heading">
       <view class="eyebrow">HOSPITAL MANAGEMENT</view>
       <view class="title">编辑合作医院</view>
-      <view class="subtitle">平台统一维护医院资料，并预录入医生信息后发放微信绑定码。</view>
+      <view class="subtitle">平台统一维护医院资料，并预录入医生手机号供微信授权登录。</view>
     </view>
     <PageState :loading="loading" :error="error" :empty="!form">
       <view v-if="form" class="card form-card">
@@ -37,7 +37,7 @@
       >
       <view class="card staff-card">
         <view class="staff-tip"
-          >个人主体小程序无法使用手机号快速验证。预录入医生后，请生成一次性微信绑定码交给医生完成首次登录。</view
+          >预录入医生手机号后，医生可直接通过微信授权手机号登录，无需绑定码。</view
         >
         <input
           v-model="doctorForm.displayName"
@@ -65,7 +65,6 @@
         <text class="doctor-tag">已预录入</text>
         <view class="doctor-actions"
           ><text @click="startEditDoctor(doctor)">修改</text
-          ><text @click="createInvite(doctor)">绑定微信</text
           ><text class="delete-action" @click="removeDoctor(doctor)">删除</text></view
         >
         <view v-if="editingDoctorId === doctor.id" class="doctor-edit">
@@ -103,7 +102,6 @@
 import { computed, reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import {
-  createDoctorWeChatInvite,
   createPlatformDoctor,
   deletePlatformDoctor,
   getPlatformDoctors,
@@ -124,7 +122,6 @@ const form = ref<UpdatePlatformTenantPayload>()
 const doctors = ref<TenantStaff[]>([])
 const doctorForm = reactive({ displayName: '', phone: '' })
 const editingDoctorId = ref('')
-const inviteCreatingId = ref('')
 const editDoctorForm = reactive({ displayName: '', phone: '' })
 const statusOptions = [
   { label: '正常服务', value: 'ACTIVE' as const },
@@ -231,44 +228,6 @@ async function updateDoctor(doctorId: string) {
     })
   } finally {
     doctorSaving.value = false
-  }
-}
-async function createInvite(doctor: TenantStaff) {
-  if (inviteCreatingId.value) return
-  inviteCreatingId.value = doctor.id
-  try {
-    const invite = await createDoctorWeChatInvite(tenantId.value, doctor.id)
-    await new Promise<void>((resolve) =>
-      uni.showModal({
-        title: '医生微信绑定码',
-        content: invite.code + '\n有效期 ' + Math.floor(invite.expiresIn / 60) + ' 分钟，仅可使用一次。',
-        showCancel: true,
-        cancelText: '关闭',
-        confirmText: '复制绑定码',
-        success: (result) => {
-          if (!result.confirm) {
-            resolve()
-            return
-          }
-          uni.setClipboardData({
-            data: invite.code,
-            success: () => {
-              uni.showToast({ title: '绑定码已复制', icon: 'success' })
-              resolve()
-            },
-            fail: () => {
-              uni.showToast({ title: '复制失败，请手动记录绑定码', icon: 'none' })
-              resolve()
-            },
-          })
-        },
-        fail: () => resolve(),
-      }),
-    )
-  } catch (cause) {
-    uni.showToast({ title: cause instanceof Error ? cause.message : '绑定码生成失败', icon: 'none' })
-  } finally {
-    inviteCreatingId.value = ''
   }
 }
 async function removeDoctor(doctor: TenantStaff) {

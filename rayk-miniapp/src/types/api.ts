@@ -175,15 +175,42 @@ export interface OcrFinding {
   result: string
 }
 
+export interface ImageAnalysisFinding {
+  category: string
+  item: string
+  result: string
+  unit?: string
+  referenceRange?: string
+  abnormalFlag?: string
+  conclusion?: string
+  note?: string
+}
+
+export interface ImageAnalysisPage {
+  page: number
+  pageSummary?: string
+  findings: ImageAnalysisFinding[]
+  uncertainties?: string[]
+}
+
+export interface ImageAnalysis {
+  pages: ImageAnalysisPage[]
+}
+
 export interface LabReport {
   id: string
   patientId: string
   reportName: string
   reportDate: string
   status: string
+  processingProgress?: number
+  processingMessage?: string
+  failureReason?: string
   sourceType: string
   indicators: Indicator[]
   findings?: OcrFinding[]
+  hasImageFiles?: boolean
+  imageAnalysis?: ImageAnalysis
   createdAt: string
 }
 
@@ -423,11 +450,28 @@ export interface PlatformOverview {
   activeTenantCount: number
   userCount: number
   patientCount: number
+  phoneCustomerCount: number
   pendingReviewCount: number
   pendingFollowupCount: number
   todayFollowupCount: number
   tenants: TenantSummary[]
   followups: PlatformFollowup[]
+}
+
+export interface AiModelRuntimeConfig {
+  id: string
+  modelCode: string
+  modelName: string
+  provider: string
+  modelVersion: string
+  baseUrl: string
+  contextLengthTokens: number
+  maxOutputTokens: number
+  thinkingSupported: boolean
+  thinkingEnabled: boolean
+  selected: boolean
+  status: string
+  updatedAt: string
 }
 
 export interface PlatformFollowup {

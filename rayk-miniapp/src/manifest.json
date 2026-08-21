@@ -1,14 +1,20 @@
 {
-  "name": "智能三羊",
+  "name": "三羊健康",
   "appid": "__UNI__RAYKA1",
   "description": "B端与C端共用的健康管理小程序",
   "versionName": "0.1.0",
   "versionCode": "100",
   "transformPx": false,
-  "h5": { "router": { "mode": "hash" }, "title": "智能三羊" },
+  "h5": { "router": { "mode": "hash" }, "title": "三羊健康" },
   "mp-weixin": {
-    "appid": "wx47c756d2ffebe0e9",
-    "setting": { "urlCheck": false, "es6": true, "minified": true },
+    "appid": "wxf6f4549c8c962948",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "minified": true,
+      "minifyWXML": true,
+      "minifyWXSS": true
+    },
     "plugins": {
       "vitals-plugin": {
         "version": "latest",

@@ -29,7 +29,22 @@ public class WeChatCode2SessionClient {
     }
 
     public WeChatSessionIdentity exchange(String code) {
-        if (properties.mockEnabled()) {
+        return exchange(code, false);
+    }
+
+    /**
+     * Exchanges a login code with WeChat.  Development Compose keeps the
+     * mock identity available for the H5/debug login, but a mini-program
+     * request that also carries a getPhoneNumber credential must never use
+     * that shared mock OpenID.  Otherwise an OpenID previously bound to a
+     * customer would hide the verified staff phone identity.
+     */
+    public WeChatSessionIdentity exchangeReal(String code) {
+        return exchange(code, true);
+    }
+
+    private WeChatSessionIdentity exchange(String code, boolean forceReal) {
+        if (properties.mockEnabled() && !forceReal) {
             String openid =
                     StringUtils.hasText(properties.mockOpenid())
                             ? properties.mockOpenid()
@@ -38,7 +53,7 @@ public class WeChatCode2SessionClient {
                     StringUtils.hasText(properties.appId())
                             ? properties.appId()
                             : "rayk-development-appid";
-            return new WeChatSessionIdentity(appId, openid, null);
+            return new WeChatSessionIdentity(appId, openid, null, null);
         }
         if (!StringUtils.hasText(properties.appId())
                 || !StringUtils.hasText(properties.secret())
@@ -80,7 +95,8 @@ public class WeChatCode2SessionClient {
                         response != null && StringUtils.hasText(response.openid()));
                 throw new BusinessException(ErrorCode.WECHAT_LOGIN_FAILED);
             }
-            return new WeChatSessionIdentity(properties.appId(), response.openid(), response.unionid());
+            return new WeChatSessionIdentity(
+                    properties.appId(), response.openid(), response.unionid(), response.sessionKey());
         } catch (BusinessException exception) {
             throw exception;
         } catch (JsonProcessingException exception) {

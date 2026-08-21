@@ -62,6 +62,31 @@ public interface SysUserMapper extends BaseMapper<SysUserEntity> {
     @Update(
             """
             UPDATE sys_user
+            SET phone_masked = #{user.phoneMasked}, phone_hash = #{user.phoneHash},
+                updated_by = #{user.updatedBy}, updated_at = #{user.updatedAt}
+            WHERE id = #{user.id} AND deleted = 0
+            """)
+    int updatePlatformAdminPhoneIgnoringTenant(@Param("user") SysUserEntity user);
+
+    @InterceptorIgnore(tenantLine = "true")
+    @Update(
+            """
+            UPDATE sys_user
+            SET phone_masked = #{phoneMasked}, phone_hash = #{phoneHash},
+                updated_by = #{updatedBy}, updated_at = #{updatedAt}
+            WHERE id = #{userId} AND deleted = 0
+            """)
+    int updatePhoneIdentityIgnoringTenant(
+            @Param("userId") long userId,
+            @Param("phoneMasked") String phoneMasked,
+            @Param("phoneHash") String phoneHash,
+            @Param("updatedBy") long updatedBy,
+            @Param("updatedAt") java.time.LocalDateTime updatedAt);
+
+    @InterceptorIgnore(tenantLine = "true")
+    @Update(
+            """
+            UPDATE sys_user
             SET deleted = 1, updated_by = #{operatorId}, updated_at = #{updatedAt}
             WHERE id = #{doctorId} AND tenant_id = #{tenantId} AND deleted = 0
             """)

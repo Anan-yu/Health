@@ -12,6 +12,7 @@ import com.rayk.health.security.service.UserAccount;
 import com.rayk.health.security.service.UserCatalog;
 import com.rayk.health.security.wechat.entity.WeChatUserBindingEntity;
 import com.rayk.health.security.wechat.mapper.WeChatUserBindingMapper;
+import com.rayk.health.system.mapper.SysUserMapper;
 import java.time.LocalDateTime;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -26,8 +27,10 @@ public class WeChatAuthService {
     private final WeChatStaffInviteService staffInviteService;
     private final WeChatProperties properties;
     private final WeChatUserBindingMapper bindingMapper;
+    private final WeChatSessionKeyStore sessionKeyStore;
     private final UserCatalog catalog;
     private final AuthService authService;
+    private final SysUserMapper userMapper;
 
     public WeChatAuthService(
             WeChatCode2SessionClient code2SessionClient,
@@ -36,38 +39,98 @@ public class WeChatAuthService {
             WeChatStaffInviteService staffInviteService,
             WeChatProperties properties,
             WeChatUserBindingMapper bindingMapper,
+            WeChatSessionKeyStore sessionKeyStore,
             UserCatalog catalog,
-            AuthService authService) {
+            AuthService authService,
+            SysUserMapper userMapper) {
         this.code2SessionClient = code2SessionClient;
         this.phoneNumberClient = phoneNumberClient;
         this.customerProvisioningService = customerProvisioningService;
         this.staffInviteService = staffInviteService;
         this.properties = properties;
         this.bindingMapper = bindingMapper;
+        this.sessionKeyStore = sessionKeyStore;
         this.catalog = catalog;
         this.authService = authService;
+        this.userMapper = userMapper;
     }
 
     @Transactional
     public AuthData login(String code, String phoneCode) {
-        WeChatSessionIdentity identity = code2SessionClient.exchange(code);
+        boolean hasPhoneCode = StringUtils.hasText(phoneCode);
+        if (properties.phoneLoginRequired() && !hasPhoneCode) {
+            throw new BusinessException(ErrorCode.WECHAT_PHONE_AUTH_FAILED);
+        }
+        // A real getPhoneNumber credential is authoritative, even when the
+        // local development profile keeps mock login enabled for H5/debug
+        // accounts.  Using the shared mock OpenID here would reuse whichever
+        // role logged in first and could incorrectly turn a pre-registered
+        // platform administrator into a CUSTOMER.
+        boolean verifiedPhoneLogin = hasPhoneCode;
+        WeChatSessionIdentity identity = verifiedPhoneLogin
+                ? code2SessionClient.exchangeReal(code)
+                : code2SessionClient.exchange(code);
+        String verifiedPhone = null;
+        UserAccount phoneAccount = null;
+        if (hasPhoneCode || properties.mockEnabled()) {
+            verifiedPhone = verifiedPhoneLogin
+                    ? phoneNumberClient.resolveReal(phoneCode)
+                    : phoneNumberClient.resolve(phoneCode);
+            phoneAccount = catalog.findByPhoneHash(PhoneIdentity.hash(verifiedPhone));
+            if (phoneAccount == null && matchesPlatformAdminBootstrap(verifiedPhone)) {
+                UserAccount configuredAdmin = catalog.findByUsername(properties.platformAdminUsername().trim());
+                if (configuredAdmin != null && configuredAdmin.roles().contains("PLATFORM_ADMIN")) {
+                    phoneAccount = configuredAdmin;
+                    userMapper.updatePhoneIdentityIgnoringTenant(
+                            configuredAdmin.userId(),
+                            PhoneIdentity.mask(verifiedPhone),
+                            PhoneIdentity.hash(verifiedPhone),
+                            configuredAdmin.userId(),
+                            LocalDateTime.now());
+                }
+            }
+        }
         WeChatUserBindingEntity binding = findByIdentity(identity);
+        if (binding != null && verifiedPhoneLogin && phoneAccount == null) {
+            // A verified phone is authoritative.  If it is not a pre-registered
+            // doctor/admin phone, provision a CUSTOMER and migrate any stale
+            // OpenID binding instead of returning the old role or requiring a
+            // manual bind.  This also makes a retired doctor phone become a new
+            // ordinary customer identity on the next login.
+            phoneAccount = customerProvisioningService.provision(verifiedPhone);
+        }
+        if (binding != null && phoneAccount != null && binding.getUserId() != phoneAccount.userId()) {
+            // A verified phone is the authoritative identity for enterprise login. A
+            // previous customer login may have left this OpenID bound to CUSTOMER;
+            // migrate that stale binding to the verified staff account instead of
+            // silently returning the old role. Never replace an existing binding of
+            // the staff account to a different OpenID.
+            WeChatUserBindingEntity staffBinding = findByUser(identity.appId(), phoneAccount.userId());
+            if (staffBinding != null && !identity.openid().equals(staffBinding.getOpenid())) {
+                throw new BusinessException(ErrorCode.WECHAT_ALREADY_BOUND);
+            }
+            LocalDateTime now = LocalDateTime.now();
+            binding.setTenantId(phoneAccount.tenantId());
+            binding.setUserId(phoneAccount.userId());
+            binding.setStatus("ACTIVE");
+            binding.setUpdatedBy(phoneAccount.userId());
+            binding.setUpdatedAt(now);
+            bindingMapper.updateById(binding);
+        }
         if (binding == null) {
             UserAccount account = null;
             if (properties.mockEnabled() && StringUtils.hasText(properties.autoBindUsername())) {
                 account = catalog.findByUsername(properties.autoBindUsername());
             }
             if (account == null) {
-                // Personal-subject mini programs may not expose the phone fast-verification
-                // component. Keep the verified-phone path for eligible apps, but let an
-                // unbound user enter as a least-privileged customer identified by OpenID.
-                if (StringUtils.hasText(phoneCode) || properties.mockEnabled()) {
-                    String phone = phoneNumberClient.resolve(phoneCode);
-                    account = catalog.findByPhoneHash(PhoneIdentity.hash(phone));
+                if (verifiedPhone != null) {
+                    account = phoneAccount;
                     if (account == null) {
-                        account = customerProvisioningService.provision(phone);
+                        account = customerProvisioningService.provision(verifiedPhone);
                     }
-                } else {
+                } else if (!properties.phoneLoginRequired()) {
+                    // Compatibility path for personal-subject development apps that do not
+                    // expose the phone fast-verification component.
                     account = customerProvisioningService.provision(identity);
                 }
             }
@@ -80,6 +143,7 @@ public class WeChatAuthService {
         if (account == null || !account.isActive()) {
             throw new BusinessException(ErrorCode.WECHAT_ACCOUNT_NOT_BOUND);
         }
+        sessionKeyStore.save(identity, account.userId());
         LocalDateTime now = LocalDateTime.now();
         binding.setLastLoginAt(now);
         binding.setUpdatedAt(now);
@@ -90,6 +154,9 @@ public class WeChatAuthService {
 
     @Transactional
     public AuthData loginWithStaffInvite(String code, String inviteCode) {
+        if (properties.phoneLoginRequired()) {
+            throw new BusinessException(ErrorCode.WECHAT_PHONE_AUTH_FAILED);
+        }
         WeChatSessionIdentity identity = code2SessionClient.exchange(code);
         WeChatUserBindingEntity existingBinding = findByIdentity(identity);
         if (existingBinding != null) {
@@ -101,6 +168,7 @@ public class WeChatAuthService {
                     || (!bound.roles().contains("DOCTOR") && !bound.roles().contains("PLATFORM_ADMIN"))) {
                 throw new BusinessException(ErrorCode.WECHAT_ALREADY_BOUND);
             }
+            sessionKeyStore.save(identity, bound.userId());
             return authService.issue(bound);
         }
 
@@ -116,12 +184,16 @@ public class WeChatAuthService {
         if (existingUserBinding == null) {
             createBinding(identity, account);
         }
+        sessionKeyStore.save(identity, account.userId());
         return authService.issue(account);
     }
 
     @Transactional
     public AuthData loginWithPlatformAdminPassword(
             String code, String username, String password) {
+        if (properties.phoneLoginRequired()) {
+            throw new BusinessException(ErrorCode.WECHAT_PHONE_AUTH_FAILED);
+        }
         WeChatSessionIdentity identity = code2SessionClient.exchange(code);
         UserAccount account = authService.authenticate(username.trim(), password);
         if (!account.roles().contains("PLATFORM_ADMIN")) {
@@ -144,6 +216,7 @@ public class WeChatAuthService {
             existing.setUpdatedAt(LocalDateTime.now());
             bindingMapper.updateById(existing);
         }
+        sessionKeyStore.save(identity, account.userId());
         return authService.issue(account);
     }
 
@@ -170,6 +243,7 @@ public class WeChatAuthService {
             existing.setUpdatedAt(LocalDateTime.now());
             bindingMapper.updateById(existing);
         }
+        sessionKeyStore.save(identity, current.userId());
         return toData(existing);
     }
 
@@ -216,6 +290,20 @@ public class WeChatAuthService {
                         .eq(WeChatUserBindingEntity::getAppId, appId)
                         .eq(WeChatUserBindingEntity::getUserId, userId)
                         .eq(WeChatUserBindingEntity::getDeleted, 0));
+    }
+
+    private boolean matchesPlatformAdminBootstrap(String verifiedPhone) {
+        if (!StringUtils.hasText(properties.platformAdminPhone())
+                || !StringUtils.hasText(properties.platformAdminUsername())) {
+            return false;
+        }
+        try {
+            return PhoneIdentity.normalize(verifiedPhone)
+                    .equals(PhoneIdentity.normalize(properties.platformAdminPhone()));
+        } catch (IllegalArgumentException exception) {
+            // A malformed deployment secret must not make all WeChat logins fail.
+            return false;
+        }
     }
 
     private WeChatBindingData toData(WeChatUserBindingEntity binding) {

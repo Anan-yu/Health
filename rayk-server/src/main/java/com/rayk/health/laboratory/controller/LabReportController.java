@@ -61,8 +61,21 @@ public class LabReportController {
             @RequestParam(required = false)
                     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                     LocalDate reportDate,
+            @RequestParam(defaultValue = "true") boolean startOcr,
             @RequestPart MultipartFile file) {
-        return ApiResponse.success(fileService.upload(patientId, reportName, reportDate, file));
+        return ApiResponse.success(
+                fileService.upload(patientId, reportName, reportDate, file, startOcr));
+    }
+
+    @PostMapping(value = "/{id}/files", consumes = "multipart/form-data")
+    public ApiResponse<LabReportFileVo> appendFile(
+            @PathVariable long id, @RequestPart MultipartFile file) {
+        return ApiResponse.success(fileService.append(id, file));
+    }
+
+    @PostMapping("/{id}/files/complete")
+    public ApiResponse<OcrTaskVo> completeUpload(@PathVariable long id) {
+        return ApiResponse.success(fileService.completeUpload(id));
     }
 
     @GetMapping

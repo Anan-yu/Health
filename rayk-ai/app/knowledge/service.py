@@ -7,7 +7,7 @@ from typing import Any
 from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore[import-untyped]
 from sklearn.metrics.pairwise import linear_kernel  # type: ignore[import-untyped]
 
-from app.schemas.assessment import AssessmentRequest, ModelResult
+from app.schemas.assessment import AssessmentRequest, ModelResult, VisionImageAnalysis
 from app.schemas.followup import FollowupAdjustmentRequest
 
 KNOWLEDGE_BASE_VERSION = "ZHIYU_MEDICAL_KB_2.2.0"
@@ -148,9 +148,13 @@ class MedicalKnowledgeRetriever:
         self,
         request: AssessmentRequest,
         results: list[ModelResult],
+        image_analysis: VisionImageAnalysis | None = None,
         limit: int = 6,
     ) -> list[MedicalKnowledgeReference]:
-        return self._retrieve(self._plan_assessment_query(request, results), limit=limit)
+        return self._retrieve(
+            self._plan_assessment_query(request, results, image_analysis=image_analysis),
+            limit=limit,
+        )
 
     def retrieve_for_followup(
         self,
@@ -237,6 +241,7 @@ class MedicalKnowledgeRetriever:
     def _plan_assessment_query(
         request: AssessmentRequest,
         results: list[ModelResult],
+        image_analysis: VisionImageAnalysis | None = None,
     ) -> KnowledgeQueryPlan:
         abnormal_codes = frozenset(
             item.code
@@ -310,6 +315,30 @@ class MedicalKnowledgeRetriever:
             if "".join(item.item.strip().rstrip("：:").split()) in summary_labels
         ]
         abnormal_indicators = [item for item in request.indicators if item.code in abnormal_codes]
+        # Image-only reports skip OCR, so the RAG query must also be grounded in the page-scoped
+        # facts read directly by qwen3.7-flash-2026-07-15. Abnormal findings and page conclusions carry the
+        # strongest retrieval signal and are appended explicitly to favor their keyword matches.
+        image_fact_parts: list[str] = []
+        if image_analysis is not None:
+            for page in image_analysis.pages:
+                for finding in page.findings:
+                    item = (finding.item or "").strip()
+                    result = (finding.result or "").strip()
+                    if item or result:
+                        image_fact_parts.append(
+                            f"{finding.category or ''} {item} {result} {finding.unit or ''}".strip()
+                        )
+                    abnormal_flag = (finding.abnormal_flag or "").strip()
+                    conclusion = (finding.conclusion or "").strip()
+                    if item and (abnormal_flag or conclusion):
+                        image_fact_parts.append(
+                            f"异常 {item} {abnormal_flag} {conclusion}".strip()
+                        )
+                image_fact_parts.extend(
+                    uncertainty.strip()
+                    for uncertainty in page.uncertainties
+                    if uncertainty.strip()
+                )
         query_parts = [
             "医学健康评估",
             *sorted(topics),
@@ -325,6 +354,7 @@ class MedicalKnowledgeRetriever:
                 if item.model_code in focus_models
             ],
             _text({key: context_payload[key] for key in context_fields}),
+            *image_fact_parts,
         ]
         query_text = " ".join(part for part in query_parts if part)
         return KnowledgeQueryPlan(

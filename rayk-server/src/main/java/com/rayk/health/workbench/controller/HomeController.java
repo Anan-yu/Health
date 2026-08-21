@@ -41,14 +41,15 @@ public class HomeController {
             case "PLATFORM_ADMIN" -> platformMetrics();
             default -> doctorMetrics();
         };
-        return ApiResponse.success(new HomeSummaryData(current.workbench(), "欢迎使用智能三羊", metrics, null));
+        return ApiResponse.success(new HomeSummaryData(current.workbench(), "欢迎使用三羊健康", metrics, null));
     }
 
     private List<HomeMetric> platformMetrics() {
         PlatformOverviewVo overview = platformOverviewService.overview();
         return List.of(
                 new HomeMetric("TENANT", "合作医院", overview.tenantCount(), "/pages-tenant/dashboard/index"),
-                new HomeMetric("USER", "预录入医生", overview.userCount(), "/pages-tenant/dashboard/index"),
+                new HomeMetric("USER", "预录入医生", overview.userCount(), "/pages-tenant/dashboard/doctors"),
+                new HomeMetric("CUSTOMER", "手机号用户", overview.phoneCustomerCount(), "/pages-tenant/dashboard/index"),
                 new HomeMetric("FOLLOWUP", "当日随访", overview.todayFollowupCount(), "/pages-tenant/dashboard/followup"));
     }
 

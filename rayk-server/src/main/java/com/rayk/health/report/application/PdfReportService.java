@@ -316,7 +316,7 @@ public class PdfReportService {
         if (report == null || !"PUBLISHED".equals(report.getStatus())) {
             throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
         }
-        dataScopeService.requirePatient(report.getPatientId());
+        PatientEntity patient = dataScopeService.requirePatient(report.getPatientId());
         HealthReportVersionEntity versionEntity =
                 dataScopeService.readScoped(
                         () ->
@@ -339,13 +339,20 @@ public class PdfReportService {
                                     .bucket(minioProperties.bucketReports())
                                     .object(versionEntity.getObjectPath())
                                     .build()),
-                    report.getTitle() + ".pdf");
+                    downloadFilename(patient));
         } catch (Exception exception) {
             throw new BusinessException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
         }
     }
 
     public record DownloadedPdf(InputStream inputStream, String filename) {}
+
+    private String downloadFilename(PatientEntity patient) {
+        String patientName = patient == null || patient.getName() == null
+                ? ""
+                : patient.getName().trim().replaceAll("[\\\\/:*?\"<>|]", "_");
+        return (patientName.isBlank() ? "健康报告" : patientName + "健康报告") + ".pdf";
+    }
 
     private String buildRecoveryObjectPath(
             long tenantId, long patientId, long reportId, int versionNo) {
@@ -386,9 +393,10 @@ public class PdfReportService {
                                                                 item.getReferenceLow(),
                                                                 item.getReferenceHigh()))
                                         .toList(),
-                                modelResults,
-                                interpretation,
-                                extractPatientContext(assessment.getResultSnapshot())));
+                                 modelResults,
+                                 interpretation,
+                                 extractPatientContext(assessment.getResultSnapshot()),
+                                 extractImageAnalysis(assessment.getResultSnapshot())));
         return new GeneratedPdf(generated.title(), decodePdf(generated.pdfBase64()));
     }
 
@@ -438,6 +446,17 @@ public class PdfReportService {
                     : objectMapper.convertValue(node, AiDtos.PatientContext.class);
         } catch (Exception exception) {
             return new AiDtos.PatientContext("UNKNOWN", null);
+        }
+    }
+
+    private AiDtos.ImageAnalysis extractImageAnalysis(String resultSnapshot) {
+        try {
+            JsonNode node = objectMapper.readTree(resultSnapshot).path("imageAnalysis");
+            return node.isMissingNode() || node.isNull()
+                    ? null
+                    : objectMapper.convertValue(node, AiDtos.ImageAnalysis.class);
+        } catch (Exception exception) {
+            return null;
         }
     }
 

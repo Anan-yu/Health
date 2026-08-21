@@ -26,7 +26,8 @@ public class JwtService {
             long userId,
             long tenantId,
             List<String> roles,
-            List<String> permissions) {
+            List<String> permissions,
+            long sessionVersion) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(properties.expireSeconds());
         String jti = UUID.randomUUID().toString();
@@ -38,6 +39,7 @@ public class JwtService {
                         .claim("tenantId", tenantId)
                         .claim("roles", roles)
                         .claim("permissions", permissions)
+                        .claim("sessionVersion", sessionVersion)
                         .issuedAt(Date.from(now))
                         .expiration(Date.from(expiresAt))
                         .signWith(key)
@@ -47,6 +49,10 @@ public class JwtService {
 
     public Claims parse(String token) {
         return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+    }
+
+    public long expireSeconds() {
+        return properties.expireSeconds();
     }
 
     public record IssuedToken(String token, String jti, long expiresIn) {}

@@ -11,9 +11,10 @@ from reportlab.lib.units import mm  # type: ignore[import-untyped]
 from reportlab.pdfbase import pdfmetrics  # type: ignore[import-untyped]
 from reportlab.pdfbase.ttfonts import TTFont  # type: ignore[import-untyped]
 from reportlab.pdfgen.canvas import Canvas  # type: ignore[import-untyped]
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer  # type: ignore[import-untyped]
+from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer  # type: ignore[import-untyped]
 
 from app.core.constants import DISCLAIMER
+from app.schemas.assessment import VisionImageAnalysis
 from app.schemas.report import ReportGenerateData, ReportGenerateRequest
 
 _REPORT_FONT = "WQYMicroHei"
@@ -30,7 +31,7 @@ class DemoReportService:
             result.status == "EVALUATED" and result.risk_level in {"ATTENTION", "HIGH"}
             for result in request.results
         )
-        has_effective_data = bool(request.indicators) or any(
+        has_effective_data = bool(request.indicators) or bool(request.image_analysis) or any(
             result.status == "EVALUATED" for result in request.results
         )
         rule_summary = (
@@ -72,72 +73,124 @@ class DemoReportService:
             "RaykNormal",
             parent=styles["BodyText"],
             fontName=_REPORT_FONT,
-            fontSize=9,
-            leading=15,
+            fontSize=12,
+            leading=19.5,
             textColor=colors.HexColor("#1F2937"),
+            spaceAfter=6,
+        )
+        data = ParagraphStyle(
+            "RaykData",
+            parent=normal,
+            fontSize=11.5,
+            leading=17.25,
+            textColor=colors.HexColor("#344054"),
+            spaceAfter=4,
+        )
+        list_style = ParagraphStyle(
+            "RaykList",
+            parent=normal,
+            fontSize=11.5,
+            leading=17.825,
+            spaceAfter=4,
         )
         heading = ParagraphStyle(
             "RaykHeading",
             parent=normal,
-            fontSize=13,
-            leading=20,
+            fontName=_REPORT_BOLD_FONT,
+            fontSize=15,
+            leading=19.5,
             textColor=colors.HexColor("#0F766E"),
-            spaceBefore=8,
-            spaceAfter=5,
+            spaceBefore=14,
+            spaceAfter=8,
         )
         subheading = ParagraphStyle(
             "RaykSubheading",
             parent=normal,
-            fontSize=10,
-            leading=16,
+            fontName=_REPORT_BOLD_FONT,
+            fontSize=13,
+            leading=17.55,
             textColor=colors.HexColor("#0F766E"),
-            spaceBefore=4,
-            spaceAfter=3,
-        )
-        title_style = ParagraphStyle(
-            "RaykTitle",
-            parent=normal,
-            alignment=TA_CENTER,
-            fontSize=19,
-            leading=28,
-            textColor=colors.HexColor("#0F4C45"),
+            spaceBefore=10,
             spaceAfter=6,
         )
-        small = ParagraphStyle("RaykSmall", parent=normal, fontSize=8, leading=12)
+        minor_heading = ParagraphStyle(
+            "RaykMinorHeading",
+            parent=normal,
+            fontName=_REPORT_BOLD_FONT,
+            fontSize=12,
+            leading=17.4,
+            textColor=colors.HexColor("#1F4D43"),
+            spaceBefore=8,
+            spaceAfter=4,
+        )
+        metadata = ParagraphStyle(
+            "RaykMetadata",
+            parent=normal,
+            fontSize=11,
+            leading=15.4,
+            textColor=colors.HexColor("#475467"),
+            spaceAfter=8,
+        )
+        conclusion = ParagraphStyle(
+            "RaykConclusion",
+            parent=normal,
+            fontSize=12.5,
+            leading=20,
+            textColor=colors.HexColor("#1F2937"),
+            spaceAfter=6,
+        )
+        user_title = ParagraphStyle(
+            "RaykUserTitle",
+            parent=normal,
+            fontName=_REPORT_BOLD_FONT,
+            alignment=TA_CENTER,
+            fontSize=20,
+            leading=24,
+            textColor=colors.HexColor("#0F4C45"),
+            spaceAfter=10,
+        )
+        disclaimer = ParagraphStyle(
+            "RaykDisclaimer",
+            parent=normal,
+            fontSize=10,
+            leading=15,
+            textColor=colors.HexColor("#667085"),
+            spaceAfter=4,
+        )
         stream = BytesIO()
         document = SimpleDocTemplate(
             stream,
             pagesize=A4,
-            rightMargin=16 * mm,
-            leftMargin=16 * mm,
-            topMargin=14 * mm,
-            bottomMargin=16 * mm,
+            rightMargin=18 * mm,
+            leftMargin=18 * mm,
+            topMargin=16 * mm,
+            bottomMargin=18 * mm,
             title=title,
-            author="智能三羊",
+            author="三羊健康",
         )
         story = [
-            Paragraph(self._safe(title), title_style),
-            Paragraph(f"报告日期：{self._safe(request.published_at or '-')}", small),
-            Spacer(1, 5 * mm),
+            Paragraph(self._safe(title), user_title),
+            Paragraph(f"报告日期：{self._safe(request.published_at or '-')}", metadata),
+            Spacer(1, 4 * mm),
             Paragraph("一、整体健康状态", heading),
         ]
         profile_summary = self._profile_summary(request)
         if profile_summary:
-            story.extend([Paragraph(profile_summary, small), Spacer(1, 2 * mm)])
+            story.extend([Paragraph(profile_summary, metadata), Spacer(1, 2 * mm)])
         story.extend(
             [
                 Paragraph(
                     "<b>综合结论：</b>" + self._safe(self._display_text(summary)),
-                    normal,
+                    conclusion,
                 ),
                 Spacer(1, 1.5 * mm),
                 Paragraph(
                     "<b>本次资料覆盖：</b>" + self._safe(self._coverage_summary(request)),
-                    small,
+                    data,
                 ),
                 Paragraph(
                     "<b>检验概况：</b>" + self._safe(self._indicator_summary(request)),
-                    small,
+                    data,
                 ),
             ]
         )
@@ -146,7 +199,7 @@ class DemoReportService:
             story.append(
                 Paragraph(
                     "<b>健康背景：</b>" + self._safe(health_background),
-                    small,
+                    data,
                 )
             )
         interpretation = request.interpretation
@@ -161,61 +214,61 @@ class DemoReportService:
                 if result.status == "EVALUATED" and result.risk_level in {"ATTENTION", "HIGH"}
                 for evidence in result.evidence[:1]
             ]
-        story.extend([Spacer(1, 3 * mm), Paragraph("二、本次重点发现", heading)])
+        story.append(Paragraph("二、本次重点发现", heading))
         if priority_concerns:
             for concern in priority_concerns[:8]:
-                story.append(Paragraph("• " + self._safe(self._display_text(concern)), normal))
-        elif request.indicators:
-            story.append(Paragraph("当前已确认的数据未触发重点关注规则。", normal))
+                story.append(Paragraph("• " + self._safe(self._display_text(concern)), list_style))
+        elif request.indicators or request.image_analysis:
+            story.append(Paragraph("当前已确认的数据未触发重点关注规则。", conclusion))
         else:
-            story.append(Paragraph("当前数据不足，尚不能形成有效的重点发现。", normal))
+            story.append(Paragraph("当前数据不足，尚不能形成有效的重点发现。", conclusion))
 
         if abnormal_explanations:
-            story.extend(
-                [
-                    Spacer(1, 2 * mm),
-                    Paragraph("异常结果解释", subheading),
+            explanation_header = [
+                Paragraph("异常结果解释", subheading),
+                Paragraph(
+                    "以下说明对应原报告中已核对的异常结果；“可能影响”表示风险方向，不代表已经造成器官损害。",
+                    data,
+                ),
+            ]
+            for index, explanation in enumerate(abnormal_explanations[:10]):
+                explanation_block = [
                     Paragraph(
-                        "以下说明对应原报告中已核对的异常结果；“可能影响”表示风险方向，不代表已经造成器官损害。",
-                        small,
+                        "<b>异常项目：</b>" + self._safe(self._display_text(explanation.title)),
+                        minor_heading,
                     ),
+                    *(
+                        [
+                            Paragraph(
+                                "<b>本次结果：</b>"
+                                + self._safe(self._display_text(explanation.finding)),
+                                data,
+                            )
+                        ]
+                        if explanation.finding.strip()
+                        else []
+                    ),
+                    Paragraph(
+                        "<b>这说明什么：</b>"
+                        + self._safe(self._display_text(explanation.explanation)),
+                        data,
+                    ),
+                    Paragraph(
+                        "<b>可能影响的器官或系统：</b>"
+                        + self._safe(self._display_text(explanation.possible_impacts)),
+                        data,
+                    ),
+                    Paragraph(
+                        "<b>下一步建议：</b>"
+                        + self._safe(self._display_text(explanation.next_step)),
+                        data,
+                    ),
+                    Spacer(1, 2 * mm),
                 ]
-            )
-            for explanation in abnormal_explanations[:10]:
-                story.extend(
-                    [
-                        Paragraph(
-                            "<b>异常项目：</b>" + self._safe(self._display_text(explanation.title)),
-                            normal,
-                        ),
-                        *(
-                            [
-                                Paragraph(
-                                    "<b>本次结果：</b>"
-                                    + self._safe(self._display_text(explanation.finding)),
-                                    small,
-                                )
-                            ]
-                            if explanation.finding.strip()
-                            else []
-                        ),
-                        Paragraph(
-                            "<b>这说明什么：</b>"
-                            + self._safe(self._display_text(explanation.explanation)),
-                            small,
-                        ),
-                        Paragraph(
-                            "<b>可能影响的器官或系统：</b>"
-                            + self._safe(self._display_text(explanation.possible_impacts)),
-                            small,
-                        ),
-                        Paragraph(
-                            "<b>下一步建议：</b>"
-                            + self._safe(self._display_text(explanation.next_step)),
-                            small,
-                        ),
-                        Spacer(1, 1.5 * mm),
-                    ]
+                story.append(
+                    KeepTogether(explanation_header + explanation_block)
+                    if index == 0
+                    else KeepTogether(explanation_block)
                 )
 
         diagnostic_references = (
@@ -225,11 +278,10 @@ class DemoReportService:
         if diagnostic_references:
             story.extend(
                 [
-                    Spacer(1, 3 * mm),
                     Paragraph("三、疾病推断参考", heading),
                     Paragraph(
                         "以下内容用于帮助医生确定进一步问诊、检查和健康管理重点，不代表疾病诊断或治疗处方。",
-                        small,
+                        data,
                     ),
                 ]
             )
@@ -244,7 +296,7 @@ class DemoReportService:
                         Paragraph(
                             f"<b>综合判断：</b>"
                             f"{self._safe(self._display_text(reference.rationale))}",
-                            small,
+                            data,
                         ),
                         Paragraph(
                             "<b>主要线索：</b>"
@@ -254,7 +306,7 @@ class DemoReportService:
                                     or "当前仅有有限的相关风险信号"
                                 )
                             ),
-                            small,
+                            data,
                         ),
                     ]
                 )
@@ -263,26 +315,31 @@ class DemoReportService:
                         Paragraph(
                             "建议咨询科室："
                             f"<b>{self._safe(reference.recommended_department)}</b>",
-                            small,
+                            data,
                         )
                     )
                 story.extend(
                     [
                         Paragraph(
                             "<b>疾病治疗方案：</b>" + self._safe(self._treatment_plan(reference)),
-                            small,
-                        ),
-                        Paragraph(
-                            "<b>中西医结合治疗建议：</b>"
-                            + self._safe(self._integrated_treatment_plan(reference)),
-                            small,
-                        ),
-                        Paragraph(
-                            "<b>营养干预修复方案：</b>"
-                            + self._safe(self._nutrition_intervention_plan(reference)),
-                            small,
+                            data,
                         ),
                     ]
+                )
+                story.append(Paragraph("<b>中西医结合治疗建议：</b>", data))
+                for label, content in self._integrated_treatment_sections(reference):
+                    story.append(
+                        Paragraph(
+                            f"<b>{label}：</b>{self._safe(content)}",
+                            data,
+                        )
+                    )
+                story.append(
+                    Paragraph(
+                        "<b>营养干预修复方案：</b>"
+                        + self._safe(self._nutrition_intervention_plan(reference)),
+                        data,
+                    )
                 )
                 story.append(Spacer(1, 3 * mm))
             section_number = 4
@@ -291,15 +348,14 @@ class DemoReportService:
         missing_data = interpretation.missing_data_advice if interpretation is not None else []
         story.extend(
             [
-                Spacer(1, 3 * mm),
                 Paragraph(f"{number_labels[section_number]}、建议补充的信息", heading),
             ]
         )
         if missing_data:
             for item in missing_data[:8]:
-                story.append(Paragraph("• " + self._safe(self._display_text(item)), normal))
+                story.append(Paragraph("• " + self._safe(self._display_text(item)), list_style))
         else:
-            story.append(Paragraph("当前没有额外的重点补充项，后续按医生意见复查。", normal))
+            story.append(Paragraph("当前没有额外的重点补充项，后续按医生意见复查。", conclusion))
 
         section_number += 1
         actions = interpretation.recommendations if interpretation is not None else []
@@ -312,15 +368,14 @@ class DemoReportService:
             ]
         story.extend(
             [
-                Spacer(1, 3 * mm),
                 Paragraph(f"{number_labels[section_number]}、下一步健康行动", heading),
             ]
         )
         if actions:
             for item in actions[:5]:
-                story.append(Paragraph("• " + self._safe(self._display_text(item)), normal))
+                story.append(Paragraph("• " + self._safe(self._display_text(item)), list_style))
         else:
-            story.append(Paragraph("补充有效数据后，再制定与重点问题对应的健康行动。", normal))
+            story.append(Paragraph("补充有效数据后，再制定与重点问题对应的健康行动。", conclusion))
 
         section_number += 1
         uncertainty = (
@@ -330,13 +385,11 @@ class DemoReportService:
         )
         story.extend(
             [
-                Spacer(1, 3 * mm),
                 Paragraph(f"{number_labels[section_number]}、报告限制与免责声明", heading),
                 Paragraph(
                     "<b>当前不能说明：</b>" + self._safe(self._display_text(uncertainty)), normal
                 ),
-                Spacer(1, 2 * mm),
-                Paragraph("<b>免责声明：</b>" + self._safe(DISCLAIMER), small),
+                Paragraph("<b>免责声明：</b>" + self._safe(DISCLAIMER), disclaimer),
             ]
         )
         document.build(
@@ -349,9 +402,9 @@ class DemoReportService:
     @staticmethod
     def _add_page_footer(canvas: Canvas, document: SimpleDocTemplate) -> None:
         canvas.saveState()
-        canvas.setFont(_REPORT_FONT, 7)
+        canvas.setFont(_REPORT_FONT, 9)
         canvas.setFillColor(colors.HexColor("#718096"))
-        canvas.drawString(document.leftMargin, 8 * mm, "智能三羊评估报告")
+        canvas.drawString(document.leftMargin, 8 * mm, "三羊健康评估报告")
         canvas.drawRightString(
             A4[0] - document.rightMargin,
             8 * mm,
@@ -442,12 +495,21 @@ class DemoReportService:
     @classmethod
     def _coverage_summary(cls, request: ReportGenerateRequest) -> str:
         indicator_count = len(request.indicators)
+        image_page_count, image_finding_count = cls._image_fact_counts(request.image_analysis)
         evaluated_count = sum(result.status == "EVALUATED" for result in request.results)
         focus_count = sum(
             result.status == "EVALUATED" and result.risk_level in {"ATTENTION", "HIGH"}
             for result in request.results
         )
-        parts = [f"共纳入{indicator_count}项检验指标"]
+        parts: list[str] = []
+        if indicator_count:
+            parts.append(f"共纳入{indicator_count}项结构化检验指标")
+        if image_finding_count:
+            parts.append(
+                f"直接读取{image_page_count}页报告图片，保留{image_finding_count}条体检事实"
+            )
+        if not parts:
+            parts.append("本次未获得可用于评估的体检事实")
         if request.results:
             parts.append(f"{evaluated_count}个健康维度具备有效数据")
             parts.append(f"其中{focus_count}个方向建议持续关注")
@@ -455,8 +517,8 @@ class DemoReportService:
             parts.append("健康档案和问卷信息已共同纳入评估")
         return "，".join(parts) + "。"
 
-    @staticmethod
-    def _indicator_summary(request: ReportGenerateRequest) -> str:
+    @classmethod
+    def _indicator_summary(cls, request: ReportGenerateRequest) -> str:
         normal_count = 0
         abnormal_count = 0
         unclassified_count = 0
@@ -484,7 +546,23 @@ class DemoReportService:
             parts.append(f"{abnormal_count}项超出原报告参考范围")
         if unclassified_count:
             parts.append(f"{unclassified_count}项因缺少参考范围暂不判定")
-        return ("，".join(parts) if parts else "本次没有可用于参考范围比较的检验指标") + "。"
+        if parts:
+            return "，".join(parts) + "。"
+        _, image_finding_count = cls._image_fact_counts(request.image_analysis)
+        if image_finding_count:
+            return (
+                f"图片直读已保留{image_finding_count}条体检事实，"
+                "其中的数值、单位、参考范围和文字所见以原始报告图片分析为依据。"
+            )
+        return "本次没有可用于参考范围比较的检验指标。"
+
+    @staticmethod
+    def _image_fact_counts(
+        image_analysis: VisionImageAnalysis | None,
+    ) -> tuple[int, int]:
+        if image_analysis is None:
+            return 0, 0
+        return len(image_analysis.pages), sum(len(page.findings) for page in image_analysis.pages)
 
     @classmethod
     def _health_background(cls, request: ReportGenerateRequest) -> str:
@@ -626,7 +704,7 @@ class DemoReportService:
         )
 
     @classmethod
-    def _integrated_treatment_plan(cls, reference: object) -> str:
+    def _integrated_treatment_sections(cls, reference: object) -> list[tuple[str, str]]:
         western = [
             cls._display_text(str(item))
             for item in (getattr(reference, "western_medicine_approach", None) or [])
@@ -655,43 +733,66 @@ class DemoReportService:
             if str(item).strip()
         ]
         condition = cls._display_text(str(getattr(reference, "condition_name", "") or ""))
-        tcm_medication_text = "；".join(traditional_chinese_medications)
+        raw_tcm_medication_text = "；".join(traditional_chinese_medications)
+        tcm_medication_text = raw_tcm_medication_text
         if cls._is_generic_tcm_medication_reference(tcm_medication_text):
             tcm_medication_text = cls._tcm_medication_reference(condition)
-        parts: list[str] = []
-        if western:
-            parts.append("西医治疗思路：" + "；".join(western))
-        if western_medications:
-            parts.append("西医药物治疗参考：" + "；".join(western_medications))
-        if traditional_chinese:
-            parts.append("中医治疗思路：" + "；".join(traditional_chinese))
-        if tcm_medication_text:
-            parts.append("中医药物/治法参考：" + tcm_medication_text)
-        if parts:
-            return " ".join(parts)
+        has_model_content = any(
+            (western, western_medications, traditional_chinese, raw_tcm_medication_text)
+        )
         department = cls._display_text(
             str(getattr(reference, "recommended_department", "") or "")
         ) or "相关专科"
-        if "幽门螺杆菌" in condition:
-            return (
-                f"西医治疗思路：请由{department}复核呼气试验、根除适应证、过敏史和既往抗菌药使用。"
-                "西医药物治疗参考：如复核确认需要根除，医生通常在含铋四联方案中选择抗菌药、铋剂和抑酸药的组合，具体药物与疗程必须由消化内科处方。"
-                "中医治疗思路：先由中医师辨证判断脾胃湿热、脾胃虚弱等证候，再决定是否适合中医辅助调理。"
-                "中医药物/治法参考：可围绕清热化湿或健脾和胃等治法选择药物方向，具体方药由中医师辨证开具。"
+        if not has_model_content and "幽门螺杆菌" in condition:
+            western_text = (
+                f"请由{department}复核呼气试验、根除适应证、过敏史和既往抗菌药使用。"
             )
-        if "粥样硬化" in condition or "斑块" in condition:
-            return (
-                f"西医治疗思路：请由{department}结合血脂、血压、糖代谢和整体心血管风险分层。"
-                "西医药物治疗参考：医生可根据低密度脂蛋白胆固醇和总体风险评估是否需要他汀类降脂药；抗血小板药仅在明确适应证时考虑。"
-                "中医治疗思路：如需中医辅助管理，由中医师结合痰湿、血瘀等证候辨证评估。"
-                "中医药物/治法参考：可围绕化痰祛瘀、调理脾胃等治法制定辅助方案，具体方药由中医师开具。"
+            western_medication_text = (
+                "如复核确认需要根除，医生通常在含铋四联方案中选择抗菌药、铋剂和抑酸药的组合，"
+                "具体药物与疗程必须由消化内科处方。"
             )
-        return (
-            f"西医治疗思路：请由{department}结合检查结果、症状和复查结果评估治疗路径。"
-            "西医药物治疗参考：本次证据未支持具体药物名称，由相关专科结合诊断和禁忌证决定是否需要处方。"
-            "中医治疗思路：如考虑中医干预，请由中医师辨证评估后制定方案。"
-            "中医药物/治法参考：本次证据未支持具体方药方向，不自行购药或叠加中药。"
-        )
+            traditional_chinese_text = (
+                "先由中医师辨证判断脾胃湿热、脾胃虚弱等证候，再决定是否适合中医辅助调理。"
+            )
+            tcm_medication_text = (
+                "可围绕清热化湿或健脾和胃等治法选择药物方向，具体方药由中医师辨证开具。"
+            )
+        elif not has_model_content and ("粥样硬化" in condition or "斑块" in condition):
+            western_text = f"请由{department}结合血脂、血压、糖代谢和整体心血管风险分层。"
+            western_medication_text = (
+                "医生可根据低密度脂蛋白胆固醇和总体风险评估是否需要他汀类降脂药；"
+                "抗血小板药仅在明确适应证时考虑。"
+            )
+            traditional_chinese_text = "如需中医辅助管理，由中医师结合痰湿、血瘀等证候辨证评估。"
+            tcm_medication_text = (
+                "可围绕化痰祛瘀、调理脾胃等治法制定辅助方案，具体方药由中医师开具。"
+            )
+        elif not has_model_content:
+            western_text = f"请由{department}结合检查结果、症状和复查结果评估治疗路径。"
+            western_medication_text = (
+                "本次证据未支持具体药物名称，由相关专科结合诊断和禁忌证决定是否需要处方。"
+            )
+            traditional_chinese_text = "如考虑中医干预，请由中医师辨证评估后制定方案。"
+            tcm_medication_text = (
+                "本次证据未支持具体方药方向，不自行购药或叠加中药。"
+            )
+        else:
+            western_text = "；".join(western) or (
+                "当前资料未提供具体西医治疗思路，请由相关专科医生结合检查结果评估。"
+            )
+            western_medication_text = "；".join(western_medications) or (
+                "当前资料未提供具体西医药物治疗参考，不自行用药，由医生结合诊断和禁忌证决定。"
+            )
+            traditional_chinese_text = "；".join(traditional_chinese) or (
+                "当前资料未提供具体中医治疗思路，请由中医师辨证评估。"
+            )
+
+        return [
+            ("西医治疗思路", western_text),
+            ("西医药物治疗参考", western_medication_text),
+            ("中医治疗思路", traditional_chinese_text),
+            ("中医药物/治法参考", tcm_medication_text),
+        ]
 
     @staticmethod
     def _is_generic_tcm_medication_reference(text: str) -> bool:

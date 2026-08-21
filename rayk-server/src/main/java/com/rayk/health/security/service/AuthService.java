@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthService {
     private static final String SESSION_PREFIX = "rayk:session:";
+    private static final String SESSION_VERSION_PREFIX = "rayk:session-version:";
     private final UserCatalog catalog;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -45,13 +46,15 @@ public class AuthService {
     }
 
     public AuthData issue(UserAccount account) {
+        long sessionVersion = currentSessionVersion(account.userId());
         JwtService.IssuedToken issued =
                 jwtService.issue(
                         account.username(),
                         account.userId(),
                         account.tenantId(),
                         account.roles(),
-                        account.permissions());
+                        account.permissions(),
+                        sessionVersion);
         redisTemplate
                 .opsForValue()
                 .set(
@@ -74,6 +77,25 @@ public class AuthService {
 
     public void logout() {
         redisTemplate.delete(sessionKey(CurrentUser.require().jti()));
+    }
+
+    /** Invalidates all currently issued sessions for a user, including legacy JWTs. */
+    public void revokeAllSessions(long userId) {
+        String key = sessionVersionKey(userId);
+        redisTemplate.opsForValue().increment(key);
+        redisTemplate.expire(key, Duration.ofSeconds(jwtService.expireSeconds()));
+    }
+
+    public long currentSessionVersion(long userId) {
+        String value = redisTemplate.opsForValue().get(sessionVersionKey(userId));
+        if (value == null || value.isBlank()) {
+            return 0L;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ignored) {
+            return 0L;
+        }
     }
 
     public ProfileData profile() {
@@ -103,12 +125,16 @@ public class AuthService {
             throw new BusinessException(ErrorCode.WORKBENCH_NOT_ALLOWED);
         }
         Long ttl = redisTemplate.getExpire(sessionKey(principal.jti()));
-        Duration duration = Duration.ofSeconds(ttl == null || ttl < 1 ? 7200 : ttl);
+        Duration duration = Duration.ofSeconds(ttl == null || ttl < 1 ? jwtService.expireSeconds() : ttl);
         redisTemplate.opsForValue().set(sessionKey(principal.jti()), code, duration);
         return code;
     }
 
     public static String sessionKey(String jti) {
         return SESSION_PREFIX + jti;
+    }
+
+    public static String sessionVersionKey(long userId) {
+        return SESSION_VERSION_PREFIX + userId;
     }
 }

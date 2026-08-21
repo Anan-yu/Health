@@ -21,8 +21,11 @@ public class LabReportEntity {
     private String reportName;
     private LocalDate reportDate;
     private String status;
+    private Integer processingProgress;
+    private String processingMessage;
     private String sourceType;
     private String ocrSnapshot;
+    private String imageAnalysisSnapshot;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String failureReason;
     private Long createdBy;

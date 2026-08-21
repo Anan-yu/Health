@@ -6,6 +6,7 @@ import com.rayk.health.platform.dto.UpdatePlatformTenantRequest;
 import com.rayk.health.platform.dto.CreatePlatformTenantRequest;
 import com.rayk.health.platform.dto.CreatePlatformDoctorRequest;
 import com.rayk.health.platform.dto.UpdatePlatformDoctorRequest;
+import com.rayk.health.platform.dto.UpdatePlatformAdminPhoneRequest;
 import com.rayk.health.platform.vo.PlatformOverviewVo;
 import com.rayk.health.security.dto.WeChatStaffInviteData;
 import com.rayk.health.security.wechat.WeChatStaffInviteService;
@@ -39,6 +40,19 @@ public class PlatformController {
     @PreAuthorize("hasAuthority('platform:tenant:list')")
     public ApiResponse<PlatformOverviewVo> overview() {
         return ApiResponse.success(overviewService.overview());
+    }
+
+    @GetMapping("/admin-profile")
+    @PreAuthorize("hasAuthority('platform:tenant:list')")
+    public ApiResponse<StaffVo> adminProfile() {
+        return ApiResponse.success(overviewService.adminProfile());
+    }
+
+    @PutMapping("/admin-phone")
+    @PreAuthorize("hasAuthority('platform:tenant:list')")
+    public ApiResponse<StaffVo> updateAdminPhone(
+            @Valid @RequestBody UpdatePlatformAdminPhoneRequest request) {
+        return ApiResponse.success(overviewService.updateAdminPhone(request));
     }
 
     @PostMapping("/tenants")

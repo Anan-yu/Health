@@ -32,7 +32,8 @@ public class GlobalExceptionHandler {
             case FILE_STORAGE_UNAVAILABLE,
                     AI_SERVICE_UNAVAILABLE,
                     VOICE_SERVICE_UNAVAILABLE,
-                    VOICE_SERVICE_QUOTA_EXHAUSTED -> HttpStatus.SERVICE_UNAVAILABLE;
+                    VOICE_SERVICE_QUOTA_EXHAUSTED,
+                    MEMBERSHIP_PAYMENT_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             default -> HttpStatus.BAD_REQUEST;
         };
         return ResponseEntity.status(status).body(ApiResponse.error(error.code(), error.message()));

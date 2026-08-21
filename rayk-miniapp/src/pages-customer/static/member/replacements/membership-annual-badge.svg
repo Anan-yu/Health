@@ -1,0 +1,26 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg3" x1="18" y1="18" x2="110" y2="110" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#31D297"/>
+      <stop offset="1" stop-color="#12B87E"/>
+    </linearGradient>
+    <linearGradient id="gold3" x1="45" y1="43" x2="85" y2="87" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF4B3"/>
+      <stop offset="0.5" stop-color="#FFD96A"/>
+      <stop offset="1" stop-color="#F0B63C"/>
+    </linearGradient>
+    <filter id="shadow3" x="8" y="10" width="112" height="112" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#18B97F" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow3)">
+    <rect x="16" y="16" width="96" height="96" rx="26" fill="url(#bg3)"/>
+    <path d="M64 34L78 42L92 38V70C92 79.9411 83.9411 88 74 88H54C44.0589 88 36 79.9411 36 70V38L50 42L64 34Z" fill="#F4FFF9" fill-opacity="0.92"/>
+    <path d="M45 74H83" stroke="#D3F8E7" stroke-width="4" stroke-linecap="round"/>
+    <path d="M46 54L56 62L64 47L72 62L82 54L77.5 72H50.5L46 54Z" fill="url(#gold3)" stroke="#F9E08B" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="56" cy="47" r="4.5" fill="#FFE28C"/>
+    <circle cx="64" cy="43" r="4.5" fill="#FFE28C"/>
+    <circle cx="72" cy="47" r="4.5" fill="#FFE28C"/>
+    <path d="M28 36C34 31 42 28 51 28" stroke="#E7FFF5" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+  </g>
+</svg>

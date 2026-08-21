@@ -27,7 +27,21 @@ public class WeChatPhoneNumberClient {
     }
 
     public String resolve(String phoneCode) {
-        if (properties.mockEnabled()) {
+        return resolve(phoneCode, false);
+    }
+
+    /**
+     * Resolves a real WeChat phone credential.  The development profile may
+     * still enable mock login for H5/debug accounts, but a request carrying a
+     * getPhoneNumber code must be verified against WeChat so that a saved
+     * doctor or platform-admin phone can be matched correctly.
+     */
+    public String resolveReal(String phoneCode) {
+        return resolve(phoneCode, true);
+    }
+
+    private String resolve(String phoneCode, boolean forceReal) {
+        if (properties.mockEnabled() && !forceReal) {
             return PhoneIdentity.normalize(
                     StringUtils.hasText(properties.mockPhoneNumber())
                             ? properties.mockPhoneNumber()

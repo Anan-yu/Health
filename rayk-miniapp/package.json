@@ -6,9 +6,11 @@
     "dev:h5": "uni -p h5",
     "build:h5:dev": "uni build -p h5 --mode development",
     "dev:mp-weixin": "uni -p mp-weixin",
-    "build:mp-weixin:dev": "uni build -p mp-weixin --mode development",
+    "build:mp-weixin:dev": "node scripts/build-mp-weixin-dev.mjs && npm run sync:mp-weixin:dev",
     "build:h5": "uni build -p h5",
-    "build:mp-weixin": "uni build -p mp-weixin",
+    "build:mp-weixin": "uni build -p mp-weixin && npm run sync:mp-weixin:prod",
+    "sync:mp-weixin:dev": "node scripts/sync-mp-weixin-release.mjs dev",
+    "sync:mp-weixin:prod": "node scripts/sync-mp-weixin-release.mjs prod",
     "type-check": "vue-tsc --noEmit",
     "lint": "eslint src --ext .ts,.vue",
     "format": "prettier --write src"

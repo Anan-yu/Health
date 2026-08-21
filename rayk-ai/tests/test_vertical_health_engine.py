@@ -9,6 +9,7 @@ from app.interpretation.service import (
     DeepSeekSettings,
     InterpretationService,
 )
+from app.interpretation.qwen_vision import QwenVisionSettings
 from app.knowledge.service import (
     KNOWLEDGE_BASE_VERSION,
     MedicalKnowledgeRetriever,
@@ -17,6 +18,10 @@ from app.schemas.assessment import (
     AssessmentRequest,
     ModelResult,
     PatientContext,
+    ReportImage,
+    VisionImageAnalysis,
+    VisionImageFinding,
+    VisionImagePage,
 )
 from app.schemas.indicator import IndicatorInput
 from app.schemas.ocr import OcrFinding
@@ -356,6 +361,258 @@ def test_vertical_prompt_contains_grounding_without_direct_identifiers() -> None
     assert fake.last_payload["thinking"] == {"type": "disabled"}
 
 
+class _FakeVisionClient:
+    def __init__(self, content: dict[str, Any]) -> None:
+        self.content = content
+        self.last_system_prompt: str | None = None
+        self.last_user_payload: dict[str, Any] | None = None
+        self.last_report_images: list[ReportImage] | None = None
+        self.image_analysis_calls = 0
+        self.synthesis_calls = 0
+        self.seen_image_pages: list[list[int]] = []
+
+    def generate(self, **kwargs: Any) -> str:
+        self.image_analysis_calls += 1
+        self.last_system_prompt = kwargs["system_prompt"]
+        self.last_user_payload = kwargs["user_payload"]
+        self.last_report_images = kwargs["report_images"]
+        self.seen_image_pages.append([image.page for image in self.last_report_images])
+        return json.dumps(
+            {
+                "pages": [
+                    {
+                        "page": image.page,
+                        "pageSummary": f"第{image.page}页体检事实",
+                        "findings": [
+                            {
+                                "category": "检验",
+                                "item": "空腹血糖",
+                                "result": "6.4",
+                                "unit": "mmol/L",
+                                "referenceRange": "3.9-6.1",
+                                "abnormalFlag": "高",
+                            }
+                        ],
+                        "uncertainties": [],
+                    }
+                    for image in self.last_report_images
+                ]
+            },
+            ensure_ascii=False,
+        )
+
+    def generate_text(self, **kwargs: Any) -> str:
+        self.synthesis_calls += 1
+        self.last_system_prompt = kwargs["system_prompt"]
+        self.last_user_payload = kwargs["user_payload"]
+        return json.dumps(self.content, ensure_ascii=False)
+
+
+def test_qwen_image_stage_feeds_deepseek_final_without_signed_urls_in_text() -> None:
+    request = _request().model_copy(
+        update={
+            "model": "deepseek-v4-pro",
+            "report_images": [
+                ReportImage(
+                    page=1,
+                    mimeType="image/jpeg",
+                    downloadUrl="https://minio.internal/reports/page-1?X-Amz-Signature=secret",
+                ),
+                ReportImage(
+                    page=2,
+                    mimeType="image/png",
+                    downloadUrl="https://minio.internal/reports/page-2?X-Amz-Signature=secret",
+                ),
+            ]
+        }
+    )
+    vision = _FakeVisionClient(_generated_content())
+    deepseek = _FakeClient(_generated_content())
+    service = InterpretationService(
+        settings=DeepSeekSettings(
+            enabled=True,
+            api_key="test-deepseek-key",
+            base_url="https://example.invalid",
+            model="deepseek-v4-flash",
+            timeout_seconds=1,
+            max_tokens=2000,
+            thinking_enabled=False,
+        ),
+        vision_settings=QwenVisionSettings(
+            enabled=True,
+            api_key="test-qwen-key",
+            workspace_id="",
+            base_url="https://example.invalid/v1",
+            model="qwen3.7-flash-2026-07-15",
+            timeout_seconds=1,
+            max_tokens=2000,
+            max_images=50,
+        ),
+        client=deepseek,  # type: ignore[arg-type]
+        vision_client=vision,  # type: ignore[arg-type]
+    )
+
+    result = service.interpret(request, _results())
+
+    assert result.status == "SUCCESS"
+    assert result.source == "DEEPSEEK"
+    assert result.model == "deepseek-v4-pro"
+    assert vision.image_analysis_calls == 1
+    assert vision.synthesis_calls == 0
+    assert vision.last_report_images is not None
+    assert [image.download_url for image in vision.last_report_images] == [
+        "https://minio.internal/reports/page-1?X-Amz-Signature=secret",
+        "https://minio.internal/reports/page-2?X-Amz-Signature=secret",
+    ]
+    assert deepseek.last_payload is not None
+    assert deepseek.last_payload["model"] == "deepseek-v4-pro"
+    final_payload = json.loads(deepseek.last_payload["messages"][1]["content"])
+    serialized = json.dumps(final_payload, ensure_ascii=False)
+    assert "IMAGE:PAGE:1" in serialized
+    assert "IMAGE:PAGE:2" in serialized
+    assert "X-Amz-Signature=secret" not in serialized
+    assert "VISION_FACTS_TO_REPORT_SYNTHESIS" in serialized
+    assert "健康档案、健康拍和Qwen图片事实必须联合分析" in serialized
+    assert "第1页体检事实" in serialized
+    assert "imageAnalysis" in final_payload
+
+
+def test_qwen_image_batches_all_pages_before_deepseek_report_synthesis() -> None:
+    request = _request().model_copy(
+        update={
+            "report_images": [
+                ReportImage(
+                    page=page,
+                    mimeType="image/jpeg",
+                    downloadUrl=f"https://minio.internal/reports/page-{page}",
+                )
+                for page in range(1, 6)
+            ]
+        }
+    )
+    vision = _FakeVisionClient(_generated_content())
+    deepseek = _FakeClient(_generated_content())
+    service = InterpretationService(
+        settings=DeepSeekSettings(
+            enabled=True,
+            api_key="test-deepseek-key",
+            base_url="https://example.invalid",
+            model="deepseek-v4-flash",
+            timeout_seconds=1,
+            max_tokens=2000,
+            thinking_enabled=False,
+        ),
+        vision_settings=QwenVisionSettings(
+            enabled=True,
+            api_key="test-qwen-key",
+            workspace_id="",
+            base_url="https://example.invalid/v1",
+            model="qwen3.7-flash-2026-07-15",
+            timeout_seconds=1,
+            max_tokens=2000,
+            max_images=50,
+            image_batch_size=2,
+            image_batch_attempts=1,
+        ),
+        client=deepseek,  # type: ignore[arg-type]
+        vision_client=vision,  # type: ignore[arg-type]
+    )
+
+    result = service.interpret(request, _results())
+
+    assert result.status == "SUCCESS"
+    assert vision.seen_image_pages == [[1, 2], [3, 4], [5]]
+    assert vision.synthesis_calls == 0
+    assert deepseek.last_payload is not None
+    final_payload = json.loads(deepseek.last_payload["messages"][1]["content"])
+    image_analysis = final_payload["imageAnalysis"]
+    assert isinstance(image_analysis, dict)
+    assert [page["page"] for page in image_analysis["pages"]] == [1, 2, 3, 4, 5]
+
+
+def test_interpret_with_analysis_returns_page_scoped_image_facts() -> None:
+    request = _request().model_copy(
+        update={
+            "report_images": [
+                ReportImage(
+                    page=1,
+                    mimeType="image/jpeg",
+                    downloadUrl="https://minio.internal/reports/page-1",
+                ),
+            ]
+        }
+    )
+    vision = _FakeVisionClient(_generated_content())
+    deepseek = _FakeClient(_generated_content())
+    service = InterpretationService(
+        settings=DeepSeekSettings(
+            enabled=True,
+            api_key="test-deepseek-key",
+            base_url="https://example.invalid",
+            model="deepseek-v4-flash",
+            timeout_seconds=1,
+            max_tokens=2000,
+            thinking_enabled=False,
+        ),
+        vision_settings=QwenVisionSettings(
+            enabled=True,
+            api_key="test-qwen-key",
+            workspace_id="",
+            base_url="https://example.invalid/v1",
+            model="qwen3.7-flash-2026-07-15",
+            timeout_seconds=1,
+            max_tokens=2000,
+            max_images=50,
+        ),
+        client=deepseek,  # type: ignore[arg-type]
+        vision_client=vision,  # type: ignore[arg-type]
+    )
+
+    result = service.interpret_with_analysis(request, _results())
+
+    assert result.interpretation.status == "SUCCESS"
+    assert result.image_analysis is not None
+    assert [page.page for page in result.image_analysis.pages] == [1]
+    finding = result.image_analysis.pages[0].findings[0]
+    assert finding.item == "空腹血糖"
+    assert finding.abnormal_flag == "高"
+
+
+def test_knowledge_retriever_grounds_query_in_image_analysis_facts() -> None:
+    request = AssessmentRequest(
+        taskId="TASK_IMG_ONLY",
+        patientId="PATIENT_IMG_ONLY",
+        indicators=[],  # 图片报告跳过 OCR，无结构化指标
+        findings=[],
+    )
+    image_analysis = VisionImageAnalysis(
+        pages=[
+            VisionImagePage(
+                page=1,
+                pageSummary="第1页体检事实",
+                findings=[
+                    VisionImageFinding(
+                        category="检验",
+                        item="空腹血糖",
+                        result="6.4",
+                        unit="mmol/L",
+                        referenceRange="3.9-6.1",
+                        abnormalFlag="高",
+                    )
+                ],
+                uncertainties=[],
+            )
+        ]
+    )
+
+    references = MedicalKnowledgeRetriever().retrieve(
+        request, [], image_analysis=image_analysis
+    )
+    reference_ids = {item.reference_id for item in references}
+
+    assert "NHC-HYPERGLYCEMIA-2024-001" in reference_ids
+
+
 def test_tcm_medication_reference_is_specific_only_with_matching_rag_evidence() -> None:
     hp_reference = InterpretationService._evidence_backed_tcm_medication_reference(
         "幽门螺杆菌感染风险",
@@ -431,6 +688,66 @@ def test_diagnostic_reference_uses_report_summary_and_carries_safe_care_plans() 
     assert result.diagnostic_references[0].western_medicine_medication_plan
     assert result.diagnostic_references[0].traditional_chinese_medicine_medication_plan
     assert result.diagnostic_references[0].integrated_treatment_notes
+
+
+def test_weak_optional_diagnostic_candidate_does_not_discard_deepseek_report() -> None:
+    content = _generated_content(
+        "空腹血糖的本次结果已核对，当前更适合先复查并结合饮食和体重趋势管理。"
+    )
+    content["diagnosticReferences"] = [
+        {
+            "conditionName": "糖代谢问题待排",
+            "assessment": "POSSIBLE",
+            "rationale": "需要结合后续复查和完整资料进一步判断，当前不能直接下结论。",
+            "indicatorCodes": ["fasting_glucose"],
+            "patientFactIds": ["LAB:fasting_glucose"],
+            "evidenceIds": ["NHC-HYPERGLYCEMIA-2024-001"],
+            "supportingEvidence": ["空腹血糖本次结果高于报告参考上限。"],
+            "contradictingEvidence": [],
+            "confirmationAdvice": ["结合空腹血糖和糖化血红蛋白复查。"],
+            "treatmentPlan": ["先复查相关指标并记录体重变化。"],
+            "nutritionInterventionPlan": ["记录一周饮食和运动情况。"],
+            "westernMedicineApproach": ["由医生结合复查结果判断后续路径。"],
+            "traditionalChineseMedicineApproach": [],
+            "westernMedicineMedicationPlan": [],
+            "traditionalChineseMedicineMedicationPlan": [],
+            "integratedTreatmentNotes": [],
+            "recommendedDepartment": "内分泌科",
+        }
+    ]
+    fake = _FakeClient(content)
+
+    result = _service(fake).interpret(_request(), _results())
+
+    assert result.status == "SUCCESS"
+    assert result.source == "DEEPSEEK"
+    assert result.fallback_reason is None
+    assert fake.call_count == 1
+    assert "空腹血糖" in result.summary
+    assert result.diagnostic_references == []
+    assert result.cross_model_findings
+
+
+def test_rule_fallback_abnormal_explanations_are_indicator_specific() -> None:
+    service = InterpretationService(
+        settings=DeepSeekSettings(
+            enabled=False,
+            api_key="",
+            base_url="https://example.invalid",
+            model="deepseek-v4-flash",
+            timeout_seconds=1,
+            max_tokens=2000,
+            thinking_enabled=False,
+        )
+    )
+
+    result = service.interpret(_request(), _results())
+    explanations = {item.title: item for item in result.abnormal_explanations}
+
+    assert result.source == "RULE_FALLBACK"
+    assert "糖代谢指标" in explanations["空腹血糖"].explanation
+    assert "糖化血红蛋白" in explanations["空腹血糖"].next_step
+    assert "这说明本次指标与报告参考区间存在偏离" not in explanations["空腹血糖"].explanation
 
 
 def test_truncated_deepseek_output_is_retried_with_repair_instruction() -> None:

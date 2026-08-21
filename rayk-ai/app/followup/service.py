@@ -89,10 +89,20 @@ class FollowupAdjustmentService:
         if not self.settings.enabled or not self.settings.api_key:
             return fallback
 
+        thinking_enabled = (
+            self.settings.thinking_enabled
+            if request.thinking_enabled is None
+            else request.thinking_enabled
+        )
         repair_error: str | None = None
         for attempt in range(1, 3):
             try:
-                generated = self._call_deepseek(request, repair_error=repair_error)
+                generated = self._call_deepseek(
+                    request,
+                    model=request.model or self.settings.model,
+                    thinking_enabled=thinking_enabled,
+                    repair_error=repair_error,
+                )
                 return self._validate(request, generated)
             except (
                 httpx.HTTPError,
@@ -116,6 +126,8 @@ class FollowupAdjustmentService:
         self,
         request: FollowupAdjustmentRequest,
         *,
+        model: str,
+        thinking_enabled: bool,
         repair_error: str | None = None,
     ) -> FollowupAdjustmentData:
         schema = FollowupAdjustmentData.model_json_schema(by_alias=True)
@@ -131,7 +143,7 @@ class FollowupAdjustmentService:
             {
                 "role": "system",
                 "content": (
-                    "你是智能三羊的健康随访调整引擎。你需要依据上一期逐项完成状态、"
+                    "你是三羊健康的健康随访调整引擎。你需要依据上一期逐项完成状态、"
                     "每项备注、用户总体文字反馈、身体感受、执行困难和去标识化健康档案，"
                     "决定下一期是继续、调整还是终止，并生成少量、明确、可完成的健康行动。"
                     "输入中的evidenceBundle是本次RAG检索到的权威健康管理证据，所有调整方向"
@@ -212,12 +224,12 @@ class FollowupAdjustmentService:
             )
 
         payload = {
-            "model": self.settings.model,
+            "model": model,
             "messages": messages,
             "response_format": {"type": "json_object"},
             "temperature": 0.2,
             "max_tokens": min(self.settings.max_tokens, 2400),
-            "thinking": {"type": "enabled" if self.settings.thinking_enabled else "disabled"},
+            "thinking": {"type": "enabled" if thinking_enabled else "disabled"},
         }
         response = self.client.post(
             f"{self.settings.base_url}/chat/completions",
@@ -245,7 +257,9 @@ class FollowupAdjustmentService:
         if generated.decision == "TERMINATE":
             if generated.next_actions:
                 raise ValueError("Terminated follow-up must not contain next actions")
-            return generated.model_copy(update={"source": "DEEPSEEK", "model": self.settings.model})
+            return generated.model_copy(
+                update={"source": "DEEPSEEK", "model": request.model or self.settings.model}
+            )
         if not generated.next_actions:
             raise ValueError("Continuing follow-up requires next actions")
 
@@ -275,7 +289,7 @@ class FollowupAdjustmentService:
                 "decision": decision,
                 "next_actions": guarded[:8],
                 "source": "DEEPSEEK",
-                "model": self.settings.model,
+                "model": request.model or self.settings.model,
             }
         )
 

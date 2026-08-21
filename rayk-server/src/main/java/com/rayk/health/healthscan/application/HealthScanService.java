@@ -13,6 +13,7 @@ import com.rayk.health.healthscan.vo.HealthScanResultVo;
 import com.rayk.health.healthscan.vo.HealthScanSessionVo;
 import com.rayk.health.patient.entity.PatientEntity;
 import com.rayk.health.patient.mapper.PatientMapper;
+import com.rayk.health.membership.application.MembershipEntitlementService;
 import com.rayk.health.security.service.CurrentPrincipal;
 import com.rayk.health.security.service.CurrentUser;
 import java.io.IOException;
@@ -36,16 +37,19 @@ public class HealthScanService {
     private final HealthScanTaskMapper taskMapper;
     private final PatientMapper patientMapper;
     private final HealthShotVendorClient vendorClient;
+    private final MembershipEntitlementService membershipEntitlementService;
 
     public HealthScanService(
             HealthShotProperties properties,
             HealthScanTaskMapper taskMapper,
             PatientMapper patientMapper,
-            HealthShotVendorClient vendorClient) {
+            HealthShotVendorClient vendorClient,
+            MembershipEntitlementService membershipEntitlementService) {
         this.properties = properties;
         this.taskMapper = taskMapper;
         this.patientMapper = patientMapper;
         this.vendorClient = vendorClient;
+        this.membershipEntitlementService = membershipEntitlementService;
     }
 
     @Transactional
@@ -102,7 +106,11 @@ public class HealthScanService {
         }
         validateVideo(video);
 
+        MembershipEntitlementService.HealthShotReservation usage = null;
         try {
+            usage = membershipEntitlementService.reserveHealthShot(
+                    String.valueOf(taskId),
+                    "HEALTH_SHOT:" + current.userId() + ":" + taskId + ":" + java.util.UUID.randomUUID());
             byte[] bytes = video.getBytes();
             String digest = HealthShotSigner.md5(bytes);
             long timestamp = System.currentTimeMillis();
@@ -121,14 +129,22 @@ public class HealthScanService {
                             video.getOriginalFilename());
             applyVendorResult(task, result, current.userId());
             taskMapper.updateById(task);
+            if ("SUCCEEDED".equals(task.getStatus())) {
+                membershipEntitlementService.confirmHealthShot(usage);
+            } else {
+                membershipEntitlementService.releaseHealthShot(usage);
+            }
             PatientEntity patient = requireCurrentPatient(current);
             return toVo(task, compareWithPeers(task, loadPeerScores(patient)));
         } catch (IOException exception) {
+            membershipEntitlementService.releaseHealthShot(usage);
             markFailed(task, current.userId(), "VIDEO_READ_FAILED", "无法读取检测视频");
             throw new BusinessException(ErrorCode.HEALTH_SCAN_SERVICE_UNAVAILABLE);
         } catch (BusinessException exception) {
+            membershipEntitlementService.releaseHealthShot(usage);
             throw exception;
         } catch (Exception exception) {
+            membershipEntitlementService.releaseHealthShot(usage);
             markFailed(task, current.userId(), "VENDOR_UNAVAILABLE", "健康检测服务连接失败");
             throw new BusinessException(ErrorCode.HEALTH_SCAN_SERVICE_UNAVAILABLE);
         }
@@ -138,6 +154,8 @@ public class HealthScanService {
     public List<HealthScanResultVo> listMine() {
         CurrentPrincipal current = CurrentUser.require();
         PatientEntity patient = requireCurrentPatient(current);
+        MembershipEntitlementService.MembershipSnapshot membership =
+                membershipEntitlementService.snapshot(current);
         List<HealthScanTaskEntity> tasks =
                 taskMapper
                 .selectList(
@@ -150,6 +168,7 @@ public class HealthScanService {
         List<Integer> peerScores = loadPeerScores(patient);
         return tasks
                 .stream()
+                .filter(task -> membershipEntitlementService.canViewHealthShotHistory(membership, task.getCreatedAt()))
                 .map(task -> toVo(task, compareWithPeers(task, peerScores)))
                 .toList();
     }
@@ -158,6 +177,9 @@ public class HealthScanService {
     public HealthScanResultVo get(long taskId) {
         CurrentPrincipal current = CurrentUser.require();
         HealthScanTaskEntity task = requireOwnedTask(taskId, current);
+        if (!membershipEntitlementService.canViewHealthShotHistory(task.getCreatedAt())) {
+            throw new BusinessException(ErrorCode.HEALTH_SCAN_NOT_FOUND);
+        }
         PatientEntity patient = requireCurrentPatient(current);
         return toVo(task, compareWithPeers(task, loadPeerScores(patient)));
     }

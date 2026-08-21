@@ -1,3 +1,4 @@
+import logging
 import time
 
 from fastapi import APIRouter
@@ -24,6 +25,7 @@ rule_engine = DemoRuleEngine()
 interpretation_service = InterpretationService()
 followup_adjustment_service = FollowupAdjustmentService()
 report_service = DemoReportService()
+logger = logging.getLogger(__name__)
 
 
 def ok(data: object) -> ApiResponse[object]:
@@ -45,15 +47,35 @@ def normalize(request: NormalizationRequest) -> ApiResponse[object]:
 
 @router.post("/assessments/evaluate", response_model=ApiResponse[AssessmentData])
 def evaluate(request: AssessmentRequest) -> ApiResponse[object]:
-    results = rule_engine.evaluate(request, model_codes=request.model_codes)
+    assessment_request = request
+    image_analysis = None
+    if request.report_images and interpretation_service.vision_settings.configured:
+        try:
+            image_analysis = interpretation_service.analyze_report_images(request)
+            assessment_request = interpretation_service.enrich_request_with_image_analysis(
+                request, image_analysis
+            )
+        except Exception as exception:
+            # The interpretation service retains its existing safe fallback on a failed
+            # image-read attempt. Do not make the HTTP endpoint fail before it can return
+            # the patient's profile and a traceable degraded result.
+            logger.warning(
+                "Image assessment preparation failed errorType=%s",
+                type(exception).__name__,
+            )
+    results = rule_engine.evaluate(assessment_request, model_codes=request.model_codes)
+    interpretation = interpretation_service.interpret_with_analysis(
+        assessment_request, results, image_analysis=image_analysis
+    )
     data = AssessmentData(
         task_id=request.task_id,
         model_version=MODEL_VERSION,
         status="SUCCESS",
         disclaimer=DISCLAIMER,
         results=results,
-        interpretation=interpretation_service.interpret(request, results),
-        patient_context=request.patient_context,
+        interpretation=interpretation.interpretation,
+        patient_context=assessment_request.patient_context,
+        image_analysis=interpretation.image_analysis,
     )
     return ok(data)
 

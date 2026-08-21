@@ -1,4 +1,5 @@
 {
+  "lazyCodeLoading": "requiredComponents",
   "pages": [
     { "path": "pages/login/index", "style": { "navigationBarTitleText": "登录" } },
     {
@@ -29,7 +30,12 @@
         { "path": "followup/index", "style": { "navigationBarTitleText": "健康随访" } },
         { "path": "followup/feedback", "style": { "navigationBarTitleText": "随访反馈" } },
         { "path": "health-scan/index", "style": { "navigationBarTitleText": "健康检测" } },
-        { "path": "voice-reminder/index", "style": { "navigationBarTitleText": "健康提醒" } }
+        { "path": "voice-reminder/index", "style": { "navigationBarTitleText": "健康提醒" } },
+        { "path": "member/index", "style": { "navigationBarTitleText": "健康会员" } },
+        { "path": "member/subscribe", "style": { "navigationBarTitleText": "开通会员" } },
+        { "path": "member/benefits", "style": { "navigationBarTitleText": "会员权益" } },
+        { "path": "member/usage", "style": { "navigationBarTitleText": "权益记录" } },
+        { "path": "member/order-result", "style": { "navigationBarTitleText": "确认支付" } }
       ]
     },
     {
@@ -47,6 +53,7 @@
       "root": "pages-tenant",
       "pages": [
         { "path": "dashboard/index", "style": { "navigationBarTitleText": "医院管理" } },
+        { "path": "dashboard/doctors", "style": { "navigationBarTitleText": "预录入医生" } },
           { "path": "dashboard/tenant-edit", "style": { "navigationBarTitleText": "编辑医院" } },
           { "path": "dashboard/tenant-create", "style": { "navigationBarTitleText": "新建医院" } },
           { "path": "dashboard/followup", "style": { "navigationBarTitleText": "健康随访动态" } },
@@ -58,7 +65,10 @@
     },
     {
       "root": "pages-platform",
-      "pages": [{ "path": "support/index", "style": { "navigationBarTitleText": "反馈中心" } }]
+      "pages": [
+        { "path": "support/index", "style": { "navigationBarTitleText": "反馈中心" } },
+        { "path": "model/index", "style": { "navigationBarTitleText": "AI模型管理" } }
+      ]
     }
   ],
   "tabBar": {
@@ -75,7 +85,7 @@
   },
   "globalStyle": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "智能三羊",
+    "navigationBarTitleText": "三羊健康",
     "navigationBarBackgroundColor": "#f5faf8",
     "backgroundColor": "#f5faf8"
   }

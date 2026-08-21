@@ -11,31 +11,38 @@
       </view>
       <view class="indicator-summary">
         <view
-          ><text>{{ resultItemCount }}</text
+          ><text>{{ hasImageAnalysis ? imageItemCount : resultItemCount }}</text
           ><text>体检项目</text></view
         >
         <view
-          ><text>{{ resultGroups.length }}</text
+          ><text>{{ hasImageAnalysis ? imageGroups.length : resultGroups.length }}</text
           ><text>检查类目</text></view
         >
         <view
-          ><text>{{ summaryCount }}</text
+          ><text>{{ hasImageAnalysis ? imageSummaryCount : summaryCount }}</text
           ><text>检查小结</text></view
         >
       </view>
       <view v-if="isProcessing" class="processing-note">
-        <view class="processing-pulse"><view /></view>
-        <view>
-          <view class="processing-title">正在为你整理这份健康数据</view>
-          <view class="processing-copy"
-            >识别与评估需要一点时间，你可以先离开本页。完成后可在“我的报告”查看结果。</view
-          >
+        <view class="processing-head">
+          <view class="processing-copy-block">
+            <view class="processing-title">{{ processingTitle }}</view>
+            <view class="processing-copy">{{ processingCopy }}</view>
+          </view>
+          <text class="processing-percent">{{ displayedProcessingProgress }}%</text>
         </view>
+        <view class="processing-track">
+          <view
+            class="processing-fill"
+            :style="{ width: `${displayedProcessingProgress}%` }"
+          />
+        </view>
+        <view class="processing-stage">{{ processingStage }}</view>
       </view>
       <view v-if="isAssessmentFailed" class="assessment-failed-note">
-        <view class="assessment-failed-title">体检内容已识别，AI 评估尚未完成</view>
+        <view class="assessment-failed-title">{{ assessmentNoticeTitle }}</view>
         <view class="assessment-failed-copy">
-          已识别的分类项目和检查小结不会丢失，也不需要重新识别原报告。可直接重新生成评估结果和健康报告。
+          {{ assessmentNoticeCopy }}
         </view>
         <button
           class="assessment-retry-button"
@@ -43,10 +50,61 @@
           :disabled="reassessing"
           @click="retryAssessment"
         >
-          {{ reassessing ? '正在生成…' : '重新生成评估与健康报告' }}
+          {{ reassessing ? '正在生成…' : assessmentButtonLabel }}
         </button>
       </view>
-      <template v-if="resultGroups.length">
+      <template v-if="hasImageAnalysis && imageGroups.length">
+        <view class="section-head result-heading">
+          <view>
+            <view class="eyebrow">RESULTS</view>
+            <view class="section-title">分类体检结果</view>
+          </view>
+        </view>
+        <view v-for="group in imageGroups" :key="group.key" class="card result-card">
+          <view class="result-section-head">
+            <view class="finding-section">{{ group.section }}</view>
+            <view class="result-count"
+              >{{ group.indicators.length + group.observations.length }} 项</view
+            >
+          </view>
+          <view
+            v-for="(item, index) in group.indicators"
+            :key="`${item.item}-${index}`"
+            class="category-indicator-row"
+          >
+            <view class="category-indicator-copy">
+              <view class="indicator-name">{{ item.item }}</view>
+              <view class="indicator-ref">参考范围：{{ item.referenceRange || '以原报告为准' }}</view>
+            </view>
+            <view class="category-indicator-result">
+              <view class="category-indicator-value">
+                <text>{{ item.result }}</text
+                ><text v-if="item.unit">{{ item.unit }}</text>
+              </view>
+              <StatusTag :status="item.abnormalFlag || 'NORMAL'" />
+            </view>
+          </view>
+          <view
+            v-for="(finding, index) in group.observations"
+            :key="`${finding.item}-${index}`"
+            class="finding-row"
+          >
+            <view class="finding-name">{{ finding.item }}</view>
+            <view class="finding-result">{{ finding.result }}</view>
+          </view>
+          <view v-if="group.summaries.length" class="finding-summary">
+            <view class="finding-summary-title">检查小结</view>
+            <view
+              v-for="(summary, index) in group.summaries"
+              :key="`${summary.item}-${index}`"
+              class="finding-summary-item"
+            >
+              {{ summary.result || summary.conclusion }}
+            </view>
+          </view>
+        </view>
+      </template>
+      <template v-else-if="resultGroups.length">
         <view class="section-head result-heading">
           <view>
             <view class="eyebrow">RESULTS</view>
@@ -105,8 +163,8 @@
 import { computed, onUnmounted, ref } from 'vue'
 import { onHide, onLoad, onShow } from '@dcloudio/uni-app'
 import { getHealthReports } from '@/api/health-report'
-import { getLabReport, getOcrTask, submitAi } from '@/api/lab-report'
-import type { Indicator, LabReport, OcrFinding } from '@/types/api'
+import { getLabReport, submitAi } from '@/api/lab-report'
+import type { ImageAnalysisFinding, Indicator, LabReport, OcrFinding } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 const report = ref<LabReport>(),
@@ -203,9 +261,9 @@ const resultGroups = computed(() => {
       : values.observations
     target.push({ item, result })
   }
-  // 新版体检报告已把数值、单位和参考范围保存在原类目内容中。仅在旧报告没有
-  // 任何原始分类结果时展示独立指标，避免重复展示或把指标挪到报告末尾。
-  for (const item of visibleFindings.value.length ? [] : visibleIndicators.value) {
+  // 数值指标与文字所见是两类互补事实：即使报告同时存在检查小结，也必须继续展示
+  // 全部数值、单位和参考范围，不能因 findings 非空而把指标隐藏掉。
+  for (const item of visibleIndicators.value) {
     // 旧式数值指标没有保存原始类目，只能归入原报告名称，避免猜测后放错类目。
     const section = report.value?.reportName?.trim() || '检验指标'
     let values = groups[groups.length - 1]
@@ -232,6 +290,52 @@ const resultItemCount = computed(() =>
 const summaryCount = computed(() =>
   resultGroups.value.reduce((total, group) => total + group.summaries.length, 0),
 )
+const hasImageAnalysis = computed(() => (report.value?.imageAnalysis?.pages?.length || 0) > 0)
+const imageGroups = computed(() => {
+  const groups: Array<{
+    key: string
+    section: string
+    indicators: ImageAnalysisFinding[]
+    observations: ImageAnalysisFinding[]
+    summaries: ImageAnalysisFinding[]
+  }> = []
+  for (const page of report.value?.imageAnalysis?.pages || []) {
+    for (const finding of page.findings || []) {
+      const section = finding.category?.trim() || report.value?.reportName?.trim() || '体检结果'
+      const item = finding.item?.trim()
+      const result = finding.result?.trim()
+      if (!item && !result) continue
+      let values = groups[groups.length - 1]
+      if (!values || values.section !== section) {
+        values = {
+          key: `${groups.length}-${section}`,
+          section,
+          indicators: [],
+          observations: [],
+          summaries: [],
+        }
+        groups.push(values)
+      }
+      if (summaryLabels.has(normalizeFindingLabel(item))) {
+        values.summaries.push(finding)
+      } else if (finding.abnormalFlag || finding.referenceRange || finding.unit) {
+        values.indicators.push(finding)
+      } else {
+        values.observations.push(finding)
+      }
+    }
+  }
+  return groups
+})
+const imageItemCount = computed(() =>
+  imageGroups.value.reduce(
+    (total, group) => total + group.indicators.length + group.observations.length,
+    0,
+  ),
+)
+const imageSummaryCount = computed(() =>
+  imageGroups.value.reduce((total, group) => total + group.summaries.length, 0),
+)
 const referenceText = (item: Indicator) => {
   const low = item.referenceLow
   const high = item.referenceHigh
@@ -250,12 +354,82 @@ const isProcessing = computed(() =>
     report.value?.status || '',
   ),
 )
-const isAssessmentFailed = computed(() =>
-  ['AI_FAILED', 'FAILED'].includes(report.value?.status || '') && resultItemCount.value > 0,
+const processingTitle = computed(() =>
+  ['CONFIRMED', 'AI_PROCESSING'].includes(report.value?.status || '') || report.value?.hasImageFiles
+    ? '正在生成健康评估'
+    : '正在识别体检内容',
+)
+const processingCopy = computed(() =>
+  report.value?.hasImageFiles
+    ? '正在读取图片，并结合健康档案与健康拍结果综合分析。'
+    : '正在读取 PDF 原文并整理检验项目，完成后自动生成健康报告。',
+)
+const fallbackProcessingProgress = computed(() => {
+  switch (report.value?.status) {
+    case 'UPLOADED':
+      return 5
+    case 'OCR_PENDING':
+      return 8
+    case 'OCR_PROCESSING':
+      return 12
+    case 'CONFIRMED':
+      return 82
+    case 'AI_PROCESSING':
+      return report.value?.hasImageFiles ? 12 : 82
+    case 'PUBLISHED':
+      return 100
+    default:
+      return 0
+  }
+})
+const serverProcessingProgress = computed(() => {
+  const value = Number(report.value?.processingProgress ?? fallbackProcessingProgress.value)
+  return Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0))
+})
+const processingStage = computed(
+  () =>
+    report.value?.processingMessage ||
+    (report.value?.hasImageFiles ? '图片识别服务正在处理' : '识别服务正在处理'),
+)
+const displayedProcessingProgress = ref(0)
+const processingCeiling = computed(() => {
+  if (report.value?.status === 'OCR_PENDING' || report.value?.status === 'UPLOADED') return 18
+  if (report.value?.status === 'OCR_PROCESSING') return 72
+  if (['CONFIRMED', 'AI_PROCESSING'].includes(report.value?.status || '')) return 94
+  return serverProcessingProgress.value
+})
+const directImageAssessmentAvailable = computed(() =>
+  Boolean(
+    report.value?.hasImageFiles &&
+      ['CONFIRMED', 'OCR_FAILED', 'FAILED', 'WAITING_CONFIRMATION', 'AI_FAILED'].includes(
+        report.value?.status || '',
+      ),
+  ),
+)
+const isAssessmentFailed = computed(
+  () =>
+    directImageAssessmentAvailable.value ||
+    (['AI_FAILED', 'FAILED'].includes(report.value?.status || '') && resultItemCount.value > 0),
+)
+const assessmentNoticeTitle = computed(() =>
+  directImageAssessmentAvailable.value
+    ? '可直接用原始图片生成健康报告'
+    : '体检内容已识别，AI 评估尚未完成',
+)
+const assessmentNoticeCopy = computed(() =>
+  directImageAssessmentAvailable.value
+    ? '当前结构化识别结果不完整，本次将直接读取原始体检图片，并结合健康档案、健康拍结果生成健康报告。'
+    : report.value?.failureReason
+      ? `${report.value.failureReason} 已识别的体检项目和检查小结不会丢失，处理条件满足后可继续发起本次 AI 健康评估。`
+      : '已识别的分类项目和检查小结不会丢失，也不需要重新识别原报告。当前评估尚未完成，可继续发起本次 AI 健康评估。',
+)
+const assessmentButtonLabel = computed(() =>
+  directImageAssessmentAvailable.value ? '直接用图片生成健康报告' : '继续生成 AI 健康报告',
 )
 const reportId = ref('')
 const autoReturn = ref(false)
 let pollTimer: ReturnType<typeof globalThis.setTimeout> | undefined
+let progressTimer: ReturnType<typeof globalThis.setInterval> | undefined
 onLoad((q) => {
   reportId.value = String(q?.id || '')
   autoReturn.value = String(q?.autoReturn || '') === '1'
@@ -270,6 +444,8 @@ onShow(async () => {
   error.value = ''
   try {
     report.value = await getLabReport(reportId.value)
+    syncDisplayedProgress()
+    startProgressTicker()
     scheduleOcrPoll()
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '检验报告加载失败'
@@ -277,8 +453,14 @@ onShow(async () => {
     loading.value = false
   }
 })
-onHide(stopOcrPoll)
-onUnmounted(stopOcrPoll)
+onHide(() => {
+  stopOcrPoll()
+  stopProgressTicker()
+})
+onUnmounted(() => {
+  stopOcrPoll()
+  stopProgressTicker()
+})
 
 function stopOcrPoll() {
   if (pollTimer) {
@@ -287,27 +469,64 @@ function stopOcrPoll() {
   }
 }
 
+function syncDisplayedProgress() {
+  if (!isProcessing.value) {
+    displayedProcessingProgress.value = serverProcessingProgress.value
+    return
+  }
+  displayedProcessingProgress.value = Math.max(
+    displayedProcessingProgress.value,
+    serverProcessingProgress.value,
+  )
+}
+
+function startProgressTicker() {
+  stopProgressTicker()
+  progressTimer = globalThis.setInterval(() => {
+    if (!isProcessing.value) {
+      displayedProcessingProgress.value = serverProcessingProgress.value
+      return
+    }
+    const ceiling = Math.max(serverProcessingProgress.value, processingCeiling.value)
+    displayedProcessingProgress.value = Math.min(
+      ceiling,
+      Math.max(displayedProcessingProgress.value, serverProcessingProgress.value) + 1,
+    )
+  }, 900)
+}
+
+function stopProgressTicker() {
+  if (progressTimer) {
+    globalThis.clearInterval(progressTimer)
+    progressTimer = undefined
+  }
+}
+
 function scheduleOcrPoll() {
   stopOcrPoll()
-  if (!autoReturn.value) return
+  if (!report.value || !isProcessing.value) return
   pollTimer = globalThis.setTimeout(async () => {
     try {
-      const task = await getOcrTask(reportId.value)
-      if (task.status === 'SUCCESS') {
-        stopOcrPoll()
-        uni.showToast({ title: '识别完成，报告已整理', icon: 'success' })
-        globalThis.setTimeout(
-          () => uni.redirectTo({ url: '/pages-customer/lab-report/index' }),
-          500,
-        )
-        return
-      }
-      if (task.status === 'FAILED') {
-        stopOcrPoll()
-        report.value = await getLabReport(reportId.value)
-        return
-      }
       report.value = await getLabReport(reportId.value)
+      syncDisplayedProgress()
+      const status = report.value.status
+      if (status === 'PUBLISHED') {
+        stopOcrPoll()
+        stopProgressTicker()
+        if (autoReturn.value) {
+          uni.showToast({ title: '健康报告已生成', icon: 'success' })
+          globalThis.setTimeout(
+            () => uni.redirectTo({ url: '/pages-customer/lab-report/index' }),
+            500,
+          )
+        }
+        return
+      }
+      if (['AI_FAILED', 'OCR_FAILED', 'FAILED'].includes(status)) {
+        stopOcrPoll()
+        stopProgressTicker()
+        return
+      }
       scheduleOcrPoll()
     } catch {
       scheduleOcrPoll()
@@ -390,32 +609,27 @@ async function retryAssessment() {
   background: #fff;
 }
 .processing-note {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
   margin-top: 22rpx;
   padding: 24rpx;
   border: 1rpx solid #d6ebe3;
   border-radius: 22rpx;
   background: linear-gradient(135deg, #f8fffc, #e7f7f1);
 }
-.processing-pulse {
+.processing-head {
   display: flex;
-  flex: 0 0 56rpx;
   align-items: center;
-  justify-content: center;
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 19rpx;
-  background: #d8f2e8;
+  justify-content: space-between;
+  gap: 18rpx;
 }
-.processing-pulse view {
-  width: 18rpx;
-  height: 18rpx;
-  border: 5rpx solid #85cdb7;
-  border-top-color: #08775e;
-  border-radius: 50%;
-  animation: processing-spin 1.2s linear infinite;
+.processing-copy-block {
+  flex: 1;
+  min-width: 0;
+}
+.processing-percent {
+  flex: 0 0 auto;
+  color: #0b8064;
+  font-size: 34rpx;
+  font-weight: 780;
 }
 .processing-title {
   color: #185447;
@@ -427,6 +641,25 @@ async function retryAssessment() {
   color: #628078;
   font-size: 22rpx;
   line-height: 1.6;
+}
+.processing-track {
+  overflow: hidden;
+  height: 14rpx;
+  margin-top: 22rpx;
+  border-radius: 999rpx;
+  background: #dceee8;
+}
+.processing-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #43c889, #0d9f82);
+  transition: width 0.8s ease;
+}
+.processing-stage {
+  margin-top: 12rpx;
+  color: #397367;
+  font-size: 21rpx;
+  line-height: 1.5;
 }
 .assessment-failed-note {
   margin-top: 22rpx;
@@ -453,11 +686,6 @@ async function retryAssessment() {
   background: #0b8064;
   color: #fff;
   font-size: 24rpx;
-}
-@keyframes processing-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 .indicator-summary view {
   display: flex;

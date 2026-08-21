@@ -33,6 +33,7 @@ export const uploadLabReport = (
   reportName: string,
   reportDate: string,
   onProgress?: (progress: number) => void,
+  startOcr = true,
 ) =>
   new Promise<LabReportUpload>((resolve, reject) => {
     const task = uni.uploadFile({
@@ -40,7 +41,7 @@ export const uploadLabReport = (
       filePath,
       name: 'file',
       header: getRequestHeaders(),
-      formData: { patientId, reportName, reportDate },
+      formData: { patientId, reportName, reportDate, startOcr: String(startOcr) },
       success: (response) => {
         try {
           const body = JSON.parse(response.data) as ApiResponse<LabReportUpload>
@@ -66,6 +67,50 @@ export const uploadLabReport = (
       fail: () => reject(new ApiError(-1, '文件上传失败，请检查网络连接')),
     })
     task.onProgressUpdate((event) => onProgress?.(event.progress))
+  })
+
+export const appendLabReportFile = (
+  reportId: string,
+  filePath: string,
+  onProgress?: (progress: number) => void,
+) =>
+  new Promise<LabReportFile>((resolve, reject) => {
+    const task = uni.uploadFile({
+      url: `${getApiBaseUrl()}/api/v1/lab-reports/${reportId}/files`,
+      filePath,
+      name: 'file',
+      header: getRequestHeaders(),
+      success: (response) => {
+        try {
+          const body = JSON.parse(response.data) as ApiResponse<LabReportFile>
+          if (response.statusCode === 401) {
+            uni.reLaunch({ url: '/pages/login/index?expired=1' })
+            reject(new ApiError(401, '登录已失效'))
+            return
+          }
+          if (response.statusCode === 403) {
+            uni.navigateTo({ url: '/pages/no-permission/index' })
+            reject(new ApiError(403, '无权限'))
+            return
+          }
+          if (response.statusCode >= 400 || body.code !== 0) {
+            reject(new ApiError(body.code, body.message || '上传失败'))
+            return
+          }
+          resolve(body.data)
+        } catch {
+          reject(new ApiError(-1, '服务端返回格式异常'))
+        }
+      },
+      fail: () => reject(new ApiError(-1, '文件上传失败，请检查网络连接')),
+    })
+    task.onProgressUpdate((event) => onProgress?.(event.progress))
+  })
+
+export const completeLabReportUpload = (reportId: string) =>
+  request<OcrTask>({
+    url: `/api/v1/lab-reports/${reportId}/files/complete`,
+    method: 'POST',
   })
 export const saveIndicators = (id: string, indicators: Indicator[]) =>
   request<LabReport>({

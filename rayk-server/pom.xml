@@ -23,6 +23,7 @@
     <mapstruct.version>1.6.3</mapstruct.version>
     <springdoc.version>2.8.8</springdoc.version>
     <minio.version>8.5.17</minio.version>
+    <wechatpay-java.version>0.2.17</wechatpay-java.version>
   </properties>
 
   <dependencies>
@@ -103,6 +104,11 @@
       <groupId>io.minio</groupId>
       <artifactId>minio</artifactId>
       <version>${minio.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.wechatpay-apiv3</groupId>
+      <artifactId>wechatpay-java</artifactId>
+      <version>${wechatpay-java.version}</version>
     </dependency>
     <dependency>
       <groupId>org.springdoc</groupId>

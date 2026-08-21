@@ -44,6 +44,12 @@
         <view class="menu-copy">{{ item.description }}</view>
         <view class="menu-footer"><text>立即进入</text><text class="arrow">›</text></view>
       </view>
+      <view v-if="isPlatform" class="menu-card" @click="open('/pages-platform/model/index')">
+        <view class="menu-icon tone-2">模</view>
+        <view class="menu-title">AI模型管理</view>
+        <view class="menu-copy">切换 DeepSeek V4 Flash / Pro 模型</view>
+        <view class="menu-footer"><text>立即进入</text><text class="arrow">›</text></view>
+      </view>
     </view>
 
     <view v-if="!isPlatform" class="help-card" @click="goSupport">

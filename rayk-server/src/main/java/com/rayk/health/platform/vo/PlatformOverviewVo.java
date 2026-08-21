@@ -7,6 +7,7 @@ public record PlatformOverviewVo(
         long activeTenantCount,
         long userCount,
         long patientCount,
+        long phoneCustomerCount,
         long pendingReviewCount,
         long pendingFollowupCount,
         long todayFollowupCount,

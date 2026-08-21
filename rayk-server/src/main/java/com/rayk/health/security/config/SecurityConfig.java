@@ -43,6 +43,8 @@ public class SecurityConfig {
                                                 "/api/v1/auth/wechat-login",
                                                 "/api/v1/auth/wechat-staff-login",
                                                 "/api/v1/auth/wechat-admin-login",
+                                                "/api/payments/wechat/notify",
+                                                "/api/payments/wechat/virtual/notify",
                                                 "/actuator/health/**",
                                                 "/v3/api-docs/**",
                                                 "/swagger-ui/**",

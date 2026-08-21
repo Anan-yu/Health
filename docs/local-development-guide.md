@@ -1,4 +1,4 @@
-# 智能三羊本地开发启动指南
+# 三羊健康本地开发启动指南
 
 
 ## 一、开始前的准备
@@ -61,7 +61,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-dev.ps1
 
 ~~~powershell
 docker compose -f compose.yml -f compose.dev.yml up -d --build
+docker compose -f compose.yml -f compose.dev.yml up -d --force-recreate nginx
 ~~~
+
+启动脚本会在业务服务启动后自动重建一次 Nginx 网关，并通过宿主机端口执行 `/health` 检查。Docker Desktop 在电脑休眠、切换 WLAN 或重建 Java/AI 容器后，旧网关偶尔会出现 8088 建立连接后直接断开的情况；该操作只重建网关，不会删除或重置任何数据卷。
 
 第一次启动会下载基础镜像、安装 Java/Python 依赖，并可能下载 PaddleOCR 模型，耗时较长。检查状态：
 
@@ -116,7 +119,7 @@ http://localhost:5173/#/
 
 ## 六、三个角色的本地调试
 
-在 H5 登录页向下查看“开发调试身份”卡片，选择角色后点击“进入智能三羊”：
+在 H5 登录页向下查看“开发调试身份”卡片，选择角色后点击“进入三羊健康”：
 
 | 角色 | 用途 |
 | --- | --- |

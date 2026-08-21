@@ -55,12 +55,53 @@ class PatientContext(RaykModel):
     camera_completed_at: datetime | None = Field(default=None, alias="cameraCompletedAt")
 
 
+class ReportImage(RaykModel):
+    """A private, short-lived image URL used only for multimodal assessment."""
+
+    page: int = Field(ge=1, le=100)
+    mime_type: str = Field(alias="mimeType", pattern=r"^image/")
+    download_url: str = Field(alias="downloadUrl", min_length=1, max_length=4096)
+
+
+class VisionImageFinding(RaykModel):
+    """A fact read directly from one page of the original report image."""
+
+    category: str = Field(default="", max_length=200)
+    item: str = Field(min_length=1, max_length=300)
+    result: str = Field(default="", max_length=800)
+    unit: str | None = Field(default=None, max_length=100)
+    reference_range: str | None = Field(default=None, alias="referenceRange", max_length=300)
+    abnormal_flag: str | None = Field(default=None, alias="abnormalFlag", max_length=100)
+    conclusion: str | None = Field(default=None, max_length=1000)
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class VisionImagePage(RaykModel):
+    """Ordered, page-scoped output from the direct image-reading stage."""
+
+    page: int = Field(ge=1, le=100)
+    page_summary: str = Field(default="", alias="pageSummary", max_length=2000)
+    findings: list[VisionImageFinding] = Field(default_factory=list, max_length=200)
+    uncertainties: list[str] = Field(default_factory=list, max_length=20)
+
+
+class VisionImageAnalysis(RaykModel):
+    """Validated intermediate result passed to final report synthesis."""
+
+    pages: list[VisionImagePage] = Field(min_length=1, max_length=50)
+
+
 class AssessmentRequest(RaykModel):
     task_id: str = Field(alias="taskId", min_length=1)
     patient_id: str = Field(alias="patientId", min_length=1)
     indicators: list[IndicatorInput]
     findings: list[OcrFinding] = Field(default_factory=list, max_length=500)
+    report_images: list[ReportImage] = Field(
+        default_factory=list, alias="reportImages", max_length=50
+    )
     model_codes: list[str] | None = Field(default=None, alias="modelCodes")
+    model: str | None = Field(default=None, max_length=80)
+    thinking_enabled: bool | None = Field(default=None, alias="thinkingEnabled")
     patient_context: PatientContext | None = Field(default=None, alias="patientContext")
 
 
@@ -144,7 +185,7 @@ class AbnormalExplanation(RaykModel):
 
 class ComprehensiveInterpretation(RaykModel):
     status: Literal["SUCCESS", "DISABLED", "FALLBACK"]
-    source: Literal["DEEPSEEK", "RULE_FALLBACK"]
+    source: Literal["DEEPSEEK", "QWEN_VISION", "RULE_FALLBACK"]
     model: str | None = None
     generation_attempts: int = Field(default=0, alias="generationAttempts", ge=0, le=3)
     fallback_reason: str | None = Field(default=None, alias="fallbackReason", max_length=100)
@@ -181,3 +222,4 @@ class AssessmentData(RaykModel):
     results: list[ModelResult]
     interpretation: ComprehensiveInterpretation
     patient_context: PatientContext | None = Field(default=None, alias="patientContext")
+    image_analysis: VisionImageAnalysis | None = Field(default=None, alias="imageAnalysis")

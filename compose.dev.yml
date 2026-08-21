@@ -19,10 +19,23 @@ services:
   rayk-server:
     environment:
       RAYK_DEVELOPMENT_LOGIN_ENABLED: "true"
-      WECHAT_MOCK_ENABLED: ${WECHAT_MOCK_ENABLED:-true}
+      # H5 and the developer role card use the dedicated mock-login endpoint.
+      # Keep WeChat mini-program login real so an authorised phone is matched
+      # against the database instead of the shared mock customer identity.
+      WECHAT_MOCK_ENABLED: ${WECHAT_MOCK_ENABLED:-false}
       WECHAT_MOCK_OPENID: ${WECHAT_MOCK_OPENID:-rayk-dev-openid}
-      # 禁止把模拟微信身份自动绑定到固定账号；需先用开发入口登录后手动绑定。
+      # Enterprise mini-program login requires the verified phone credential;
+      # the separate mock-login endpoint remains available to the H5/debug card.
+      WECHAT_PHONE_LOGIN_REQUIRED: ${WECHAT_PHONE_LOGIN_REQUIRED:-true}
+      MEMBERSHIP_DEVELOPMENT_MODE: "true"
+      # Real payment remains opt-in in development. Set MEMBERSHIP_PAYMENT_ENABLED=true
+      # in the host .env only after configuring the virtual-payment AppKey/ProductID.
+      MEMBERSHIP_PAYMENT_ENABLED: ${MEMBERSHIP_PAYMENT_ENABLED:-false}
+      WECHAT_VIRTUAL_NOTIFY_URL: ${WECHAT_VIRTUAL_NOTIFY_URL:-https://xingxuyuan.com/api/payments/wechat/virtual/notify}
+      RAYK_AI_READ_TIMEOUT_SECONDS: "${RAYK_AI_READ_TIMEOUT_SECONDS:-600}"
+      # 禁止把模拟微信身份自动绑定到固定账号；本地角色调试使用开发入口。
       WECHAT_AUTO_BIND_USERNAME: ""
+      WECHAT_PLATFORM_ADMIN_USERNAME: "admin"
     ports:
       - "${JAVA_PORT:-8080}:8080"
   nginx:

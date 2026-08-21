@@ -13,5 +13,8 @@ public record WeChatProperties(
         String mockOpenid,
         String mockPhoneNumber,
         long defaultCustomerTenantId,
-        String autoBindUsername) {}
+        String autoBindUsername,
+        boolean phoneLoginRequired,
+        String platformAdminPhone,
+        String platformAdminUsername) {}
 

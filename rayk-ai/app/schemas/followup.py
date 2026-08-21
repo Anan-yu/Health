@@ -20,6 +20,8 @@ class FollowupAdjustmentRequest(RaykModel):
     completion_rate: int = Field(alias="completionRate", ge=0, le=100)
     feedback: str | None = Field(default=None, max_length=1000)
     actions: list[FollowupActionFeedback] = Field(min_length=1, max_length=30)
+    model: str | None = Field(default=None, max_length=80)
+    thinking_enabled: bool | None = Field(default=None, alias="thinkingEnabled")
 
 
 class FollowupActionSuggestion(RaykModel):

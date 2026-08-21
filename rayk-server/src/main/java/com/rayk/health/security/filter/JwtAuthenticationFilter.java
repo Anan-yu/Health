@@ -48,6 +48,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (!StringUtils.hasText(workbench)) {
                 return;
             }
+            long userId = ((Number) claims.get("userId")).longValue();
+            Number tokenSessionVersion = claims.get("sessionVersion", Number.class);
+            String currentVersionValue =
+                    redisTemplate.opsForValue().get(AuthService.sessionVersionKey(userId));
+            long currentSessionVersion = currentVersionValue == null
+                    ? 0L
+                    : Long.parseLong(currentVersionValue);
+            // JWTs issued before session-versioning have no claim and remain valid
+            // only until this user's first explicit revocation.
+            if (tokenSessionVersion == null
+                    ? currentSessionVersion > 0L
+                    : tokenSessionVersion.longValue() != currentSessionVersion) {
+                return;
+            }
             List<String> roles = claims.get("roles", List.class);
             List<String> permissions = claims.get("permissions", List.class);
             List<SimpleGrantedAuthority> authorities = new ArrayList<>();
@@ -57,7 +71,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     new CurrentPrincipal(
                             claims.getId(),
                             claims.getSubject(),
-                            ((Number) claims.get("userId")).longValue(),
+                            userId,
                             ((Number) claims.get("tenantId")).longValue(),
                             List.copyOf(roles),
                             List.copyOf(permissions),

@@ -29,10 +29,14 @@ import com.rayk.health.laboratory.dto.ConfirmIndicatorsRequest;
 import com.rayk.health.laboratory.dto.CreateLabReportRequest;
 import com.rayk.health.laboratory.dto.IndicatorInput;
 import com.rayk.health.laboratory.entity.LabReportEntity;
+import com.rayk.health.laboratory.entity.LabReportFileEntity;
+import com.rayk.health.laboratory.mapper.LabReportFileMapper;
 import com.rayk.health.laboratory.mapper.LabReportMapper;
 import com.rayk.health.laboratory.vo.IndicatorVo;
 import com.rayk.health.laboratory.vo.LabReportVo;
 import com.rayk.health.laboratory.vo.OcrFindingVo;
+import com.rayk.health.membership.application.MembershipEntitlementService;
+import com.rayk.health.platform.application.AiModelRuntimeConfigService;
 import com.rayk.health.patient.application.DataScopeService;
 import com.rayk.health.patient.converter.PatientConverter;
 import com.rayk.health.patient.entity.PatientEntity;
@@ -48,8 +52,12 @@ import com.rayk.health.review.mapper.AssessmentReviewMapper;
 import com.rayk.health.review.vo.ReviewTaskVo;
 import com.rayk.health.security.service.CurrentPrincipal;
 import com.rayk.health.security.service.CurrentUser;
+import com.rayk.health.storage.MinioProperties;
 import com.rayk.health.system.aspect.Audited;
 import com.rayk.health.system.application.PrivacyConsentService;
+import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.MinioClient;
+import io.minio.http.Method;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -66,13 +74,23 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class WorkflowApplicationService {
+    private static final Logger log = LoggerFactory.getLogger(WorkflowApplicationService.class);
     public static final String DISCLAIMER =
             "该结果仅用于健康管理参考，不构成医学诊断。";
+    // qwen3.7-flash-2026-07-15 reads image pages in batches over several minutes; a 10-minute
+    // signature expired before the final batch of a 15-page report. Align it with
+    // the Java-to-AI read timeout so every batch can still download its pages.
+    private static final int REPORT_IMAGE_PRESIGN_EXPIRY_SECONDS = 1800;
 
     private final LabReportMapper labReportMapper;
+    private final LabReportFileMapper labReportFileMapper;
+    private final MinioClient minioClient;
+    private final MinioProperties minioProperties;
     private final IndicatorValueMapper indicatorMapper;
     private final AiTaskMapper aiTaskMapper;
     private final HealthAssessmentMapper assessmentMapper;
@@ -90,9 +108,14 @@ public class WorkflowApplicationService {
     private final PrivacyConsentService privacyConsentService;
     private final NutritionFollowupPlanService nutritionFollowupPlanService;
     private final HealthScanContextService healthScanContextService;
+    private final MembershipEntitlementService membershipEntitlementService;
+    private final AiModelRuntimeConfigService aiModelRuntimeConfigService;
 
     public WorkflowApplicationService(
             LabReportMapper labReportMapper,
+            LabReportFileMapper labReportFileMapper,
+            MinioClient minioClient,
+            MinioProperties minioProperties,
             IndicatorValueMapper indicatorMapper,
             AiTaskMapper aiTaskMapper,
             HealthAssessmentMapper assessmentMapper,
@@ -109,8 +132,13 @@ public class WorkflowApplicationService {
             AssessmentModelService assessmentModelService,
             PrivacyConsentService privacyConsentService,
             NutritionFollowupPlanService nutritionFollowupPlanService,
-            HealthScanContextService healthScanContextService) {
+            HealthScanContextService healthScanContextService,
+            MembershipEntitlementService membershipEntitlementService,
+            AiModelRuntimeConfigService aiModelRuntimeConfigService) {
         this.labReportMapper = labReportMapper;
+        this.labReportFileMapper = labReportFileMapper;
+        this.minioClient = minioClient;
+        this.minioProperties = minioProperties;
         this.indicatorMapper = indicatorMapper;
         this.aiTaskMapper = aiTaskMapper;
         this.assessmentMapper = assessmentMapper;
@@ -128,6 +156,8 @@ public class WorkflowApplicationService {
         this.privacyConsentService = privacyConsentService;
         this.nutritionFollowupPlanService = nutritionFollowupPlanService;
         this.healthScanContextService = healthScanContextService;
+        this.membershipEntitlementService = membershipEntitlementService;
+        this.aiModelRuntimeConfigService = aiModelRuntimeConfigService;
     }
 
     public List<Long> accessiblePatientIds() {
@@ -173,7 +203,49 @@ public class WorkflowApplicationService {
     }
 
     public LabReportVo getLabReport(long id) {
-        return toLabReportVo(requireReport(id));
+        LabReportEntity report = requireReport(id);
+        reconcilePublishedAssessment(report);
+        return toLabReportVo(report);
+    }
+
+    /**
+     * Repairs the state mismatch left by older runs where assessment/report persistence
+     * succeeded but PDF version persistence raised an exception afterwards.
+     */
+    private void reconcilePublishedAssessment(LabReportEntity report) {
+        if (!"AI_FAILED".equals(report.getStatus())) {
+            return;
+        }
+        HealthAssessmentEntity assessment =
+                assessmentMapper.selectOne(
+                        new LambdaQueryWrapper<HealthAssessmentEntity>()
+                                .eq(HealthAssessmentEntity::getReportId, report.getId())
+                                .eq(HealthAssessmentEntity::getStatus, "SUCCESS")
+                                .eq(HealthAssessmentEntity::getDeleted, 0)
+                                .orderByDesc(HealthAssessmentEntity::getCreatedAt)
+                                .last("LIMIT 1"));
+        if (assessment == null) {
+            return;
+        }
+        HealthReportEntity healthReport =
+                healthReportMapper.selectOne(
+                        new LambdaQueryWrapper<HealthReportEntity>()
+                                .eq(HealthReportEntity::getAssessmentId, assessment.getId())
+                                .eq(HealthReportEntity::getStatus, "PUBLISHED")
+                                .eq(HealthReportEntity::getDeleted, 0)
+                                .last("LIMIT 1"));
+        if (healthReport == null) {
+            return;
+        }
+        report.setStatus("PUBLISHED");
+        report.setProcessingProgress(100);
+        report.setProcessingMessage("健康报告已生成");
+        report.setFailureReason(null);
+        Long operatorId = report.getUpdatedBy() == null ? report.getCreatedBy() : report.getUpdatedBy();
+        if (operatorId != null) {
+            touch(report, operatorId);
+        }
+        labReportMapper.updateById(report);
     }
 
     @Transactional
@@ -224,19 +296,52 @@ public class WorkflowApplicationService {
     public AssessmentVo submitAi(long reportId) {
         LabReportEntity report = requireReport(reportId);
         String previousReportStatus = report.getStatus();
+        if ("PUBLISHED".equals(previousReportStatus)) {
+            throw new BusinessException(ErrorCode.LAB_REPORT_INVALID_STATUS);
+        }
+        List<AiDtos.ReportImage> reportImages = reportImages(reportId);
+        boolean directImageAssessment = !reportImages.isEmpty();
         boolean legacyAssessmentFailure =
                 "FAILED".equals(previousReportStatus)
                         && report.getOcrSnapshot() != null
                         && !report.getOcrSnapshot().isBlank()
                         && !indicators(reportId).isEmpty();
-        if (!Set.of("CONFIRMED", "PUBLISHED", "AI_FAILED").contains(previousReportStatus)
-                && !legacyAssessmentFailure) {
+        if (!Set.of("CONFIRMED", "AI_FAILED").contains(previousReportStatus)
+                && !legacyAssessmentFailure
+                && !(directImageAssessment
+                        && Set.of("OCR_FAILED", "FAILED", "WAITING_CONFIRMATION", "UPLOADED")
+                                .contains(previousReportStatus))) {
             throw new BusinessException(ErrorCode.LAB_REPORT_INVALID_STATUS);
         }
         privacyConsentService.requireConsent(
                 report.getPatientId(), PrivacyConsentService.TYPE_HEALTH_ASSESSMENT);
         CurrentPrincipal current = CurrentUser.require();
+        String usageKey = UUID.randomUUID().toString();
+        MembershipEntitlementService.UsageReservation assessmentUsage =
+                membershipEntitlementService.reserve(
+                        "AI_HEALTH_ASSESSMENT",
+                        "HEALTH_ASSESSMENT",
+                        String.valueOf(reportId),
+                        "AI_HEALTH_ASSESSMENT:" + current.userId() + ":" + reportId + ":" + usageKey);
+        MembershipEntitlementService.UsageReservation reportUsage;
+        try {
+            reportUsage =
+                    membershipEntitlementService.reserve(
+                            "AI_HEALTH_REPORT",
+                            "HEALTH_ASSESSMENT",
+                            String.valueOf(reportId),
+                            "AI_HEALTH_REPORT:" + current.userId() + ":" + reportId + ":" + usageKey);
+        } catch (RuntimeException exception) {
+            membershipEntitlementService.release(assessmentUsage.usageId());
+            throw exception;
+        }
         report.setStatus("AI_PROCESSING");
+        report.setProcessingProgress(
+                directImageAssessment
+                        ? 12
+                        : Math.max(80, safeProgress(report.getProcessingProgress())));
+        report.setProcessingMessage(
+                directImageAssessment ? "正在读取图片内容" : "正在结合健康档案生成健康评估");
         touch(report, current.userId());
         labReportMapper.updateById(report);
 
@@ -295,8 +400,15 @@ public class WorkflowApplicationService {
                                     age,
                                     profile,
                                     healthScanContextService.latest(
-                                            current.tenantId(), patient.getId())));
+                                            current.tenantId(), patient.getId())),
+                            aiModelRuntimeConfigService.currentModelCode(),
+                            aiModelRuntimeConfigService.currentThinkingEnabled(),
+                            reportImages);
             AiDtos.AssessmentData aiResult = aiServiceClient.evaluate(aiRequest);
+            report.setProcessingProgress(90);
+            report.setProcessingMessage("健康评估完成，正在生成健康报告");
+            touch(report, current.userId());
+            labReportMapper.updateById(report);
             task.setStatus("SUCCESS");
             if (aiResult.interpretation() != null
                     && "RULE_FALLBACK".equals(aiResult.interpretation().source())) {
@@ -327,23 +439,30 @@ public class WorkflowApplicationService {
 
             publishAutomatically(assessment, patient, current);
             report.setStatus("PUBLISHED");
+            report.setProcessingProgress(100);
+            report.setProcessingMessage("健康报告已生成");
             report.setFailureReason(null);
+            if (aiResult.imageAnalysis() != null) {
+                report.setImageAnalysisSnapshot(
+                        objectMapper.writeValueAsString(aiResult.imageAnalysis()));
+            }
             touch(report, current.userId());
             labReportMapper.updateById(report);
+            membershipEntitlementService.confirm(assessmentUsage.usageId());
+            membershipEntitlementService.confirm(reportUsage.usageId());
             return toAssessmentVo(assessment);
         } catch (JsonProcessingException | RuntimeException exception) {
+            String failureReason = assessmentFailureReason(exception);
+            membershipEntitlementService.release(assessmentUsage.usageId());
+            membershipEntitlementService.release(reportUsage.usageId());
             task.setStatus("FAILED");
-            task.setErrorMessage("AI评估或健康报告生成失败");
+            task.setErrorMessage(failureReason);
             task.setFinishedAt(LocalDateTime.now());
             touch(task, current.userId());
             aiTaskMapper.updateById(task);
-            if ("PUBLISHED".equals(previousReportStatus)) {
-                report.setStatus("PUBLISHED");
-                report.setFailureReason(null);
-            } else {
-                report.setStatus("AI_FAILED");
-                report.setFailureReason("体检内容识别已完成，AI评估或健康报告生成失败，请稍后重试");
-            }
+            report.setStatus("AI_FAILED");
+            report.setProcessingMessage("处理失败，可重新尝试");
+            report.setFailureReason(failureReason);
             touch(report, current.userId());
             labReportMapper.updateById(report);
             if (exception instanceof BusinessException businessException) {
@@ -581,7 +700,13 @@ public class WorkflowApplicationService {
 
     /** Runs the same assessment pipeline after OCR completes, without requiring customer confirmation. */
     public AssessmentVo submitAiAutomatically(long reportId, long tenantId) {
-        LabReportEntity report = requireReport(reportId);
+        // OCR runs on an async worker without the customer's HTTP security context. Load the
+        // tenant-scoped row first, then install the synthetic customer context before calling
+        // submitAi(), whose normal data-scope checks must still remain active.
+        LabReportEntity report = labReportMapper.selectById(reportId);
+        if (report == null) {
+            throw new BusinessException(ErrorCode.LAB_REPORT_NOT_FOUND);
+        }
         PatientEntity patient = patientMapper.selectById(report.getPatientId());
         if (patient == null || patient.getUserId() == null) {
             throw new BusinessException(ErrorCode.PATIENT_NOT_FOUND);
@@ -602,6 +727,22 @@ public class WorkflowApplicationService {
         SecurityContextHolder.setContext(automatedContext);
         try {
             return submitAi(reportId);
+        } catch (RuntimeException exception) {
+            // Failures before submitAi() creates its HEALTH_ASSESSMENT task (for example a
+            // missing entitlement or consent) must still be visible to the customer and
+            // retryable from the report page.
+            try {
+                LabReportEntity current = labReportMapper.selectById(reportId);
+                if (current != null && !"PUBLISHED".equals(current.getStatus())) {
+                    current.setStatus("AI_FAILED");
+                    current.setFailureReason(assessmentFailureReason(exception));
+                    touch(current, patient.getUserId());
+                    labReportMapper.updateById(current);
+                }
+            } catch (RuntimeException ignored) {
+                // Preserve the original failure; the caller logs it without sensitive payloads.
+            }
+            throw exception;
         } finally {
             SecurityContextHolder.setContext(previous);
         }
@@ -687,13 +828,13 @@ public class WorkflowApplicationService {
                             : "UNKNOWN";
             AiDtos.FollowupAdjustmentData result =
                     aiServiceClient.adjustFollowup(
-                             new AiDtos.FollowupAdjustmentRequest(
-                                     toPatientContext(
-                                             gender,
-                                             age,
-                                             profile,
-                                             healthScanContextService.latest(
-                                                     task.getTenantId(), task.getPatientId())),
+                            new AiDtos.FollowupAdjustmentRequest(
+                                    toPatientContext(
+                                            gender,
+                                            age,
+                                            profile,
+                                            healthScanContextService.latest(
+                                                    task.getTenantId(), task.getPatientId())),
                                     cycleNo,
                                     maxCycles,
                                     completionRate,
@@ -706,7 +847,9 @@ public class WorkflowApplicationService {
                                                                     action.action(),
                                                                     action.status(),
                                                                     action.note()))
-                                            .toList()));
+                                            .toList(),
+                                    aiModelRuntimeConfigService.currentModelCode(),
+                                    aiModelRuntimeConfigService.currentThinkingEnabled()));
             if (!Set.of("CONTINUE", "ADJUST", "TERMINATE").contains(result.decision())) {
                 return localFollowupAdjustment(
                         request.actions(), completionRate, request.feedback());
@@ -842,12 +985,23 @@ public class WorkflowApplicationService {
             List<FollowupActionFeedback> actions,
             AiDtos.FollowupAdjustmentData adjustment,
             CurrentPrincipal current) {
+        int nextCycle = (completed.getCycleNo() == null ? 1 : completed.getCycleNo()) + 1;
+        MembershipEntitlementService.UsageReservation usage =
+                membershipEntitlementService.reserve(
+                        "AI_FOLLOWUP_CONTINUE",
+                        "AI_FOLLOWUP",
+                        String.valueOf(completed.getId()),
+                        "AI_FOLLOWUP_CONTINUE:" + current.userId() + ":" + completed.getId() + ":" + nextCycle);
+        if (usage.alreadyConfirmed()) {
+            return;
+        }
         long existingPending =
                 followupMapper.selectCount(
                         new LambdaQueryWrapper<FollowupTaskEntity>()
                                 .eq(FollowupTaskEntity::getPatientId, completed.getPatientId())
                                 .eq(FollowupTaskEntity::getStatus, "PENDING"));
         if (existingPending > 0) {
+            membershipEntitlementService.release(usage.usageId());
             return;
         }
         FollowupTaskEntity next = new FollowupTaskEntity();
@@ -870,7 +1024,13 @@ public class WorkflowApplicationService {
         next.setStatus("PENDING");
         next.setReminderCount(0);
         auditNew(next, current.userId());
-        followupMapper.insert(next);
+        try {
+            followupMapper.insert(next);
+            membershipEntitlementService.confirm(usage.usageId());
+        } catch (RuntimeException exception) {
+            membershipEntitlementService.release(usage.usageId());
+            throw exception;
+        }
     }
 
     private ReviewTaskVo decide(long id, String opinion, String status) {
@@ -1014,10 +1174,101 @@ public class WorkflowApplicationService {
                 report.getReportName(),
                 report.getReportDate(),
                 report.getStatus(),
+                safeProgress(report.getProcessingProgress()),
+                report.getProcessingMessage(),
+                report.getFailureReason(),
                 report.getSourceType(),
                 values,
                 ocrFindings(report),
+                hasImageFiles(report.getId()),
+                imageAnalysis(report),
                 report.getCreatedAt());
+    }
+
+    private int safeProgress(Integer progress) {
+        if (progress == null) {
+            return 0;
+        }
+        return Math.max(0, Math.min(100, progress));
+    }
+
+    /**
+     * Exposes only stable, user-safe business messages in the report state. Never persist raw
+     * exception text because it may contain provider responses or sensitive request details.
+     */
+    private String assessmentFailureReason(Exception exception) {
+        if (exception instanceof BusinessException businessException) {
+            return switch (businessException.getErrorCode()) {
+                case MEMBERSHIP_BENEFIT_NOT_AVAILABLE,
+                        HEALTH_ASSESSMENT_CONSENT_REQUIRED,
+                        MODEL_CONFIG_NOT_FOUND,
+                        AI_SERVICE_UNAVAILABLE -> businessException.getMessage();
+                default -> "体检内容识别已完成，AI评估或健康报告生成失败，请稍后重试";
+            };
+        }
+        return "体检内容识别已完成，AI评估或健康报告生成失败，请稍后重试";
+    }
+
+    private JsonNode imageAnalysis(LabReportEntity report) {
+        if (report.getImageAnalysisSnapshot() == null
+                || report.getImageAnalysisSnapshot().isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readTree(report.getImageAnalysisSnapshot());
+        } catch (JsonProcessingException exception) {
+            return null;
+        }
+    }
+
+    private boolean hasImageFiles(long reportId) {
+        return !labReportFileMapper
+                .selectList(
+                        new LambdaQueryWrapper<LabReportFileEntity>()
+                                .select(LabReportFileEntity::getId)
+                                .eq(LabReportFileEntity::getReportId, reportId)
+                                .eq(LabReportFileEntity::getStatus, "STORED")
+                                .eq(LabReportFileEntity::getDeleted, 0)
+                                .likeRight(LabReportFileEntity::getMimeType, "image/"))
+                .isEmpty();
+    }
+
+    private List<AiDtos.ReportImage> reportImages(long reportId) {
+        List<LabReportFileEntity> files =
+                labReportFileMapper.selectList(
+                        new LambdaQueryWrapper<LabReportFileEntity>()
+                                .eq(LabReportFileEntity::getReportId, reportId)
+                                .eq(LabReportFileEntity::getStatus, "STORED")
+                                .eq(LabReportFileEntity::getDeleted, 0)
+                                .likeRight(LabReportFileEntity::getMimeType, "image/")
+                                .orderByAsc(LabReportFileEntity::getCreatedAt)
+                                .orderByAsc(LabReportFileEntity::getId));
+        int expirySeconds =
+                Math.max(
+                        REPORT_IMAGE_PRESIGN_EXPIRY_SECONDS,
+                        minioProperties.presignExpirySeconds());
+        List<AiDtos.ReportImage> images = new ArrayList<>();
+        int page = 1;
+        for (LabReportFileEntity file : files) {
+            if (page > 50) {
+                break;
+            }
+            try {
+                String downloadUrl =
+                        minioClient.getPresignedObjectUrl(
+                                GetPresignedObjectUrlArgs.builder()
+                                        .method(Method.GET)
+                                        .bucket(file.getBucketName())
+                                        .object(file.getObjectPath())
+                                        .expiry(expirySeconds)
+                                        .build());
+                images.add(new AiDtos.ReportImage(page, file.getMimeType(), downloadUrl));
+                page++;
+            } catch (Exception exception) {
+                throw new BusinessException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+            }
+        }
+        return List.copyOf(images);
     }
 
     private List<OcrFindingVo> ocrFindings(LabReportEntity report) {
@@ -1135,13 +1386,54 @@ public class WorkflowApplicationService {
         report.setPublishedBy(current.userId());
         auditNew(report, current.userId());
         healthReportMapper.insert(report);
-        pdfReportService.generateAndStore(report, assessment, patient, current.userId());
-        createAiFollowup(assessment, patient, current);
+        try {
+            pdfReportService.generateAndStore(report, assessment, patient, current.userId());
+        } catch (RuntimeException exception) {
+            // The assessment and the on-screen health report are already persisted at this
+            // point. A PDF/version persistence problem must not roll the lab report back to
+            // AI_FAILED or make the customer lose a valid assessment.
+            log.error(
+                    "Health report artifact persistence failed after publication: assessmentId={} healthReportId={} errorType={}",
+                    assessment.getId(),
+                    report.getId(),
+                    exception.getClass().getSimpleName(),
+                    exception);
+            try {
+                pdfReportService.recoverMissingPublishedArtifact(report.getId(), current.userId());
+            } catch (RuntimeException recoveryException) {
+                log.error(
+                        "Health report artifact recovery failed: assessmentId={} healthReportId={} errorType={}",
+                        assessment.getId(),
+                        report.getId(),
+                        recoveryException.getClass().getSimpleName(),
+                        recoveryException);
+            }
+        }
+        try {
+            createAiFollowup(assessment, patient, current);
+        } catch (RuntimeException exception) {
+            // The health report is the primary deliverable. A used-up follow-up entitlement
+            // or a follow-up-only persistence failure must not turn an already published report
+            // into AI_FAILED. The customer can create/retry follow-up separately.
+            log.warn(
+                    "Initial health follow-up skipped after report publication: assessmentId={} exceptionType={}",
+                    assessment.getId(),
+                    exception.getClass().getSimpleName());
+        }
         return report;
     }
 
     private void createAiFollowup(
             HealthAssessmentEntity assessment, PatientEntity patient, CurrentPrincipal current) {
+        MembershipEntitlementService.UsageReservation usage =
+                membershipEntitlementService.reserve(
+                        "AI_FOLLOWUP_INITIAL",
+                        "AI_FOLLOWUP",
+                        String.valueOf(assessment.getId()),
+                        "AI_FOLLOWUP_INITIAL:" + current.userId() + ":" + assessment.getId());
+        if (usage.alreadyConfirmed()) {
+            return;
+        }
         List<FollowupTaskEntity> unfinished =
                 followupMapper.selectList(
                         new LambdaQueryWrapper<FollowupTaskEntity>()
@@ -1169,7 +1461,13 @@ public class WorkflowApplicationService {
         task.setStatus("PENDING");
         task.setReminderCount(0);
         auditNew(task, current.userId());
-        followupMapper.insert(task);
+        try {
+            followupMapper.insert(task);
+            membershipEntitlementService.confirm(usage.usageId());
+        } catch (RuntimeException exception) {
+            membershipEntitlementService.release(usage.usageId());
+            throw exception;
+        }
     }
 
     private ReviewTaskVo toReviewVo(AssessmentReviewEntity review) {

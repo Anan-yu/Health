@@ -2,7 +2,12 @@ from decimal import Decimal
 
 from pydantic import Field
 
-from app.schemas.assessment import ComprehensiveInterpretation, ModelResult, PatientContext
+from app.schemas.assessment import (
+    ComprehensiveInterpretation,
+    ModelResult,
+    PatientContext,
+    VisionImageAnalysis,
+)
 from app.schemas.common import RaykModel
 
 
@@ -25,6 +30,7 @@ class ReportGenerateRequest(RaykModel):
     results: list[ModelResult]
     interpretation: ComprehensiveInterpretation | None = None
     patient_context: PatientContext | None = Field(default=None, alias="patientContext")
+    image_analysis: VisionImageAnalysis | None = Field(default=None, alias="imageAnalysis")
 
 
 class ReportGenerateData(RaykModel):

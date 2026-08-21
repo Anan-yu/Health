@@ -33,6 +33,29 @@ public interface PlatformOverviewMapper {
     long countPatients();
 
     @InterceptorIgnore(tenantLine = "true")
+    @Select(
+            """
+            SELECT COUNT(DISTINCT u.phone_hash)
+            FROM sys_user u
+            INNER JOIN sys_user_role customer_ur
+                ON customer_ur.user_id = u.id AND customer_ur.deleted = 0
+            INNER JOIN sys_role customer_role
+                ON customer_role.id = customer_ur.role_id
+               AND customer_role.role_code = 'CUSTOMER'
+               AND customer_role.deleted = 0
+            WHERE u.phone_hash IS NOT NULL AND u.phone_hash <> '' AND u.deleted = 0
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM sys_user_role staff_ur
+                  INNER JOIN sys_role staff_role
+                      ON staff_role.id = staff_ur.role_id AND staff_role.deleted = 0
+                  WHERE staff_ur.user_id = u.id AND staff_ur.deleted = 0
+                    AND staff_role.role_code IN ('DOCTOR', 'PLATFORM_ADMIN')
+              )
+            """)
+    long countPhoneCustomers();
+
+    @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT COUNT(*) FROM assessment_review WHERE status = 'WAITING_REVIEW' AND deleted = 0")
     long countPendingReviews();
 

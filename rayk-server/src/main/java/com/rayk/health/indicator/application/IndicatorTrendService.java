@@ -9,7 +9,10 @@ import com.rayk.health.indicator.vo.TrendPointVo;
 import com.rayk.health.indicator.vo.TrendSummaryVo;
 import com.rayk.health.laboratory.entity.LabReportEntity;
 import com.rayk.health.laboratory.mapper.LabReportMapper;
+import com.rayk.health.membership.application.MembershipEntitlementService;
 import com.rayk.health.patient.application.DataScopeService;
+import com.rayk.health.security.service.CurrentPrincipal;
+import com.rayk.health.security.service.CurrentUser;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -24,28 +27,33 @@ public class IndicatorTrendService {
     private final IndicatorValueMapper indicatorValueMapper;
     private final LabReportMapper labReportMapper;
     private final DataScopeService dataScopeService;
+    private final MembershipEntitlementService membershipEntitlementService;
 
     public IndicatorTrendService(
             IndicatorValueMapper indicatorValueMapper,
             LabReportMapper labReportMapper,
-            DataScopeService dataScopeService) {
+            DataScopeService dataScopeService,
+            MembershipEntitlementService membershipEntitlementService) {
         this.indicatorValueMapper = indicatorValueMapper;
         this.labReportMapper = labReportMapper;
         this.dataScopeService = dataScopeService;
+        this.membershipEntitlementService = membershipEntitlementService;
     }
 
     public List<TrendPointVo> getTrend(long patientId, String indicatorCode, int months) {
         dataScopeService.requirePatient(patientId);
-        LocalDate since = LocalDate.now().minusMonths(months);
+        LocalDate since = trendSince(months);
 
-        List<IndicatorValueEntity> values = indicatorValueMapper.selectList(
-                new LambdaQueryWrapper<IndicatorValueEntity>()
+        LambdaQueryWrapper<IndicatorValueEntity> query = new LambdaQueryWrapper<IndicatorValueEntity>()
                         .eq(IndicatorValueEntity::getPatientId, patientId)
                         .eq(IndicatorValueEntity::getIndicatorCode, indicatorCode)
                         .eq(IndicatorValueEntity::getManuallyConfirmed, 1)
                         .eq(IndicatorValueEntity::getDeleted, 0)
-                        .ge(IndicatorValueEntity::getCreatedAt, since.atStartOfDay())
-                        .orderByAsc(IndicatorValueEntity::getCreatedAt));
+                        .orderByAsc(IndicatorValueEntity::getCreatedAt);
+        if (since != null) {
+            query.ge(IndicatorValueEntity::getCreatedAt, since.atStartOfDay());
+        }
+        List<IndicatorValueEntity> values = indicatorValueMapper.selectList(query);
 
         if (values.isEmpty()) {
             return List.of();
@@ -76,13 +84,17 @@ public class IndicatorTrendService {
     public TrendSummaryVo getTrendSummary(long patientId, String indicatorCode) {
         dataScopeService.requirePatient(patientId);
 
-        List<IndicatorValueEntity> values = indicatorValueMapper.selectList(
-                new LambdaQueryWrapper<IndicatorValueEntity>()
+        LambdaQueryWrapper<IndicatorValueEntity> query = new LambdaQueryWrapper<IndicatorValueEntity>()
                         .eq(IndicatorValueEntity::getPatientId, patientId)
                         .eq(IndicatorValueEntity::getIndicatorCode, indicatorCode)
                         .eq(IndicatorValueEntity::getManuallyConfirmed, 1)
                         .eq(IndicatorValueEntity::getDeleted, 0)
-                        .orderByDesc(IndicatorValueEntity::getCreatedAt));
+                        .orderByDesc(IndicatorValueEntity::getCreatedAt);
+        LocalDate since = trendSince(0);
+        if (since != null) {
+            query.ge(IndicatorValueEntity::getCreatedAt, since.atStartOfDay());
+        }
+        List<IndicatorValueEntity> values = indicatorValueMapper.selectList(query);
 
         if (values.isEmpty()) {
             throw new BusinessException(ErrorCode.INDICATOR_NOT_FOUND);
@@ -123,5 +135,18 @@ public class IndicatorTrendService {
             return "DOWN";
         }
         return "STABLE";
+    }
+
+    /** 免费客户只看近三天基础趋势，业务端和平台端维持原有完整历史查询。 */
+    private LocalDate trendSince(int months) {
+        CurrentPrincipal current = CurrentUser.require();
+        if (!"CUSTOMER".equals(current.workbench())) {
+            return months > 0 ? LocalDate.now().minusMonths(months) : null;
+        }
+        MembershipEntitlementService.MembershipSnapshot membership =
+                membershipEntitlementService.snapshot(current);
+        return membership.paidActive()
+                ? null
+                : LocalDate.now().minusDays(MembershipEntitlementService.FREE_HEALTH_HISTORY_DAYS);
     }
 }

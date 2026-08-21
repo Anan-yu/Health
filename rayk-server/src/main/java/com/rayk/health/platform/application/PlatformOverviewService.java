@@ -10,8 +10,10 @@ import com.rayk.health.platform.dto.CreatePlatformDoctorRequest;
 import com.rayk.health.platform.dto.CreatePlatformTenantRequest;
 import com.rayk.health.platform.dto.UpdatePlatformTenantRequest;
 import com.rayk.health.platform.dto.UpdatePlatformDoctorRequest;
+import com.rayk.health.platform.dto.UpdatePlatformAdminPhoneRequest;
 import com.rayk.health.platform.mapper.PlatformOverviewMapper;
 import com.rayk.health.platform.vo.PlatformOverviewVo;
+import com.rayk.health.security.service.AuthService;
 import com.rayk.health.security.service.CurrentUser;
 import com.rayk.health.security.wechat.PhoneIdentity;
 import com.rayk.health.system.entity.SysRoleEntity;
@@ -32,6 +34,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,12 +52,15 @@ public class PlatformOverviewService {
     private final SysUserWorkbenchMapper workbenchMapper;
     private final PatientMapper patientMapper;
     private final PasswordEncoder passwordEncoder;
+    private final AuthService authService;
 
+    @Autowired
     public PlatformOverviewService(
             PlatformOverviewMapper mapper, SysTenantMapper tenantMapper, SysUserMapper userMapper,
             SysRoleMapper roleMapper, SysRolePermissionMapper rolePermissionMapper,
             SysUserRoleMapper userRoleMapper, SysUserWorkbenchMapper workbenchMapper,
-            PatientMapper patientMapper, PasswordEncoder passwordEncoder) {
+            PatientMapper patientMapper, PasswordEncoder passwordEncoder,
+            AuthService authService) {
         this.mapper = mapper;
         this.tenantMapper = tenantMapper;
         this.userMapper = userMapper;
@@ -64,13 +70,64 @@ public class PlatformOverviewService {
         this.workbenchMapper = workbenchMapper;
         this.patientMapper = patientMapper;
         this.passwordEncoder = passwordEncoder;
+        this.authService = authService;
+    }
+
+    /** Compatibility constructor for focused unit tests that do not exercise session revocation. */
+    @Deprecated
+    public PlatformOverviewService(
+            PlatformOverviewMapper mapper, SysTenantMapper tenantMapper, SysUserMapper userMapper,
+            SysRoleMapper roleMapper, SysRolePermissionMapper rolePermissionMapper,
+            SysUserRoleMapper userRoleMapper, SysUserWorkbenchMapper workbenchMapper,
+            PatientMapper patientMapper, PasswordEncoder passwordEncoder) {
+        this(mapper, tenantMapper, userMapper, roleMapper, rolePermissionMapper, userRoleMapper,
+                workbenchMapper, patientMapper, passwordEncoder, null);
     }
 
     @Transactional(readOnly = true)
     public PlatformOverviewVo overview() {
         return new PlatformOverviewVo(mapper.countTenants(), mapper.countActiveTenants(), mapper.countUsers(),
-                mapper.countPatients(), 0, mapper.countPendingFollowups(), mapper.countTodayFollowups(), mapper.selectTenants(),
+                mapper.countPatients(), mapper.countPhoneCustomers(), 0, mapper.countPendingFollowups(), mapper.countTodayFollowups(), mapper.selectTenants(),
                 mapper.selectRecentFollowups());
+    }
+
+    @Transactional(readOnly = true)
+    public StaffVo adminProfile() {
+        var principal = CurrentUser.require();
+        SysUserEntity admin = userMapper.selectByIdIgnoringTenant(principal.userId());
+        if (admin == null || !principal.roles().contains("PLATFORM_ADMIN")) {
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        }
+        return new StaffVo(String.valueOf(admin.getId()), admin.getUsername(), admin.getDisplayName(),
+                admin.getPhoneMasked(), List.of("PLATFORM_ADMIN"), admin.getStatus());
+    }
+
+    @Transactional
+    public StaffVo updateAdminPhone(UpdatePlatformAdminPhoneRequest request) {
+        var principal = CurrentUser.require();
+        if (!principal.roles().contains("PLATFORM_ADMIN")) {
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        }
+        String phone = PhoneIdentity.normalize(request.phone());
+        String phoneHash = PhoneIdentity.hash(phone);
+        SysUserEntity matched = userMapper.selectByPhoneHashIgnoringTenant(phoneHash);
+        if (matched != null && matched.getId() != principal.userId()) {
+            throw new BusinessException(ErrorCode.PHONE_ALREADY_REGISTERED);
+        }
+        SysUserEntity admin = userMapper.selectByIdIgnoringTenant(principal.userId());
+        if (admin == null || !"ACTIVE".equals(admin.getStatus())) {
+            throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED);
+        }
+        LocalDateTime now = LocalDateTime.now();
+        admin.setPhoneMasked(PhoneIdentity.mask(phone));
+        admin.setPhoneHash(phoneHash);
+        admin.setUpdatedBy(principal.userId());
+        admin.setUpdatedAt(now);
+        if (userMapper.updatePlatformAdminPhoneIgnoringTenant(admin) != 1) {
+            throw new BusinessException(ErrorCode.SYSTEM_VALIDATION_ERROR);
+        }
+        return new StaffVo(String.valueOf(admin.getId()), admin.getUsername(), admin.getDisplayName(),
+                admin.getPhoneMasked(), List.of("PLATFORM_ADMIN"), admin.getStatus());
     }
 
     @Transactional(readOnly = true)
@@ -239,20 +296,42 @@ public class PlatformOverviewService {
     public StaffVo updateDoctor(long tenantId, long doctorId, UpdatePlatformDoctorRequest request) {
         SysUserEntity doctor = findDoctor(tenantId, doctorId);
         String phone = request.phone() == null ? "" : request.phone().trim();
+        String previousPhoneHash = doctor.getPhoneHash();
+        boolean phoneChanged = false;
         doctor.setDisplayName(request.displayName().trim());
         if (!phone.isEmpty()) {
-            String phoneHash = PhoneIdentity.hash(PhoneIdentity.normalize(phone));
+            String normalizedPhone = PhoneIdentity.normalize(phone);
+            String phoneHash = PhoneIdentity.hash(normalizedPhone);
             SysUserEntity matched = userMapper.selectByPhoneHashIgnoringTenant(phoneHash);
             if (matched != null && !matched.getId().equals(doctor.getId())) {
                 throw new BusinessException(ErrorCode.PHONE_ALREADY_REGISTERED);
             }
             doctor.setPhoneHash(phoneHash);
-            doctor.setPhoneMasked(PhoneIdentity.mask(phone));
+            doctor.setPhoneMasked(PhoneIdentity.mask(normalizedPhone));
+            phoneChanged = !phoneHash.equals(previousPhoneHash);
+
+            // A doctor also receives a personal customer profile during
+            // provisioning. Keep that profile in sync so the retired phone hash
+            // cannot remain reachable through the doctor's customer workspace.
+            LocalDateTime now = LocalDateTime.now();
+            patientMapper.selectList(new LambdaQueryWrapper<PatientEntity>()
+                            .eq(PatientEntity::getUserId, doctor.getId())
+                            .eq(PatientEntity::getDeleted, 0))
+                    .forEach(patient -> {
+                        patient.setPhoneHash(phoneHash);
+                        patient.setPhoneMasked(PhoneIdentity.mask(normalizedPhone));
+                        patient.setUpdatedBy(CurrentUser.require().userId());
+                        patient.setUpdatedAt(now);
+                        patientMapper.updateById(patient);
+                    });
         }
         doctor.setUpdatedBy(CurrentUser.require().userId());
         doctor.setUpdatedAt(LocalDateTime.now());
         if (userMapper.updateDoctorIgnoringTenant(doctor) != 1) {
             throw new BusinessException(ErrorCode.SYSTEM_VALIDATION_ERROR);
+        }
+        if (phoneChanged && authService != null) {
+            authService.revokeAllSessions(doctor.getId());
         }
         return toDoctorVo(doctor);
     }
