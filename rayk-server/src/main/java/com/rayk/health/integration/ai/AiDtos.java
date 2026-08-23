@@ -324,4 +324,34 @@ public final class AiDtos {
       redFlags = redFlags == null ? List.of() : redFlags;
     }
   }
+
+  public record MedicalAssistantMessage(String role, String content) {}
+
+  public record MedicalAssistantRequest(
+      String conversationId,
+      String patientId,
+      String patientName,
+      List<MedicalAssistantMessage> messages,
+      PatientContext patientContext,
+      String latestReportSummary,
+      String latestAssessmentSnapshot,
+      String model,
+      Boolean thinkingEnabled) {}
+
+  public record MedicalAssistantData(
+      String reply,
+      String riskLevel,
+      boolean emergency,
+      String recommendedAction,
+      List<String> citations,
+      List<String> usedContext,
+      List<String> followupQuestions,
+      String disclaimer,
+      String model) {
+    public MedicalAssistantData {
+      citations = citations == null ? List.of() : citations;
+      usedContext = usedContext == null ? List.of() : usedContext;
+      followupQuestions = followupQuestions == null ? List.of() : followupQuestions;
+    }
+  }
 }

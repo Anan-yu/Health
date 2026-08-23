@@ -2,6 +2,7 @@ import type {
   AiModelRuntimeConfig,
   CreatePlatformTenantPayload,
   PlatformOverview,
+  PlatformCustomerMembership,
   TenantProfile,
   TenantStaff,
   UpdatePlatformTenantPayload,
@@ -19,6 +20,19 @@ export const updatePlatformAdminPhone = (phone: string) =>
     url: '/api/v1/platform/admin-phone',
     method: 'PUT',
     data: { phone },
+  })
+
+export const getPlatformCustomerMembership = (phone: string) =>
+  request<PlatformCustomerMembership>({
+    url: `/api/v1/platform/customer-membership?phone=${encodeURIComponent(phone)}`,
+    method: 'GET',
+  })
+
+export const updatePlatformCustomerMembership = (data: { phone: string; active: boolean }) =>
+  request<PlatformCustomerMembership>({
+    url: '/api/v1/platform/customer-membership',
+    method: 'PUT',
+    data,
   })
 
 export const getPlatformTenant = (tenantId: string) =>

@@ -21,3 +21,14 @@ class HealthData(RaykModel):
     status: str
     service: str
     version: str
+
+
+class ReleaseData(RaykModel):
+    release_id: str = Field(alias="releaseId")
+    git_commit: str = Field(alias="gitCommit")
+    git_dirty: bool = Field(alias="gitDirty")
+    build_time: str = Field(alias="buildTime")
+    database_migration: str = Field(alias="databaseMigration")
+    frontend_h5_sha256: str = Field(alias="frontendH5Sha256")
+    frontend_mp_weixin_dev_sha256: str = Field(alias="frontendMpWeixinDevSha256")
+    frontend_mp_weixin_prod_lan_sha256: str = Field(alias="frontendMpWeixinProdLanSha256")

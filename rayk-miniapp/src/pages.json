@@ -30,6 +30,7 @@
         { "path": "followup/index", "style": { "navigationBarTitleText": "健康随访" } },
         { "path": "followup/feedback", "style": { "navigationBarTitleText": "随访反馈" } },
         { "path": "health-scan/index", "style": { "navigationBarTitleText": "健康检测" } },
+        { "path": "medical-assistant/index", "style": { "navigationBarTitleText": "健康助手", "navigationStyle": "custom" } },
         { "path": "voice-reminder/index", "style": { "navigationBarTitleText": "健康提醒" } },
         { "path": "member/index", "style": { "navigationBarTitleText": "健康会员" } },
         { "path": "member/subscribe", "style": { "navigationBarTitleText": "开通会员" } },
@@ -67,7 +68,8 @@
       "root": "pages-platform",
       "pages": [
         { "path": "support/index", "style": { "navigationBarTitleText": "反馈中心" } },
-        { "path": "model/index", "style": { "navigationBarTitleText": "AI模型管理" } }
+        { "path": "model/index", "style": { "navigationBarTitleText": "AI模型管理" } },
+        { "path": "membership/index", "style": { "navigationBarTitleText": "会员管理" } }
       ]
     }
   ],

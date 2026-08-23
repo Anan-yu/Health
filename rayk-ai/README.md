@@ -11,6 +11,7 @@ FastAPI 服务负责 PaddleOCR、指标标准化、十二模型规则评分、�
 - 配置 Qwen Vision 后，图片体检报告走混合两阶段模式：先由 `qwen3.7-flash-2026-07-15` 按批次直接读取原始报告图片并形成逐页结构化事实，再由 DeepSeek 将该结果与健康档案、健康拍结果和 RAG 证据汇总为现有综合报告 JSON；图片页是体检事实的第一来源，OCR 结构化结果只作低可信线索。
 - 未配置 Qwen Vision 时，仍沿用文字/PDF 结构化结果的 DeepSeek 链路；PDF 原生解析路径不与图片直读路径合并。
 - DeepSeek 被关闭、超时或响应校验失败时，自动返回 `RULE_FALLBACK` 规则摘要。
+- 健康助手独立使用 Qwen `qwen3.7-flash-2026-07-15`，不复用报告综合解读的 DeepSeek 模型配置；对话支持 SSE 流式输出，Qwen 未配置或流式失败时由 Java 保留安全降级和一次性接口兼容路径。
 - 综合解读会先保留安全边界，再逐项校验可选 `diagnosticReferences`；单个疾病候选证据不足时只移除该候选，保留 DeepSeek 的摘要、重点发现、异常解释和建议。规则降级解释按指标类型生成具体复查动作，不再用同一段泛化描述覆盖所有异常。
 - DeepSeek 请求支持 `thinkingEnabled` 覆盖运行时思考模式；未传入时使用 `DEEPSEEK_THINKING_ENABLED` 环境默认值。思考模式通常会增加推理 token 和响应时间。
 
@@ -50,6 +51,22 @@ QWEN_OCR_CONCURRENCY=3
 ```
 
 PDF 云 OCR 按页面级联：先调用 `QWEN_OCR_MODEL`，页面请求失败或没有提取出可用检验内容时，再调用 `QWEN_OCR_FALLBACK_MODEL`；备用模型也失败后才进入本地 PDF/PaddleOCR 降级。`QWEN_OCR_MODEL` 和 `QWEN_VISION_MODEL` 当前默认均为 `qwen3.7-flash-2026-07-15`，图片直读不会使用 PDF 的备用模型。PDF 原生文本、表格和检查小结解析始终保留为校验基线；正式效果仍需用真实电子 PDF、扫描 PDF、单栏图片和双栏图片分别回归。
+
+## 健康助手配置
+
+助手与报告生成使用独立模型配置，当前固定使用 `qwen3.7-flash-2026-07-15`。密钥只放在项目根目录 `.env` 或部署平台密钥管理中，不要提交 Git。助手没有联网天气/搜索工具；纯时间问题由服务端 `Asia/Shanghai` 时钟直接回答，并向模型上下文标注当前服务端时间，避免模型凭记忆猜测日期。
+
+```dotenv
+QWEN_ASSISTANT_ENABLED=true
+QWEN_ASSISTANT_API_KEY=
+QWEN_ASSISTANT_WORKSPACE_ID=
+QWEN_ASSISTANT_BASE_URL=
+QWEN_ASSISTANT_MODEL=qwen3.7-flash-2026-07-15
+QWEN_ASSISTANT_TIMEOUT_SECONDS=120
+QWEN_ASSISTANT_MAX_TOKENS=6000
+```
+
+如果未填写助手专用的密钥、工作空间或地址，服务会兼容读取已配置的 `QWEN_VISION_*`，再读取 `QWEN_OCR_*`；报告综合解读仍只读取 `DEEPSEEK_*`，两条链路互不切换。
 
 ## DeepSeek 配置
 

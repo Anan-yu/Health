@@ -109,6 +109,7 @@ const rightsRows = computed(() => [
   { name: '历史健康数据', freeValue: '永久保存、基础查看', memberValue: '永久保存、完整查看' },
   { name: 'AI 健康评估', freeValue: '3 次', memberValue: '会员期内不限次数' },
   { name: 'AI 健康报告', freeValue: '3 次', memberValue: '会员期内不限次数' },
+  { name: 'AI健康助手', freeValue: '3 次对话', memberValue: '会员期内不限次数' },
   { name: 'AI 初始健康随访', freeValue: '首次 1 次', memberValue: '支持' },
   { name: 'AI 持续健康随访', freeValue: '不支持', memberValue: '会员期内持续使用' },
   { name: '健康拍', freeValue: '3 次', memberValue: '每天 1 次' },
@@ -203,10 +204,10 @@ const buy = async () => {
 .arrow { color: #899893; font-size: 40rpx; }
 .rights-table { margin-top: 24rpx; overflow: hidden; border: 1rpx solid #dcebe5; border-radius: 20rpx; background: #fff; }
 .rights-table-head, .rights-table-row { display: grid; grid-template-columns: 1.05fr 1fr 1fr; }
-.rights-table-head { color: #174338; background: #eef9f5; font-size: 23rpx; font-weight: 800; }
-.rights-table-head view, .rights-table-row view { min-width: 0; padding: 18rpx 10rpx; border-right: 1rpx solid #e2eee9; border-bottom: 1rpx solid #e6efec; line-height: 1.4; word-break: break-all; }
+.rights-table-head { color: #174338; background: #eef9f5; font-size: 26rpx; font-weight: 800; }
+.rights-table-head view, .rights-table-row view { display: flex; align-items: center; min-width: 0; padding: 20rpx 12rpx; border-right: 1rpx solid #e2eee9; border-bottom: 1rpx solid #e6efec; line-height: 1.5; word-break: break-all; }
 .rights-table-head view:last-child, .rights-table-row view:last-child { border-right: 0; }
-.rights-table-row { color: #5d706a; font-size: 21rpx; }
+.rights-table-row { color: #5d706a; font-size: 24rpx; font-weight: 500; }
 .rights-table-row:last-child view { border-bottom: 0; }
 .rights-name { color: #23483e; font-weight: 700; }
 .rights-member-value { color: #087e62; font-weight: 650; }
@@ -218,7 +219,8 @@ const buy = async () => {
   .open-benefit-title { font-size: 20rpx; }
   .open-benefit-description { font-size: 17rpx; }
   .selected-name, .selected-price { font-size: 24rpx; }
-  .rights-table-head, .rights-table-row { font-size: 19rpx; }
-  .rights-table-head view, .rights-table-row view { padding-left: 7rpx; padding-right: 7rpx; }
+  .rights-table-head { font-size: 24rpx; }
+  .rights-table-row { font-size: 22rpx; }
+  .rights-table-head view, .rights-table-row view { padding: 18rpx 9rpx; line-height: 1.45; }
 }
 </style>

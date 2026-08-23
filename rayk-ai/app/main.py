@@ -1,4 +1,5 @@
 import logging
+import os
 import threading
 import time
 
@@ -10,7 +11,7 @@ from app.api.router import ocr_service, router
 from app.core.middleware import RequestIdMiddleware
 from app.core.request_context import get_request_id
 from app.ocr.service import PaddleOcrService
-from app.schemas.common import ApiResponse, HealthData
+from app.schemas.common import ApiResponse, HealthData, ReleaseData
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,6 +64,28 @@ def health() -> ApiResponse[HealthData]:
         request_id=get_request_id(),
         timestamp=int(time.time() * 1000),
         data=HealthData(status="UP", service="rayk-ai", version="0.1.0"),
+    )
+
+
+@app.get("/version", response_model=ApiResponse[ReleaseData])
+def version() -> ApiResponse[ReleaseData]:
+    return ApiResponse(
+        request_id=get_request_id(),
+        timestamp=int(time.time() * 1000),
+        data=ReleaseData(
+            release_id=os.getenv("RAYK_RELEASE_ID", "dev-local"),
+            git_commit=os.getenv("RAYK_GIT_COMMIT", "unknown"),
+            git_dirty=os.getenv("RAYK_GIT_DIRTY", "false").lower() == "true",
+            build_time=os.getenv("RAYK_BUILD_TIME", "unknown"),
+            database_migration=os.getenv("RAYK_DATABASE_MIGRATION", "unknown"),
+            frontend_h5_sha256=os.getenv("RAYK_FRONTEND_H5_SHA256", "unknown"),
+            frontend_mp_weixin_dev_sha256=os.getenv(
+                "RAYK_FRONTEND_MP_WEIXIN_DEV_SHA256", "unknown"
+            ),
+            frontend_mp_weixin_prod_lan_sha256=os.getenv(
+                "RAYK_FRONTEND_MP_WEIXIN_PROD_LAN_SHA256", "unknown"
+            ),
+        ),
     )
 
 

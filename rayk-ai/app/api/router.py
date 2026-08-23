@@ -2,7 +2,9 @@ import logging
 import time
 
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 
+from app.assistant.service import MedicalAssistantService, MedicalAssistantSettings
 from app.core.constants import DISCLAIMER
 from app.core.request_context import get_request_id
 from app.followup.service import FollowupAdjustmentService
@@ -11,6 +13,7 @@ from app.normalization.service import IndicatorNormalizationService
 from app.ocr.service import build_ocr_service
 from app.report.service import DemoReportService
 from app.schemas.assessment import AssessmentData, AssessmentRequest
+from app.schemas.assistant import MedicalAssistantData, MedicalAssistantRequest
 from app.schemas.common import ApiResponse
 from app.schemas.followup import FollowupAdjustmentData, FollowupAdjustmentRequest
 from app.schemas.indicator import NormalizationData, NormalizationRequest
@@ -25,6 +28,10 @@ rule_engine = DemoRuleEngine()
 interpretation_service = InterpretationService()
 followup_adjustment_service = FollowupAdjustmentService()
 report_service = DemoReportService()
+# Keep the assistant on its own Qwen endpoint. Reusing the report interpreter's
+# DeepSeek settings makes a qwen model name get sent to a DeepSeek workspace and
+# results in a provider-side 400.
+medical_assistant_service = MedicalAssistantService(settings=MedicalAssistantSettings.from_env())
 logger = logging.getLogger(__name__)
 
 
@@ -88,3 +95,21 @@ def generate_report(request: ReportGenerateRequest) -> ApiResponse[object]:
 @router.post("/followups/adjust", response_model=ApiResponse[FollowupAdjustmentData])
 def adjust_followup(request: FollowupAdjustmentRequest) -> ApiResponse[object]:
     return ok(followup_adjustment_service.adjust(request))
+
+
+@router.post("/medical-assistant/answer", response_model=ApiResponse[MedicalAssistantData])
+def medical_assistant_answer(request: MedicalAssistantRequest) -> ApiResponse[object]:
+    return ok(medical_assistant_service.answer(request))
+
+
+@router.post("/medical-assistant/answer/stream")
+def medical_assistant_answer_stream(request: MedicalAssistantRequest) -> StreamingResponse:
+    return StreamingResponse(
+        medical_assistant_service.stream_answer(request),
+        media_type="text/event-stream; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

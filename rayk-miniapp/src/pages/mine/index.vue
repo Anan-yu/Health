@@ -29,6 +29,14 @@
       </view>
     </view>
     <view v-if="!isPlatform" class="card settings-card">
+      <view v-if="isCustomer" class="setting" @click="goAssistant">
+        <view class="setting-icon cyan">助</view>
+        <view class="setting-content">
+          <view class="setting-title">健康助手</view>
+          <view class="muted">结合你的健康资料进行问答</view>
+        </view>
+        <view class="setting-arrow">›</view>
+      </view>
       <view v-if="isCustomer" class="setting" @click="goMembership">
         <view class="setting-icon green">会</view>
         <view class="setting-content">
@@ -48,7 +56,6 @@
     </view>
 
     <button class="logout" @click="signOut">退出当前账号</button>
-    <view class="version">三羊健康 · Version 0.1.0</view>
   </view>
 </template>
 
@@ -72,6 +79,7 @@ const tenantDisplayName = computed(() => '三羊健康平台')
 const canSwitch = computed(() => (auth.user?.availableWorkbenches.length || 0) > 1)
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
+const goAssistant = () => uni.navigateTo({ url: '/pages-customer/medical-assistant/index' })
 const goMembership = () => uni.navigateTo({ url: '/pages-customer/member/index' })
 const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
@@ -231,6 +239,10 @@ async function signOut() {
   background: #eaf1ff;
   color: #476fac;
 }
+.cyan {
+  background: #e2f7f7;
+  color: #168991;
+}
 .amber {
   background: #fff1d8;
   color: #9a6409;
@@ -263,11 +275,5 @@ async function signOut() {
   border-radius: 20rpx;
   background: #fff;
   color: #b7473a;
-}
-.version {
-  padding: 32rpx;
-  color: #a0aca8;
-  text-align: center;
-  font-size: 20rpx;
 }
 </style>

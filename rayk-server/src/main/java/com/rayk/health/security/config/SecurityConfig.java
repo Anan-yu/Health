@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rayk.health.common.api.ApiResponse;
 import com.rayk.health.common.exception.ErrorCode;
 import com.rayk.health.security.filter.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
@@ -45,10 +46,16 @@ public class SecurityConfig {
                                                 "/api/v1/auth/wechat-admin-login",
                                                 "/api/payments/wechat/notify",
                                                 "/api/payments/wechat/virtual/notify",
+                                                "/api/system/version",
                                                 "/actuator/health/**",
                                                 "/v3/api-docs/**",
-                                                "/swagger-ui/**",
-                                                "/swagger-ui.html")
+                                        "/swagger-ui/**",
+                                        "/swagger-ui.html")
+                                        .permitAll()
+                                        // The initial SSE request is authenticated above. The
+                                        // container's ASYNC dispatch is only the continuation of
+                                        // that already-authorized request and has no JWT header.
+                                        .dispatcherTypeMatchers(DispatcherType.ASYNC)
                                         .permitAll()
                                         .anyRequest()
                                         .authenticated())

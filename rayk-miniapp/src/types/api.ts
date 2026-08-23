@@ -458,6 +458,16 @@ export interface PlatformOverview {
   followups: PlatformFollowup[]
 }
 
+export interface PlatformCustomerMembership {
+  userId: string
+  displayName: string
+  phoneMasked?: string
+  membershipStatus: 'FREE' | 'ACTIVE'
+  planName: string
+  active: boolean
+  expireAt?: string
+}
+
 export interface AiModelRuntimeConfig {
   id: string
   modelCode: string

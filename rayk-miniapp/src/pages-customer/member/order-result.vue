@@ -23,27 +23,6 @@
         <view class="status-description">{{ statusDescription }}</view>
       </view>
 
-      <view class="benefit-card">
-        <view class="section-title">支付后立即享受</view>
-        <view class="benefit-grid">
-          <view class="benefit-item">
-            <view class="benefit-symbol symbol-ai">AI</view>
-            <view class="benefit-title">AI 健康服务</view>
-            <view class="benefit-caption">评估 · 报告</view>
-          </view>
-          <view class="benefit-item">
-            <view class="benefit-symbol symbol-followup">随</view>
-            <view class="benefit-title">持续健康随访</view>
-            <view class="benefit-caption">动态跟进</view>
-          </view>
-          <view class="benefit-item">
-            <view class="benefit-symbol symbol-trend">↗</view>
-            <view class="benefit-title">健康趋势档案</view>
-            <view class="benefit-caption">长期记录</view>
-          </view>
-        </view>
-      </view>
-
       <view v-if="order?.paymentEnabled" class="payment-notice">
         <view class="notice-icon">i</view>
         <view class="notice-copy">
@@ -64,7 +43,6 @@
       </button>
       <button v-else class="primary-button" @click="back">会员已开通，返回会员中心</button>
       <button class="ghost-button" @click="back">{{ isPaid ? '返回会员中心' : '稍后再支付' }}</button>
-      <view class="footnote">服务仅用于健康管理参考，不替代临床诊断与医生面诊</view>
     </view>
   </view>
 </template>
@@ -249,16 +227,6 @@ const back = () => uni.navigateBack()
 .price > text:first-child { font-size: 23rpx; }
 .price-unit { margin-left: 3rpx; color: rgba(255, 255, 255, .82); font-size: 21rpx; font-weight: 500; }
 .status-description { position: relative; z-index: 1; margin-top: 18rpx; color: rgba(255, 255, 255, .86); font-size: 23rpx; line-height: 1.5; }
-.benefit-card { margin-top: 22rpx; padding: 26rpx 22rpx 22rpx; border: 1rpx solid #dcefe8; border-radius: 30rpx; background: rgba(255, 255, 255, .96); box-shadow: 0 10rpx 26rpx rgba(24, 91, 75, .06); }
-.section-title { color: #153f35; font-size: 29rpx; font-weight: 800; }
-.benefit-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12rpx; margin-top: 20rpx; }
-.benefit-item { min-height: 148rpx; padding: 16rpx 6rpx 12rpx; border: 1rpx solid #e3f1ec; border-radius: 20rpx; text-align: center; background: #f8fcfa; }
-.benefit-symbol { display: flex; align-items: center; justify-content: center; width: 54rpx; height: 54rpx; margin: 0 auto 10rpx; border-radius: 17rpx; font-size: 22rpx; font-weight: 800; }
-.symbol-ai { color: #078f72; background: #d9f7e9; }
-.symbol-followup { color: #0b8da6; background: #d9f3f7; }
-.symbol-trend { color: #a56a13; background: #fff0d3; font-size: 31rpx; }
-.benefit-title { color: #24483f; font-size: 22rpx; font-weight: 700; line-height: 1.3; }
-.benefit-caption { margin-top: 6rpx; color: #829891; font-size: 19rpx; line-height: 1.3; }
 .payment-notice { display: flex; align-items: flex-start; margin-top: 20rpx; padding: 20rpx 22rpx; border: 1rpx solid #d4ede4; border-radius: 22rpx; background: #f3fcf8; }
 .dev-notice { border-color: #f2dfb4; background: #fffaf0; }
 .notice-icon { display: flex; align-items: center; justify-content: center; width: 34rpx; height: 34rpx; flex: none; margin-top: 2rpx; border-radius: 50%; color: #fff; background: #1aaa82; font-size: 22rpx; font-weight: 800; }
@@ -272,13 +240,10 @@ const back = () => uni.navigateBack()
 .ghost-button { margin-top: 14rpx; color: #0d8066; background: #e9f7f2; }
 .primary-button[disabled] { opacity: .64; }
 button::after { border: 0; }
-.footnote { margin: 20rpx 24rpx 0; color: #9aa9a5; font-size: 19rpx; line-height: 1.45; text-align: center; }
 @media (max-width: 360px) {
   .brand-name { font-size: 26rpx; }
   .security-badge { padding-left: 12rpx; padding-right: 12rpx; font-size: 19rpx; }
   .status-title { font-size: 34rpx; }
   .plan-name, .price { font-size: 24rpx; }
-  .benefit-title { font-size: 20rpx; }
-  .benefit-caption { font-size: 17rpx; }
 }
 </style>

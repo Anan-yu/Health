@@ -24,6 +24,13 @@ const customer: MenuItem[] = [
     permission: 'self:assessment',
   },
   {
+    title: '健康助手',
+    description: '结合本人资料解答健康问题',
+    icon: '助',
+    route: '/pages-customer/medical-assistant/index',
+    permission: 'self:health-record',
+  },
+  {
     title: '上传检验报告',
     description: '上传报告并确认识别结果',
     icon: '传',
@@ -97,6 +104,13 @@ const platform: MenuItem[] = [
     description: '查看任务、客户反馈与完成情况',
     icon: '访',
     route: '/pages-tenant/dashboard/followup',
+    permission: 'platform:tenant:list',
+  },
+  {
+    title: '会员管理',
+    description: '按手机号开通或取消客户年度会员',
+    icon: '会',
+    route: '/pages-platform/membership/index',
     permission: 'platform:tenant:list',
   },
   {

@@ -115,6 +115,9 @@ const followupReminderTitle = (followup: Followup) => {
   if (days === 1) return '健康随访明天到期'
   return '待完成健康随访'
 }
+
+const formatNotificationTime = (value?: string) => (value ? value.replace('T', ' ') : '刚刚')
+
 const items = computed<Notification[]>(() => [
   ...reports.value.map((report) => ({
     id: report.id,
@@ -122,7 +125,7 @@ const items = computed<Notification[]>(() => [
     kind: 'report' as const,
     title: isCustomer.value ? '健康报告已发布' : `${report.patientName || '用户'}的健康报告已发布`,
     content: report.title,
-    time: report.publishedAt || '刚刚',
+    time: formatNotificationTime(report.publishedAt),
   })),
   ...followups.value
     .filter((followup) => !isCustomer.value || ['PENDING', 'PAUSED'].includes(followup.status))

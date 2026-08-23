@@ -2,11 +2,14 @@ package com.rayk.health.platform.controller;
 
 import com.rayk.health.common.api.ApiResponse;
 import com.rayk.health.platform.application.PlatformOverviewService;
+import com.rayk.health.platform.application.PlatformMembershipService;
 import com.rayk.health.platform.dto.UpdatePlatformTenantRequest;
 import com.rayk.health.platform.dto.CreatePlatformTenantRequest;
 import com.rayk.health.platform.dto.CreatePlatformDoctorRequest;
 import com.rayk.health.platform.dto.UpdatePlatformDoctorRequest;
 import com.rayk.health.platform.dto.UpdatePlatformAdminPhoneRequest;
+import com.rayk.health.platform.dto.UpdatePlatformCustomerMembershipRequest;
+import com.rayk.health.platform.vo.PlatformCustomerMembershipVo;
 import com.rayk.health.platform.vo.PlatformOverviewVo;
 import com.rayk.health.security.dto.WeChatStaffInviteData;
 import com.rayk.health.security.wechat.WeChatStaffInviteService;
@@ -22,17 +25,22 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/platform")
 public class PlatformController {
     private final PlatformOverviewService overviewService;
+    private final PlatformMembershipService membershipService;
     private final WeChatStaffInviteService staffInviteService;
 
     public PlatformController(
-            PlatformOverviewService overviewService, WeChatStaffInviteService staffInviteService) {
+            PlatformOverviewService overviewService,
+            PlatformMembershipService membershipService,
+            WeChatStaffInviteService staffInviteService) {
         this.overviewService = overviewService;
+        this.membershipService = membershipService;
         this.staffInviteService = staffInviteService;
     }
 
@@ -53,6 +61,19 @@ public class PlatformController {
     public ApiResponse<StaffVo> updateAdminPhone(
             @Valid @RequestBody UpdatePlatformAdminPhoneRequest request) {
         return ApiResponse.success(overviewService.updateAdminPhone(request));
+    }
+
+    @GetMapping("/customer-membership")
+    @PreAuthorize("hasAuthority('platform:tenant:list')")
+    public ApiResponse<PlatformCustomerMembershipVo> customerMembership(@RequestParam String phone) {
+        return ApiResponse.success(membershipService.findByPhone(phone));
+    }
+
+    @PutMapping("/customer-membership")
+    @PreAuthorize("hasAuthority('platform:tenant:list')")
+    public ApiResponse<PlatformCustomerMembershipVo> updateCustomerMembership(
+            @Valid @RequestBody UpdatePlatformCustomerMembershipRequest request) {
+        return ApiResponse.success(membershipService.update(request));
     }
 
     @PostMapping("/tenants")

@@ -32,6 +32,7 @@
   → 客户逐项反馈完成情况、感受与困难
   → 自动继续、调整或终止下一期任务
   → 趋势、健康检测和再次评估
+  → 健康助手结合本人资料进行健康问答
 ```
 
 ## 已有功能
@@ -91,6 +92,23 @@
 - 腾讯云 TTS 吃饭和睡觉提醒，支持动态文案和性别音色策略。
 - 平台问题反馈、状态追踪和管理员回复。
 
+### 健康助手
+
+- 客户入口为小程序 `pages-customer/medical-assistant/index`，也可从“我的”和客户快捷菜单进入。
+- 当前使用 `qwen3.7-flash-2026-07-15` 进行文字问答；模型名称不展示在客户端，也不影响平台管理员对健康评估/报告模型的切换。
+- 对话通过 SSE 分块返回，助手回复会逐步显示；流式服务异常时保留一次性接口作为兼容降级。
+- 助手 JSON 与 SSE 响应统一显式使用 UTF-8；客户端同时兼容修复历史数据或旧链路产生的 UTF-8/Latin-1 乱码，避免中文动态消息出现乱码。
+- 对话历史按独立会话保存，首屏内容区的“对话记录”入口可展开/收起历史侧栏；入口避开微信右上角原生操作区。新对话欢迎卡片中的提示点击后会直接发送给大模型，不会填入输入框；回答后的追问提示仅作参考展示，不会自动发送或进入输入框。可新建对话，也可删除本人不再需要的历史对话。
+- 助手头像使用压缩后的羊头像资源，位于 `rayk-miniapp/src/pages-customer/static/assistant`；聊天输入框与发送按钮保持同高，适配移动端操作。
+- 页面按中老年用户的可读性优化：提高导航、正文、快捷问题、输入框和操作按钮字号与行距；首屏绿色介绍卡片采用右侧头像视觉锚点的紧凑排版，使用“健康报告”上下文标签和更短的说明文案减少换行与无效留白；第一圈半圆环已调整为以头像中心为圆心，头像保持在卡片内部，避免贴边或超出环形装饰；输入区不再显示占位提示和底部小字，历史侧栏的删除操作改为更易点击的按钮。
+- 助手消息会将模型返回的 `**标题**` 转换为实际加粗文本并移除星号，流式增量内容也按同一规则渲染；对话接口、会话存储和后端安全边界不变。
+- 输入框已关闭微信小程序原生确认栏，并将键盘确认动作设为发送；若 iOS/微信系统仍显示输入法自带的“完成”工具条，该部分属于系统控件，应用只能控制小程序确认栏，不能通过页面样式改写。
+- “现在几点/当前时间”等纯时间问题由 AI 服务按服务端北京时间（`Asia/Shanghai`）直接回答，不再交给模型猜测；助手当前没有联网、定位或天气工具，天气问题会明确提示能力边界，不会编造实时天气。接入天气服务仍需单独配置供应商、城市来源和用户授权。
+- 每次回答会在后端按本人数据范围组装健康档案、最近一次健康评估、最近一次健康拍体征和本次对话上下文；不会接受前端传入的任意 patientId 作为授权依据。
+- 新增 `AI_MEDICAL_ASSISTANT` 会员权益：免费客户 3 次对话，年度会员期内不限次数；调用前预占额度，成功落库后确认，AI 失败会释放额度。免费额度用尽时，客户端会提示开通年度会员并可直接跳转开通页。
+- 对胸痛、明显呼吸困难、意识不清、突发单侧无力、大出血、严重过敏和自伤风险等描述先触发急症安全提示；后台保留依据、风险级别和下一步等结构化信息，聊天界面不再展示“本次参考”标签，仍保留健康管理免责声明，不输出诊断、处方或自行调药建议。
+- 首版为文字对话，不接收图片/文件，也不替代体检报告的 OCR、图片直读、健康评估和 PDF 报告生成链路。
+
 ## 技术架构
 
 ```text
@@ -106,6 +124,7 @@ UniApp 小程序 / H5
         ├─ PDF 原生解析 / PaddleOCR
 ├─ Qwen3.7-flash-2026-07-15 → Qwen3.5-OCR PDF 页级联 / 图片直读
         ├─ DeepSeek + RAG
+        ├─ 健康助手（Qwen3.7 Flash）
         └─ 报告与随访智能处理
 ```
 
@@ -249,7 +268,35 @@ npm run build:mp-weixin
 
 微信开发者工具分别导入两个 release 目录。`mp-weixin-prod-lan` 是局域网验收包，不是可直接提交审核的正式互联网生产包。
 
+旧的 `dist\release\mp-weixin-internal` 内测包已从当前 release 目录移出，不会再被开发者工具作为现用包读取；为便于误删恢复，原包暂存于 `E:\health-archive\mp-weixin-internal-20260822`。上传新内测版本时使用本次构建生成的 `mp-weixin-dev`，不要重新导入旧目录。
+
+### 发布版本一致性校验
+
+正式发布必须从干净的 Git 提交构建。发布脚本会读取当前提交 SHA，生成唯一 `releaseId`，把版本信息注入 Java、Python 和小程序请求头，并在三个前端包根目录写入不含密钥的 `release-manifest.json`：
+
+```powershell
+Set-Location E:\health
+node .\scripts\release\build-release.mjs --release-id release-<版本标识>
+```
+
+脚本默认拒绝有未提交修改的工作区；只做本地构建验证时才使用 `--allow-dirty`。输出位于 `E:\health\build\release`：`release-manifest.json` 是本次源码、数据库迁移和三个前端产物的指纹，`release.env` 可作为 Docker Compose 的环境文件。构建服务时使用同一份环境文件，避免镜像标签、Java/Python 运行版本和前端包来自不同提交：
+
+```powershell
+docker compose --env-file .\build\release\release.env -f compose.yml -f compose.prod.yml build rayk-server rayk-ai
+docker compose --env-file .\build\release\release.env -f compose.yml -f compose.prod.yml up -d rayk-server rayk-ai nginx
+```
+
+线上服务提供公开的版本校验接口 `GET /api/system/version`，AI 服务对应 `GET /ai/version`。部署同一份 `release.env` 和镜像后，可用本地清单校验公网服务：
+
+```powershell
+node .\scripts\release\verify-release.mjs https://xingxuyuan.com
+```
+
+校验失败时不要只重新上传小程序包：先比较线上 `releaseId`、Git SHA、数据库迁移版本和前端产物 SHA256，再决定是重新构建镜像、执行 Flyway，还是重新导入正确的微信包。
+
 ## 测试与质量检查
+
+平台管理员会员管理：平台管理员可在平台工作台的“会员管理”页面按客户手机号查找 `CUSTOMER` 账号，查看脱敏手机号和当前会员状态，并直接开通 365 天年度健康会员或取消现有年度会员。后端接口为 `GET/PUT /api/v1/platform/customer-membership`，服务端同时校验平台管理员权限、客户角色和目标客户租户；开通来源记录为 `PLATFORM_ADMIN`，不经过支付订单。页面路由为 `/pages-platform/membership/index`。
 
 Java（项目未提供 Maven Wrapper，使用 Dockerfile 中的 Maven 构建链）：
 
@@ -310,6 +357,26 @@ docker compose -f compose.yml -f compose.prod.yml up -d --build
 
 当前腾讯云生产实例使用 `/opt/zhiyu-health`，域名为 `xingxuyuan.com`（`www` 同域名），由 Nginx 终止 HTTPS 并反向代理 H5、Java、AI 和 MinIO 报告路径。证书文件只挂载到服务器的本地密钥目录，生产 `.env` 仅保存在服务器，不纳入 Git。微信小程序包仍需在微信开发者工具中导入 `rayk-miniapp/dist/release/mp-weixin-prod-lan` 后由具备权限的账号上传审核；该目录不是服务器静态网页包。
 
+健康助手发布时必须同时更新后端：只上传 `mp-weixin-prod-lan` 小程序包不会把 Java 接口、Flyway 数据库迁移或 Python 助手服务发布到服务器。当前健康助手依赖 Java 服务中的助手模块以及数据库迁移 V43/V44；生产部署应在服务器项目目录执行：
+
+```powershell
+Set-Location /opt/zhiyu-health
+docker compose -f compose.yml -f compose.prod.yml up -d --build rayk-server rayk-ai nginx
+docker compose -f compose.yml -f compose.prod.yml ps
+docker compose -f compose.yml -f compose.prod.yml logs --tail=100 rayk-server rayk-ai nginx
+```
+
+使用发布清单时，将本次构建的 `build/release/release.env` 安全复制到服务器项目目录（不提交 Git），并按同一文件执行：
+
+```bash
+docker compose --env-file build/release/release.env -f compose.yml -f compose.prod.yml up -d --build rayk-server rayk-ai nginx
+docker compose --env-file build/release/release.env -f compose.yml -f compose.prod.yml ps
+```
+
+服务器的 `/api/system/version` 应与本地 `release-manifest.json` 完全一致；服务器没有完成这一步之前，不要把对应小程序包当作线上验收版本。
+
+部署后再用真实客户账号打开健康助手。若页面显示“系统内部错误”，先检查 `rayk-server` 日志中的数据库异常，并确认 Flyway 已执行到最新版本；不要反复上传同一个前端包。生产 `.env` 中的 Qwen 助手密钥只影响发送消息，不影响健康助手首屏初始化。
+
 ## 数据备份
 
 仓库提供 MySQL 备份和恢复脚本：
@@ -340,10 +407,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\restore-mysql.ps1 -BackupFile
 
 AI 健康评估和 AI 健康报告在一次完整评估流程中分别预占、确认或释放，确保两项次数独立统计且外部 AI 失败不会扣除额度。历史综合评估产生的旧 `AI_HEALTH_REPORT` 流水会兼容计入评估额度，避免拆分权益后遗漏既有使用记录。
 
-后端接口位于 `/api/client/membership`：`summary`、`plans`、`benefits`、`usage`、`orders` 和订单支付接口。所有消耗通过 `membership_usage` 的 `RESERVED` → `CONFIRMED`/`RELEASED` 两阶段流水记录，外部 AI、健康拍或 TTS 调用失败不会扣除权益。健康拍会员权益当前仅保留每日额度，不再配置滚动 30 天额度；“报告重新解读”不再作为会员权益提供。健康拍历史和指标趋势的查看范围也由 Java 后端按会员状态校验，不能只靠前端隐藏。数据库迁移为 `V32__customer_membership.sql` 和后续会员权益调整迁移（含 `V39__remove_ai_report_regeneration.sql`、`V40__align_membership_rights_with_product_table.sql`、`V41__split_ai_assessment_and_report_entitlements.sql`）。
+后端接口位于 `/api/client/membership`：`summary`、`plans`、`benefits`、`usage`、`orders` 和订单支付接口。所有消耗通过 `membership_usage` 的 `RESERVED` → `CONFIRMED`/`RELEASED` 两阶段流水记录，外部 AI、健康拍或 TTS 调用失败不会扣除权益。健康拍会员权益当前仅保留每日额度，不再配置滚动 30 天额度；“报告重新解读”不再作为会员权益提供。健康拍历史和指标趋势的查看范围也由 Java 后端按会员状态校验，不能只靠前端隐藏。数据库迁移为 `V32__customer_membership.sql` 和后续会员权益调整迁移（含 `V39__remove_ai_report_regeneration.sql`、`V40__align_membership_rights_with_product_table.sql`、`V41__split_ai_assessment_and_report_entitlements.sql`）。支付确认页仅保留订单状态、支付通知和操作按钮，不再展示支付后权益卡片或底部免责声明。
 
 开发包会员调试：使用 `compose.yml` + `compose.dev.yml` 启动后端，并导入 `dist\release\mp-weixin-dev`。客户进入“健康会员”页面会看到“开发调试”卡片，可切换“恢复免费客户”或“模拟年度会员”来验证两套权益。该接口由后端 `MEMBERSHIP_DEVELOPMENT_MODE` 保护，`compose.dev.yml` 才会开启，生产环境默认关闭；切勿将开发包用于正式发布。
 
-会员前端包含普通客户中心、年度会员中心和开通会员三种状态页面，统一使用真实会员 `summary/plans` 接口渲染权益、剩余次数、有效期和支付入口；开通页新增与产品表一致的 13 项权益对比表（不单独展示会员有效期行）。会员中心的健康分动态读取当前客户最近一次成功 AI 评估，并按有有效分数的健康维度计算平均值，没有有效评估时显示“待评估”。会员权益和健康分仪表盘采用双指标卡片与横向进度条展示，避免圆环同时承载多个含义造成阅读负担。会员 SVG 资源位于 `rayk-miniapp/src/pages-customer/static/member/`，随 `pages-customer` 分包发布；复杂插画保留 SVG 封装但已压缩内嵌位图，通用图标统一复用，避免约 27MB 的重复资源进入微信主包。
+会员前端包含普通客户中心、年度会员中心和开通会员三种状态页面，统一使用真实会员 `summary/plans` 接口渲染权益、剩余次数、有效期和支付入口；开通页新增与产品表一致的 14 项权益对比表（包含“AI健康助手”，不单独展示会员有效期行），表格字号和换行按中老年用户阅读场景放大。会员中心的健康分动态读取当前客户最近一次成功 AI 评估，并按有有效分数的健康维度计算平均值，没有有效评估时显示“待评估”。会员权益和健康分仪表盘采用双指标卡片与横向进度条展示，避免圆环同时承载多个含义造成阅读负担。会员 SVG 资源位于 `rayk-miniapp/src/pages-customer/static/member/`，随 `pages-customer` 分包发布；复杂插画保留 SVG 封装但已压缩内嵌位图，通用图标统一复用，避免约 27MB 的重复资源进入微信主包。
 
 本地环境可通过以下变量控制：`MEMBERSHIP_ENABLED`、`MEMBERSHIP_PAYMENT_ENABLED` 以及六项 `MEMBERSHIP_FREE_*_TRIAL`（AI 评估、AI 报告、首次随访、健康拍、吃饭提醒、睡眠提醒）。本地和开发包默认保持 `MEMBERSHIP_PAYMENT_ENABLED=false`，如需在开发环境进行真实支付测试，可在未提交的 `.env` 中显式设置为 `true`，同时配置虚拟支付 AppKey、ProductID 和公网 HTTPS 回调。当前年度会员真实支付按小程序虚拟支付“道具直购”模式接入：需配置 `WECHAT_VIRTUAL_APP_ID`、虚拟支付商户号 `WECHAT_VIRTUAL_MERCHANT_ID`、`WECHAT_VIRTUAL_OFFER_ID`、现网 `WECHAT_VIRTUAL_APP_KEY`、`WECHAT_VIRTUAL_PRODUCT_ID`，并将 `WECHAT_VIRTUAL_ENV=0`、`WECHAT_VIRTUAL_MODE=short_series_goods`。AppKey 只能通过服务器密钥管理或未纳入 Git 的 `.env` 提供，不能写入源码或前端；商品 ID 和价格必须与微信虚拟支付后台已发布的道具一致。当前回调地址为 `https://xingxuyuan.com/api/payments/wechat/virtual/notify`，需在小程序虚拟支付后台订阅 JSON 推送、完成 DNS/HTTPS/公网 443 转发并进行真实小额验收。服务端使用 `wx.requestVirtualPayment` 所需的 `signData`、`paySig` 和 `signature`，支付成功以后端发货通知校验并开通会员为准。

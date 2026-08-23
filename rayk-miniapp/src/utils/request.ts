@@ -1,4 +1,5 @@
 import type { ApiResponse } from '@/types/api'
+import { RELEASE_INFO } from '@/constants/release'
 
 export class ApiError extends Error {
   constructor(
@@ -28,6 +29,8 @@ export function getRequestHeaders() {
   return {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     'X-Request-Id': `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    'X-Client-Release-Id': RELEASE_INFO.releaseId,
+    'X-Client-Git-Commit': RELEASE_INFO.gitCommit,
   }
 }
 
@@ -91,6 +94,8 @@ export function request<T>(options: UniApp.RequestOptions): Promise<T> {
     const requestHeaders = isAuthRequest
       ? {
           'X-Request-Id': `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          'X-Client-Release-Id': RELEASE_INFO.releaseId,
+          'X-Client-Git-Commit': RELEASE_INFO.gitCommit,
         }
       : getRequestHeaders()
     uni.request({
