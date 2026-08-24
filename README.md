@@ -357,6 +357,10 @@ docker compose -f compose.yml -f compose.prod.yml up -d --build
 
 当前腾讯云生产实例使用 `/opt/zhiyu-health`，域名为 `xingxuyuan.com`（`www` 同域名），由 Nginx 终止 HTTPS 并反向代理 H5、Java、AI 和 MinIO 报告路径。证书文件只挂载到服务器的本地密钥目录，生产 `.env` 仅保存在服务器，不纳入 Git。微信小程序包仍需在微信开发者工具中导入 `rayk-miniapp/dist/release/mp-weixin-prod-lan` 后由具备权限的账号上传审核；该目录不是服务器静态网页包。
 
+生产登录会话有效期由 `JWT_EXPIRE_SECONDS` 控制，当前 `compose.prod.yml` 固定为 `604800` 秒（7 天），Redis 会话 TTL 与 JWT 保持一致。调整该值后需要重建 `rayk-server`；已签发的旧令牌不会自动延长，用户重新登录后才会获得新的有效期。该配置与年度会员 365 天有效期相互独立。
+
+生产 `compose.prod.yml` 会显式开启真实微信虚拟支付；支付 AppKey、ProductID 和回调配置仍只能从服务器 `.env` 或密钥管理注入，不能写入源码。若生产页面显示“模拟开通会员”，先核对 Java 容器实际生效的 `MEMBERSHIP_PAYMENT_ENABLED` 和支付配置，再重建/重启 `rayk-server`。
+
 健康助手发布时必须同时更新后端：只上传 `mp-weixin-prod-lan` 小程序包不会把 Java 接口、Flyway 数据库迁移或 Python 助手服务发布到服务器。当前健康助手依赖 Java 服务中的助手模块以及数据库迁移 V43/V44；生产部署应在服务器项目目录执行：
 
 ```powershell

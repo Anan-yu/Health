@@ -12,6 +12,8 @@ services:
       RAYK_DEVELOPMENT_LOGIN_ENABLED: "false"
       WECHAT_MOCK_ENABLED: "false"
       WECHAT_AUTO_BIND_USERNAME: ""
+      MEMBERSHIP_PAYMENT_ENABLED: "true"
+      JWT_EXPIRE_SECONDS: "604800"
       MINIO_PUBLIC_ENDPOINT: "https://xingxuyuan.com"
     ports: []
   nginx:

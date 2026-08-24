@@ -867,3 +867,29 @@ docker compose -f compose.yml -f compose.dev.yml ps
 - Java 新增公开 `GET /api/system/version`，Python AI 服务新增 `GET /version`（经 Nginx 为 `/ai/version`）；两者返回 releaseId、Git SHA、构建时间、数据库迁移版本和三个前端包指纹。小程序通过 `X-Client-Release-Id` 与 `X-Client-Git-Commit` 标识自身来源，不在界面显示版本号。
 - Compose 的 Java/Python 镜像标签和运行环境改为读取同一份 `release.env`，默认开发行为仍使用 `dev` 标签；未传入发布环境文件时，版本接口会显示 `dev-local/unknown`，不能据此宣称线上已对齐。
 - 新增 `scripts/release/verify-release.mjs`，部署同一份清单和镜像后运行 `node scripts/release/verify-release.mjs https://xingxuyuan.com`，会严格比较线上接口与本地清单。此次仅完成代码和本地发布链路，尚未把新增版本接口部署到线上，也未进行远程 Docker 操作；下一次生产发布必须用同一份 `release.env`、镜像和小程序包。
+
+## 2026-08-24 线上平台管理员手机号更新
+
+- 已核对线上仅有一个有效平台管理员账号 `admin`（ID 10001），并确认新手机号未被其他账号占用。
+- 已将管理员登录手机号更新为 `150****3671`；数据库仅保存脱敏值和不可逆哈希，不保存完整手机号。
+- 后续管理员需使用该手机号完成微信授权登录；本次未修改客户数据、会员权益或其他账号。
+
+## 2026-08-24 修复线上平台会员管理接口
+
+- 根因：线上 `rayk-server` 仍运行未包含 `PlatformController` 的旧镜像，所以会员管理请求被 Spring 当作静态资源处理；同步当前 Java 源码后，又发现生产库已执行 V43/V44 但缺少 V42，Flyway 校验因此阻止服务启动并造成公网 502。
+- 已同步本地当前 Java 后端、生产 Compose 配置和迁移资源到线上 `/opt/zhiyu-health`，保留旧 Java 镜像 `rayk-a1-server:backup-platform-membership-20260824` 作为回滚点；未删除 MySQL、Redis、MinIO 数据卷。
+- `V42__lab_report_processing_progress.sql` 已使用一次性生产迁移窗口补执行，`lab_report.processing_progress`、`processing_message` 已存在，Flyway 记录已补齐 V42；迁移完成后已关闭 out-of-order 开关，线上线下默认都恢复严格顺序校验。
+- 线上 `rayk-server` Maven 测试 66 项全部通过并已恢复 healthy；`https://xingxuyuan.com/health` 和 `/api/system/version` 返回 200，未登录访问 `/api/v1/platform/customer-membership` 返回 401，说明会员管理接口已经加载并由权限层拦截，不再是系统内部错误。
+- 后续线上、线下必须使用同一份当前后端源码和对应 Compose 配置一起构建部署；生产发布后至少核对 Java healthy、Flyway 版本、`/health`、`/api/system/version` 及会员管理接口鉴权状态。
+
+## 2026-08-24 修复生产会员支付被降级为模拟开通
+
+- 根因：生产 `rayk-server` 容器实际生效的 `MEMBERSHIP_PAYMENT_ENABLED=false`，导致会员订单接口向小程序返回开发/模拟支付状态；虚拟支付 AppKey、ProductID、商户号、OfferID、环境和回调地址均已存在，不是支付密钥丢失。
+- 已在 `compose.prod.yml` 显式设置 `MEMBERSHIP_PAYMENT_ENABLED=true`；开发环境仍保持默认关闭，真实支付测试继续使用单独的 `compose.real-payment-dev.yml` 和未提交密钥配置。
+- 已同步生产配置并重启 `rayk-server`；后续生产会员开通页应显示真实支付按钮并调用 `wx.requestVirtualPayment`，模拟开通入口不应再作为生产支付路径出现。
+- 待用户在微信客户端重新进入开通页做一次真实支付调起验证；若仍显示模拟开通，先关闭旧小程序页面并重新打开，避免继续使用旧页面缓存。
+
+## 2026-08-24 调整线上登录会话有效期
+
+- 生产 Compose 显式将 `JWT_EXPIRE_SECONDS` 设置为 `604800` 秒（7 天），覆盖服务器 `.env` 中原来的 7200 秒配置；Redis 会话 TTL 与 JWT 有效期保持一致。
+- 已同步线上配置并重建 `rayk-server`，容器内实际生效值已核对为 `604800`，服务状态为 healthy，公网 `/health` 返回 200；会员有效期和登录会话有效期仍是两套独立规则。
