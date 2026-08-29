@@ -45,7 +45,7 @@ def test_qwen_client_sends_base64_image_and_medical_transcription_prompt(
         api_key="test-key",
         workspace_id="workspace-test",
         base_url="https://example.test/compatible-mode/v1",
-        model="qwen3.7-flash-2026-07-15",
+        model="qwen3.8-flash",
         timeout_seconds=30,
         max_pixels=16_000_000,
         max_pages=5,
@@ -56,7 +56,7 @@ def test_qwen_client_sends_base64_image_and_medical_transcription_prompt(
 
     assert result == ["指标\t总胆固醇\t5.99\tmmol/L\t0\t5.17\t偏高"]
     assert captured["authorization"] == "Bearer test-key"
-    assert '"model":"qwen3.7-flash-2026-07-15"' in str(captured["body"])
+    assert '"model":"qwen3.8-flash"' in str(captured["body"])
     assert "data:image/jpeg;base64," in str(captured["body"])
     assert "不要把姓名" in str(captured["body"])
 
@@ -67,7 +67,7 @@ def test_qwen_ocr_defaults_to_qwen37_flash(monkeypatch) -> None:
 
     settings = QwenOcrSettings.from_env()
 
-    assert settings.model == "qwen3.7-flash-2026-07-15"
+    assert settings.model == "qwen3.8-flash"
     assert settings.fallback_model == "qwen3.5-ocr"
     assert settings.concurrency == 50
 
@@ -98,7 +98,7 @@ def test_qwen_page_request_can_override_model_for_pdf_fallback(tmp_path: Path) -
         "test-key",
         "",
         "https://example.test/compatible-mode/v1",
-        "qwen3.7-flash-2026-07-15",
+        "qwen3.8-flash",
         30,
         16_000_000,
         5,
@@ -116,7 +116,7 @@ def test_qwen_page_request_can_override_model_for_pdf_fallback(tmp_path: Path) -
 def test_qwen_rows_are_normalized_and_metadata_is_rejected() -> None:
     service = PaddleOcrService(
         qwen_client=QwenOcrClient(
-            QwenOcrSettings(False, "", "", "", "qwen3.7-flash-2026-07-15", 30, 16_000_000, 5)
+            QwenOcrSettings(False, "", "", "", "qwen3.8-flash", 30, 16_000_000, 5)
         )
     )
     indicators, findings, raw_lines = service._parse_qwen_outputs(
@@ -146,7 +146,7 @@ def test_qwen_rows_are_normalized_and_metadata_is_rejected() -> None:
 def test_qwen_generic_rows_recover_visible_project_name_and_result() -> None:
     service = PaddleOcrService(
         qwen_client=QwenOcrClient(
-            QwenOcrSettings(False, "", "", "", "qwen3.7-flash-2026-07-15", 30, 16_000_000, 5)
+            QwenOcrSettings(False, "", "", "", "qwen3.8-flash", 30, 16_000_000, 5)
         )
     )
 
@@ -172,7 +172,7 @@ def test_qwen_generic_rows_recover_visible_project_name_and_result() -> None:
 def test_qwen_json_rows_preserve_numeric_and_narrative_content() -> None:
     service = PaddleOcrService(
         qwen_client=QwenOcrClient(
-            QwenOcrSettings(False, "", "", "", "qwen3.7-flash-2026-07-15", 30, 16_000_000, 5)
+            QwenOcrSettings(False, "", "", "", "qwen3.8-flash", 30, 16_000_000, 5)
         )
     )
     output = {
@@ -210,7 +210,7 @@ def test_qwen_json_rows_preserve_numeric_and_narrative_content() -> None:
 def test_qwen_unstructured_transcription_is_kept_for_manual_review() -> None:
     service = PaddleOcrService(
         qwen_client=QwenOcrClient(
-            QwenOcrSettings(False, "", "", "", "qwen3.7-flash-2026-07-15", 30, 16_000_000, 5)
+            QwenOcrSettings(False, "", "", "", "qwen3.8-flash", 30, 16_000_000, 5)
         )
     )
 
@@ -244,7 +244,7 @@ def test_qwen_client_falls_back_to_public_endpoint_when_workspace_rejects(
         api_key="test-key",
         workspace_id="workspace-test",
         base_url="",
-        model="qwen3.7-flash-2026-07-15",
+        model="qwen3.8-flash",
         timeout_seconds=30,
         max_pixels=16_000_000,
         max_pages=5,
@@ -280,7 +280,7 @@ def test_qwen_html_tables_are_extracted_and_mapped_by_headers() -> None:
 
     service = PaddleOcrService(
         qwen_client=QwenOcrClient(
-            QwenOcrSettings(False, "", "", "", "qwen3.7-flash-2026-07-15", 30, 16_000_000, 5)
+            QwenOcrSettings(False, "", "", "", "qwen3.8-flash", 30, 16_000_000, 5)
         )
     )
     indicators, _, raw_lines = service._parse_qwen_outputs([output])
@@ -303,7 +303,7 @@ def test_qwen_html_metadata_table_is_not_treated_as_indicators() -> None:
     """
     service = PaddleOcrService(
         qwen_client=QwenOcrClient(
-            QwenOcrSettings(False, "", "", "", "qwen3.7-flash-2026-07-15", 30, 16_000_000, 5)
+            QwenOcrSettings(False, "", "", "", "qwen3.8-flash", 30, 16_000_000, 5)
         )
     )
 
@@ -329,7 +329,7 @@ def test_qwen_html_preserves_nested_imaging_narrative_and_summary() -> None:
     ]
     service = PaddleOcrService(
         qwen_client=QwenOcrClient(
-            QwenOcrSettings(False, "", "", "", "qwen3.7-flash-2026-07-15", 30, 16_000_000, 5)
+            QwenOcrSettings(False, "", "", "", "qwen3.8-flash", 30, 16_000_000, 5)
         )
     )
     indicators, findings, _ = service._parse_qwen_outputs([output])
@@ -379,7 +379,7 @@ def test_pdf_uses_ocr_fallback_only_for_failed_qwen_pages(tmp_path: Path) -> Non
                 "test-key",
                 "",
                 "",
-                "qwen3.7-flash-2026-07-15",
+                "qwen3.8-flash",
                 30,
                 16_000_000,
                 5,
@@ -404,7 +404,7 @@ def test_pdf_uses_ocr_fallback_only_for_failed_qwen_pages(tmp_path: Path) -> Non
                         path=paths[1],
                         text=None,
                         model=None,
-                        error="qwen3.7-flash-2026-07-15:QwenOcrError",
+                        error="qwen3.8-flash:QwenOcrError",
                     ),
                 ]
             return [
@@ -443,10 +443,10 @@ def test_pdf_uses_ocr_fallback_only_for_failed_qwen_pages(tmp_path: Path) -> Non
     )
 
     assert client.calls == [
-        ("qwen3.7-flash-2026-07-15", ["page-1.png", "page-2.png"]),
+        ("qwen3.8-flash", ["page-1.png", "page-2.png"]),
         ("qwen3.5-ocr", ["page-2.png"]),
     ]
-    assert result.engine == "qwen3.7-flash-2026-07-15>qwen3.5-ocr+PDF-native-validation"
+    assert result.engine == "qwen3.8-flash>qwen3.5-ocr+PDF-native-validation"
     assert {item.code for item in result.indicators} == {
         "fasting_glucose",
         "total_cholesterol",
@@ -498,7 +498,7 @@ def test_landscape_image_recovers_both_columns_without_using_pdf_path(
         )
     )
 
-    assert result.engine == "qwen3.7-flash-2026-07-15+multi-column-recovery"
+    assert result.engine == "qwen3.8-flash+multi-column-recovery"
     assert len(result.indicators) == 8
     assert {item.code for item in result.indicators} >= {
         "fasting_glucose",

@@ -82,7 +82,7 @@ public class WorkflowApplicationService {
     private static final Logger log = LoggerFactory.getLogger(WorkflowApplicationService.class);
     public static final String DISCLAIMER =
             "该结果仅用于健康管理参考，不构成医学诊断。";
-    // qwen3.7-flash-2026-07-15 reads image pages in batches over several minutes; a 10-minute
+    // qwen3.8-flash reads image pages in batches over several minutes; a 10-minute
     // signature expired before the final batch of a 15-page report. Align it with
     // the Java-to-AI read timeout so every batch can still download its pages.
     private static final int REPORT_IMAGE_PRESIGN_EXPIRY_SECONDS = 1800;

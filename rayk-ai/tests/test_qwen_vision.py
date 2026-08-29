@@ -13,7 +13,7 @@ def test_qwen_vision_settings_default_to_qwen37_flash(monkeypatch) -> None:
 
     settings = QwenVisionSettings.from_env()
 
-    assert settings.model == "qwen3.7-flash-2026-07-15"
+    assert settings.model == "qwen3.8-flash"
 
 
 def test_qwen_vision_client_sends_text_and_each_report_page_as_multimodal_content() -> None:
@@ -42,7 +42,7 @@ def test_qwen_vision_client_sends_text_and_each_report_page_as_multimodal_conten
         api_key="test-key",
         workspace_id="",
         base_url="https://example.invalid/compatible-mode/v1",
-        model="qwen3.7-flash-2026-07-15",
+        model="qwen3.8-flash",
         timeout_seconds=10,
         max_tokens=2000,
         max_images=50,
@@ -69,7 +69,7 @@ def test_qwen_vision_client_sends_text_and_each_report_page_as_multimodal_conten
     assert captured["url"] == "https://example.invalid/compatible-mode/v1/chat/completions"
     body = captured["body"]
     assert isinstance(body, dict)
-    assert body["model"] == "qwen3.7-flash-2026-07-15"
+    assert body["model"] == "qwen3.8-flash"
     assert body["response_format"] == {"type": "json_object"}
     assert body["enable_thinking"] is False
     assert "minio.internal" not in json.dumps(body, ensure_ascii=False)
@@ -111,7 +111,7 @@ def test_qwen_vision_client_reencodes_large_images_before_sending() -> None:
         api_key="test-key",
         workspace_id="",
         base_url="https://example.invalid/compatible-mode/v1",
-        model="qwen3.7-flash-2026-07-15",
+        model="qwen3.8-flash",
         timeout_seconds=10,
         max_tokens=2000,
         max_images=50,
@@ -174,7 +174,7 @@ def test_qwen_vision_client_retries_without_unsupported_structured_output() -> N
         api_key="test-key",
         workspace_id="",
         base_url="https://example.invalid/compatible-mode/v1",
-        model="qwen3.7-flash-2026-07-15",
+        model="qwen3.8-flash",
         timeout_seconds=10,
         max_tokens=2000,
         max_images=50,

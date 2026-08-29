@@ -1,7 +1,6 @@
 services:
-  # Explicit opt-in development stack for a real WeChat virtual-payment test.
-  # AppKey and ProductID are required at Compose evaluation time and must come
-  # from the untracked .env or the deployment secret manager.
+  # Explicit opt-in public HTTPS stack for real WeChat payment acceptance.
+  # Values must come from the untracked .env or deployment secret manager.
   rayk-server:
     environment:
       RAYK_DEVELOPMENT_LOGIN_ENABLED: "true"
@@ -9,6 +8,16 @@ services:
       WECHAT_PHONE_LOGIN_REQUIRED: ${WECHAT_PHONE_LOGIN_REQUIRED:-true}
       MEMBERSHIP_DEVELOPMENT_MODE: "true"
       MEMBERSHIP_PAYMENT_ENABLED: "true"
+      MALL_ENABLED: "true"
+      # Physical goods use standard WeChat Pay API v3 JSAPI, not virtual payment.
+      MALL_PAYMENT_ENABLED: "true"
+      WECHAT_PAY_APP_ID: ${WECHAT_PAY_APP_ID:?WECHAT_PAY_APP_ID must be set for a physical-goods payment test}
+      WECHAT_PAY_MERCHANT_ID: ${WECHAT_PAY_MERCHANT_ID:?WECHAT_PAY_MERCHANT_ID must be set for a physical-goods payment test}
+      WECHAT_PAY_MERCHANT_SERIAL_NUMBER: ${WECHAT_PAY_MERCHANT_SERIAL_NUMBER:?WECHAT_PAY_MERCHANT_SERIAL_NUMBER must be set for a physical-goods payment test}
+      WECHAT_PAY_PRIVATE_KEY_PATH: ${WECHAT_PAY_PRIVATE_KEY_PATH:-/run/secrets/wechatpay/apiclient_key.pem}
+      WECHAT_PAY_API_V3_KEY: ${WECHAT_PAY_API_V3_KEY:?WECHAT_PAY_API_V3_KEY must be set for a physical-goods payment test}
+      WECHAT_PAY_NOTIFY_URL: ${WECHAT_PAY_NOTIFY_URL:?WECHAT_PAY_NOTIFY_URL must be set for a physical-goods payment test}
+      MALL_ORDER_EXPIRE_MINUTES: ${MALL_ORDER_EXPIRE_MINUTES:-30}
       WECHAT_VIRTUAL_APP_ID: ${WECHAT_VIRTUAL_APP_ID:-wxf6f4549c8c962948}
       WECHAT_VIRTUAL_MERCHANT_ID: ${WECHAT_VIRTUAL_MERCHANT_ID:-1116509042}
       WECHAT_VIRTUAL_OFFER_ID: ${WECHAT_VIRTUAL_OFFER_ID:-1450618433}

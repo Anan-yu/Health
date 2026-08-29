@@ -316,7 +316,7 @@ class MedicalKnowledgeRetriever:
         ]
         abnormal_indicators = [item for item in request.indicators if item.code in abnormal_codes]
         # Image-only reports skip OCR, so the RAG query must also be grounded in the page-scoped
-        # facts read directly by qwen3.7-flash-2026-07-15. Abnormal findings and page conclusions carry the
+        # facts read directly by qwen3.8-flash. Abnormal findings and page conclusions carry the
         # strongest retrieval signal and are appended explicitly to favor their keyword matches.
         image_fact_parts: list[str] = []
         if image_analysis is not None:

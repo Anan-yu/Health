@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 ASSISTANT_DISCLAIMER = (
     "健康助手仅用于健康管理与就医沟通参考，不构成医学诊断、处方或急救替代。"
 )
-ASSISTANT_MODEL = "qwen3.7-flash-2026-07-15"
+ASSISTANT_MODEL = "qwen3.8-flash"
 ASSISTANT_MAX_OUTPUT_TOKENS = 4000
 ASSISTANT_HISTORY_CHAR_BUDGET = 8000
 ASSISTANT_REPORT_CHAR_BUDGET = 2500

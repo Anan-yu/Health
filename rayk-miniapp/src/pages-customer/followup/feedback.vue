@@ -80,6 +80,7 @@ import type { FollowupActionFeedback } from '@/api/followup'
 import type { Followup } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import { cleanHealthText } from '@/utils/health-text'
+import { handleMembershipBenefitError } from '@/utils/membership'
 
 type EditableAction = {
   section: string
@@ -236,6 +237,10 @@ async function submit() {
       success: () => uni.redirectTo({ url: '/pages-customer/followup/index' }),
     })
   } catch (cause) {
+    if (handleMembershipBenefitError(cause, {
+      title: '健康随访次数已用完',
+      content: '免费客户支持首次健康随访，开通年度健康会员后可持续使用健康随访。',
+    })) return
     submitError.value = cause instanceof Error ? cause.message : '反馈提交失败'
   } finally {
     submitting.value = false

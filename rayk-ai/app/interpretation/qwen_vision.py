@@ -59,7 +59,7 @@ class QwenVisionSettings:
             api_key=os.getenv("QWEN_VISION_API_KEY", "").strip(),
             workspace_id=os.getenv("QWEN_VISION_WORKSPACE_ID", "").strip(),
             base_url=os.getenv("QWEN_VISION_BASE_URL", "").strip(),
-            model=os.getenv("QWEN_VISION_MODEL", "qwen3.7-flash-2026-07-15").strip(),
+            model=os.getenv("QWEN_VISION_MODEL", "qwen3.8-flash").strip(),
             timeout_seconds=max(10.0, float(os.getenv("QWEN_VISION_TIMEOUT_SECONDS", "120"))),
             max_tokens=min(
                 max(1, int(os.getenv("QWEN_VISION_MAX_TOKENS", "16000"))),
@@ -202,7 +202,7 @@ class QwenVisionClient:
             "temperature": 0.1,
             "max_tokens": max_tokens or self.settings.max_tokens,
         }
-        # qwen3.7-flash-2026-07-15 supports switching thinking mode for image requests. If a
+        # qwen3.8-flash supports switching thinking mode for image requests. If a
         # provider rejects this optional parameter, _request_payload retries without it.
         payload["enable_thinking"] = thinking_enabled
         return payload

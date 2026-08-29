@@ -493,3 +493,62 @@ export interface PlatformFollowup {
   feedback?: string
   completedAt?: string
 }
+
+export interface MallProduct {
+  id: string
+  productName: string
+  subtitle?: string
+  description?: string
+  mainImageUrl?: string
+  priceCent: number
+  stock: number
+  soldCount: number
+  status: 'ACTIVE' | 'INACTIVE' | string
+  sortOrder: number
+}
+
+export interface MallAddress {
+  id: string
+  receiverName: string
+  receiverPhone: string
+  province: string
+  city: string
+  district: string
+  detailAddress: string
+  isDefault: boolean
+}
+
+export interface MallOrderItem {
+  productId: string
+  productName: string
+  mainImageUrl?: string
+  unitPriceCent: number
+  quantity: number
+  totalCent: number
+}
+
+export interface MallOrder {
+  orderNo: string
+  status: 'PENDING_PAYMENT' | 'PAID' | 'SHIPPED' | 'COMPLETED' | 'CANCELLED' | string
+  amountCent: number
+  paymentChannel?: string
+  transactionId?: string
+  receiverName: string
+  receiverPhone: string
+  province: string
+  city: string
+  district: string
+  detailAddress: string
+  expiresAt?: string
+  createdAt: string
+  paidAt?: string
+  items: MallOrderItem[]
+}
+
+export interface MallPaymentParams {
+  timeStamp: string
+  nonceStr: string
+  packageValue: string
+  signType: string
+  paySign: string
+}

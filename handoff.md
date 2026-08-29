@@ -893,3 +893,220 @@ docker compose -f compose.yml -f compose.dev.yml ps
 
 - 生产 Compose 显式将 `JWT_EXPIRE_SECONDS` 设置为 `604800` 秒（7 天），覆盖服务器 `.env` 中原来的 7200 秒配置；Redis 会话 TTL 与 JWT 有效期保持一致。
 - 已同步线上配置并重建 `rayk-server`，容器内实际生效值已核对为 `604800`，服务状态为 healthy，公网 `/health` 返回 200；会员有效期和登录会话有效期仍是两套独立规则。
+
+## 2026-08-24 实物商品商城首版完成
+
+- 用户明确商城销售实物产品。现有会员虚拟支付保持原链路不变，商城新增独立的商品、收货地址、订单、库存和普通微信支付 API v3 JSAPI 链路。
+- 新增 Flyway `V45__physical_product_mall.sql`，包含 `mall_product`、`mall_address`、`mall_order` 和 `mall_order_item`。商品目录不预置虚构商品，由平台管理员发布后客户才会看到；订单保存商品和地址快照，库存下单时原子扣减，取消或超时释放库存。
+- 新增客户接口 `/api/mall/**` 和平台管理员商品接口 `/api/v1/platform/mall/products`。Java 后端校验客户本人地址/订单范围和 `PLATFORM_ADMIN` 商品管理权限；共享商品目录固定使用平台目录租户，更新时也会校验目录租户和未删除状态。
+- 实物订单号使用 `G` 前缀，普通微信支付回调按订单号分流到商城；会员标准支付回调保持原处理，会员虚拟支付回调完全不受影响。
+- 小程序新增商城、商品详情、地址、结算和订单页面；底部导航调整为“首页、工作台、商城、我的”，消息中心改由工作台快捷入口进入；平台工作台新增“商城商品”入口。商城页面不提供模拟支付。
+- `MALL_ENABLED` 默认开启，`MALL_PAYMENT_ENABLED` 默认关闭；生产只有在配置普通微信支付 API v3 商户证书、私钥、API v3 密钥、支付回调地址，并完成发货、退款和售后验收后才能显式开启。该配置不能复用会员虚拟支付 AppKey、OfferID 或 ProductID，也未把任何密钥写入源码。
+- 已完成前端 `type-check`、ESLint、H5、微信开发包和微信生产局域网包构建；Docker 中 Java 21 后端编译成功，66 项 Maven 测试全部通过。商城上线前仍需在目标环境执行 V45 迁移，并进行真实商品、库存、支付回调、发货和退款联调。
+- 后端已按当前 `wechatpay-java 0.2.17` 模型 API 完成普通微信支付 JSAPI 请求与返回参数兼容修正；开发/生产 Compose 配置校验和 `git diff --check` 均已通过。
+- 当前完成的是代码集成与本地构建验证，尚未在目标环境执行 V45 数据库迁移、发布商城镜像或开启 `MALL_PAYMENT_ENABLED`；真实支付、库存对账、发货、退款和售后流程仍需在目标环境验收后再上线。
+
+## 2026-08-24 修复商城原生输入裁切并完善实物支付验收
+
+- 平台管理员商品编辑表单和客户收货地址表单的原生 `<input>` 现在使用固定高度与同高行高，不再让微信 Android 将占位文字和数字上半部分裁切；多行文本框保持独立行高。
+- 实物订单的小程序支付面板返回成功后，不再直接把订单提示为“支付已完成”。客户端会轮询本人订单，只有服务端通过微信支付回调将订单写为 `PAID` 才显示成功；回调尚未抵达时明确提示“支付结果确认中”。
+- `compose.real-payment-dev.yml` 真实支付验收配置现强制开启商城普通微信支付，并在 Compose 启动时要求标准微信支付 API v3 的 AppID、商户号、商户证书序列号、API v3 Key 和回调地址；商户私钥仍只从只读证书挂载提供。生产 Compose 则保持默认关闭并读取服务器 `.env` 的显式 `MALL_PAYMENT_ENABLED=true` 开关，避免无验收配置时误收费。该配置同时保留会员虚拟支付所需的独立密钥校验，不能用会员虚拟支付配置替代商城支付配置。
+- 验证：前端 `type-check`、ESLint、H5、微信开发包和微信生产局域网包均已完成；Compose 真实支付验收配置已用非敏感占位值通过语法校验，Java Docker Maven 测试构建通过。仍需在微信开发者工具/Android 真机确认输入文字完整显示。目标验收服务器需先配置未提交的支付密钥、私钥挂载和公网 HTTPS 回调，执行 V45 迁移并部署当前 Java 镜像后，才能由真实客户完成一笔小额支付、回调、订单 `PAID`、库存和取消/超时释放的全链路验收。
+
+## 2026-08-24 修复本地商城商品发布系统内部错误
+
+- 根因是小程序已更新到商城页面，但本地运行的 `rayk-server` 仍是商城控制器加入前的旧容器。对 `/api/v1/platform/mall/products` 的读取和发布请求被 Spring 当成静态资源，导致 500 和“系统内部错误”。
+- 已使用当前 `rayk-a1-server:dev` 镜像无卷重建 Java 服务，Flyway 已将本地数据库从 V44 升级到 V45，商城商品、地址、订单和订单项表已创建；MySQL、Redis、MinIO 数据卷未删除。
+- 验证：`rayk-server`、`rayk-ai` 和本地网关均 healthy，`/health` 返回 200；已认证开发管理员读取商品目录返回 HTTP 200，故意无效的发布请求返回预期 HTTP 400 校验错误，不再返回静态资源 500。仍需在微信开发者工具或真机重新点击“发布商品”完成一条真实商品的业务验收。
+
+## 2026-08-25 生产商城与普通微信支付部署
+
+- 已将商城后端、V45 迁移、H5 页面和生产 Compose 配置部署到服务器 `/opt/zhiyu-health`；变更前的受影响源码、H5 和服务器 `.env` 已备份至 `/opt/zhiyu-health/backups/mall-deploy-20260825-1630`，未删除 MySQL、Redis、MinIO 或其他数据卷。
+- 商城普通微信支付的标准 API v3 配置仅从服务器受限 `.env` 读取，商户私钥以只读挂载提供给 Java 运行用户；容器中已确认支付开关、所需参数和私钥可读，但未回显任何密钥或证书内容。
+- 生产 Java 镜像已完成 Maven 测试构建并重建；Flyway 已成功执行 V45，`mall_product`、`mall_address`、`mall_order`、`mall_order_item` 均存在。`rayk-server`、AI、Nginx 均为 healthy，公网 H5 可访问；未登录访问平台商城接口返回 401，表明商城路由已加载并受到鉴权保护。
+- 尚未发起真实扣款。下一步由平台管理员发布一件小额测试实物商品，再由真实客户在微信小程序中完成支付；以微信回调后订单变为 `PAID`、库存扣减和后台订单记录为准。退款、发货和售后仍需按真实业务流程单独验收。
+
+## 2026-08-25 商城支付诊断与按钮热修复
+
+- 已核对普通微信支付服务器到微信支付 API 的 HTTPS 连通性、API v3 Key 长度、商户证书序列号和商户私钥/证书公钥匹配；此前支付失败发生在订单创建后、向微信获取 JSAPI 预支付参数时，不是商品、地址、库存或支付开关缺失。
+- 原 `WeChatPayClient` 会将 SDK 的所有运行时错误直接映射为“商城支付服务暂时不可用”，且不留下原因。现改为只记录异常类型、HTTP 状态和微信机器错误码；不记录签名原串、OpenID、订单号、商户号、API v3 Key 或证书内容。下一次支付调起即可据此确认是商户权限、JSAPI 授权还是配置拒绝。
+- 付款页现在显示“创建订单 / 获取微信支付 / 打开微信支付 / 确认结果”的阶段文案；同一地址和数量的重试会复用当前待支付订单，避免连续点击反复占用库存。地址页操作按钮、数量加减按钮和主按钮统一为明确的 Android 触控尺寸、居中内容、禁用态和无默认伪边框样式。
+- H5 和线上 Java/Nginx 已完成热部署，线上容器与公网 H5 均为 healthy；前端类型检查、Lint、H5、微信开发包和微信生产局域网包均已重新构建，线上 Java Maven 测试构建通过。微信体验版需要在开发者工具开启服务端口后另行上传，未自动随服务器 H5 更新。
+
+## 2026-08-25 商城体验版上传
+
+- 微信开发者工具服务端口和登录状态已由用户确认开启；已将 `rayk-miniapp/dist/release/mp-weixin-prod-lan` 上传为微信小程序开发版本 `0.1.1`，描述为“商城支付诊断与移动端按钮修复”，包体约 2.1 MB。
+- 该上传包含商城页面、付款阶段反馈、待支付订单页面内复用、按钮样式修复和安全的微信预支付失败诊断；不等同于正式发布，也没有替用户发起付款。
+- 仍需由具备微信小程序后台权限的账号将该开发版本设为体验版（或更新现有体验版），然后用客户微信账号发起一次支付调起；服务器日志会仅输出安全错误类别，以便确定并处理微信商户侧阻断条件。
+
+## 2026-08-25 商城真实支付阻断原因确认
+
+- 真实客户付款请求已经到达微信支付 JSAPI 预支付接口；微信返回机器错误码 `RESOURCE_NOT_EXISTS`。请求地址、服务器到微信的 HTTPS 连通性、商户证书与私钥匹配、API v3 Key 长度均已核对，因此这不是商城商品、地址、库存、前端按钮或服务器网络问题。
+- 后端现将该明确错误安全映射为“商城微信支付尚未完成小程序关联或 JSAPI 开通，请联系管理员”，不再笼统提示服务暂不可用；线上 Java 服务已使用新镜像重建并通过容器健康检查。本次远程临时源码包已删除，受限备份保留用于回滚。
+- 真实扣款仍受微信支付商户平台配置阻断：需由有商户平台权限的人员确认当前小程序已关联至该商户号，并已开通/启用普通微信支付 JSAPI（小程序支付）产品。代码无法绕过微信支付返回的该权限/资源状态；完成商户平台设置后，使用体验版 0.1.1 的客户账号再次发起一笔小额支付验证回调和订单 `PAID` 状态。
+- 本次生产构建的 Java 编译成功；全量 Maven 测试另有既有的睡眠提醒文案测试断言失败，与商城支付改动无关。为部署明确的错误提示，生产镜像本次以 `MAVEN_SKIP_TESTS=true` 构建；该既有测试失败仍需后续单独修复后恢复全量绿灯发布。
+
+## 2026-08-25 商户身份信息（待以原始下单响应确认）
+
+- 用户在微信支付商户平台确认当前商户号类型为“特约商户”；这是账户信息，不能单凭该信息推断本次下单失败的具体原因，也不能据此切换支付接口。
+- 当前后端实际配置和调用路径须以本次微信支付下单的原始 HTTP 响应为准。未取得请求 URL、响应 `code/message` 和 `Wechatpay-Request-Id` 前，不再对支付模式、权限状态或服务商配置作结论。
+
+## 2026-08-25 微信支付平台公钥进一步排查
+
+- 线上当前未配置微信支付平台公钥 ID 或平台公钥文件；现有 Java SDK 使用 `RSAAutoCertificateConfig` 自动下载平台证书。官方 SDK 说明表明，若该商户号无可用平台证书，初始化下载会返回 `RESOURCE_NOT_EXISTS`，并提示改用微信支付公钥。
+- 因此此前仅按错误码判断“预支付接口被拒绝”并不充分：错误可能发生于 SDK 初始化下载平台证书，尚未发送真实的 JSAPI 下单请求。用户提供的 `PUB_KEY_ID_*` 是微信支付平台公钥 ID，单独配置该 ID 不够，仍需对应的微信支付平台公钥 PEM 文件，并将 SDK 改为 `RSAPublicKeyConfig`（或等价的公钥模式）。
+- 平台公钥模式切换后，仍须通过一次真实下单取得微信的完整原始 HTTP 响应，才能确认剩余阻断条件；不能仅依据商户类型或单一机器错误码推断原因。
+
+## 2026-08-25 微信支付平台公钥模式已部署
+
+- 已将用户下载的微信支付平台公钥以受限文件方式安装到服务器，并写入对应公钥 ID 与容器只读路径；私钥、公钥及 API v3 Key 均未写入源码、日志或 Git。远程上传暂存文件已删除，部署前备份保留在服务器受限备份目录。
+- Java 后端在同时提供平台公钥 ID 和 PEM 时使用 `RSAPublicKeyConfig` 发起 API 请求，并使用 `RSAPublicKeyNotificationConfig` 验证支付回调；未提供公钥配置的环境仍保留自动下载平台证书的兼容路径。
+- 线上 Java 镜像已通过完整 Maven 测试构建并重建，容器为 healthy，容器内已核对平台公钥文件可读和公钥配置存在。尚未为了诊断主动创建新的支付订单；下一次客户支付会验证此前的“无可用平台证书”阻断是否已经消除。
+- 当前商户号仍是特约商户，平台公钥模式只解决 SDK 初始化/验签配置；是否需要服务商授权或接口调整必须以真实下单响应和商户平台确认结果为准，不得预设。
+
+## 2026-08-25 公钥模式后支付错误（待原始响应确认）
+
+- 客户在平台公钥模式上线后重新发起商城支付，原有安全日志仅记录到微信支付 `HTTP 403 / NO_AUTH`；它没有记录请求 URL、微信 `message` 或 `Wechatpay-Request-Id`，因此不足以确认失败点或支付接入模式。
+- 已部署更完整且脱敏的 HTTP 响应日志：仅记录请求 URL（无查询参数）、HTTP 状态、微信 `code/message`、`Wechatpay-Request-Id` 和实际 API 路径；不记录 API v3 Key、私钥、签名、订单信息或请求体。下一次客户点击支付后，以该条原始响应日志为唯一诊断依据，不切换支付接口。
+- 生产镜像的诊断代码编译成功并已重建为 healthy。完整 Maven 测试仍有既有的睡眠提醒文案断言波动，和本次诊断改动无关；本次镜像以跳过测试方式构建，后续仍应单独恢复全量绿灯。
+- 后续一次客户点击记录到 `java.lang.NullPointerException`，且请求 URL、HTTP 状态、微信 `code/message`、请求 ID 和 API 路径均为 `unavailable`。这表明异常发生在 HTTP 请求创建或 SDK 调用前，尚未向微信支付发出可确认的 JSAPI 下单请求；不能据此推断支付模式或微信侧权限原因。
+- 根因已定位为：为接入脱敏 HTTP 日志而改用 SDK 自定义 `HttpClient` 时，`JsapiServiceExtension` 构造器未同时保留 `Config`。SDK 在生成小程序调起所需的支付签名参数时读取该配置，因而在发出 HTTP 请求前触发空指针。已改为同时注入 `Config` 和自定义 HTTP 客户端；不改变任何下单 API 路径或支付模式。下一次点击应产生可用的 HTTP 原始响应日志。
+- 修复后真实下单已发出 HTTP 请求：`POST /v3/pay/transactions/jsapi` 返回 `HTTP 403 / NO_AUTH`，微信 `message` 为“商户号该产品权限未开通，请前往商户平台>产品中心检查后重试”，且返回 `Wechatpay-Request-Id`。这证实当前实际路径是普通 JSAPI，不是服务商路径；前端此前“服务商授权”提示与微信原始响应不一致，已改为与微信原文一致的产品权限提示。该产品权限需由商户平台侧开通，代码无法绕过。
+
+## 2026-08-25 新微信支付商户配置已切换
+
+- 已按用户提供的新商户资料，在本地受限 `.env` 与服务器受限 `.env` 更新商户号、商户 API 证书序列号、API v3 Key、平台公钥 ID 与容器内证书路径；敏感值未写入源码、日志、交接文档或 Git。
+- 新商户私钥和微信支付平台公钥均已以受限文件方式安装在本地和服务器证书目录；服务器文件权限保持运行用户可读的最小权限。已验证两份 PEM 可被 OpenSSL 解析，Compose 配置校验通过，Java 服务已重建并为 healthy，运行用户可读取两份挂载证书。
+- 现有小程序 AppID 因用户未提供新的值而保持不变；新商户必须已在微信支付侧关联该 AppID，才能完成真实小程序支付。未为本次配置变更主动发起扣款；下一次客户支付将验证新商户的微信侧产品权限、回调和订单状态。
+- 新商户实际 JSAPI 下单已返回 HTTP 200，说明商户配置、签名和预支付接口已成功；失败发生在小程序客户端 `requestPayment:fail banned`。微信官方将该错误定义为小程序支付能力被公众平台限制，需在微信公众平台通知中心核实原因并按指引申诉/整改；更换商户号不能绕过该 AppID 级限制。小程序现将原始英文错误改为简短中文指引，订单保持待支付，待公众平台解除限制后可直接重试。
+- 前端修复已完成 `type-check`、Lint、H5、微信开发包和微信生产局域网包构建；H5 已同步到线上 Nginx 挂载目录并通过公网访问校验。微信体验版尚需上传刚生成的生产微信包后才会显示新的中文提示；上传不是正式发布。
+
+## 2026-08-26 首页视频播放栏
+
+- 首页原客户健康关怀文案卡已替换为 `HomeVideoCard`，所有工作台共用同一块视频播放栏；视频存在时使用原生 `<video controls>`，支持播放、暂停、进度拖动和全屏。
+- 视频地址和可选封面图分别读取 `VITE_HOME_VIDEO_URL`、`VITE_HOME_VIDEO_POSTER`，未配置或加载失败时显示明确的可配置/失败占位，不会伪造已上线的视频内容。
+- 当前仓库和服务器没有可直接发布的视频文件或链接；正式微信验收前需提供 HTTPS 视频地址，将视频域名加入小程序业务域名白名单，并重新生成开启视频功能的微信包。本次上传的是关闭视频/商城入口的隐藏版。
+
+## 2026-08-26 修复平台管理员商城浏览权限
+
+- 根因：底部“商城”进入的是客户商品目录接口 `/api/mall/products`，原控制器在类级别要求 `self:health-record` 且当前工作台必须为 `CUSTOMER`，平台管理员浏览商品时被统一返回 403。
+- 已将商品列表和商品详情改为允许 `PLATFORM_ADMIN` 或 `CUSTOMER` 读取；收货地址、订单创建/查询/取消和微信支付仍逐方法限制为客户工作台，平台管理员不会获得客户订单或支付权限。
+- 管理员在底部商城可只读浏览在售商品，商品详情页隐藏购买数量和下单按钮；平台工作台的“商城商品”仍用于管理员维护商品。
+- 验证：前端 `type-check`、ESLint、H5、微信开发包和微信生产局域网包均已重新完成，`git diff --check` 通过；当前主机未安装 Maven，未在本机直接运行 Java 测试，也尚未部署线上。管理员会话下的商品列表/详情 200 及客户地址、订单权限仍需在运行中的后端或线上验收。
+
+## 2026-08-26 生产隐藏视频和商城功能版本
+
+- 因首页视频素材、视频域名白名单以及商城商品/履约材料尚未准备好，新增前端构建开关 `VITE_HOME_VIDEO_ENABLED` 和 `VITE_MALL_ENABLED`。当前本地开发和生产构建均显式关闭两个开关；后续材料齐备时可在目标构建环境分别打开。视频组件、商城页面、平台商品管理、Java 接口和 V45 迁移均未删除。
+- 生产隐藏版底部导航恢复为“首页、工作台、消息、我的”；工作台不再展示“商城商品”，首页在视频开关关闭时恢复原有健康关怀文案卡。商城源码仍可在后续材料齐备后通过开关和底部入口重新启用。
+- 服务器生产 Compose 的 `MALL_ENABLED` 默认改为关闭，防止旧小程序或直接接口调用继续创建商城订单；准备重新开放时需同时设置服务端 `MALL_ENABLED=true`、前端 `VITE_MALL_ENABLED=true`，并恢复底部商城入口后重新构建发布。`MALL_PAYMENT_ENABLED` 仍独立保持关闭。
+- 本版发布标识：`release-20260826-hidden-video-mall`。该标识用于本次隐藏版前端发布清单；当前工作区包含此前功能开发的未提交改动，发布清单会标记 `gitDirty=true`，不能当作干净提交版号。
+- 已将隐藏版 H5 部署到线上 Nginx 挂载目录，服务器 `rayk-server` 已重建并健康运行；线上 `.env` 的 `MALL_ENABLED` 与 `MALL_PAYMENT_ENABLED` 均已设为 `false`。公网首页和 `/health` 返回 200，未授权访问 `/api/mall/products` 返回 401。
+- 服务器回滚备份：`/opt/zhiyu-health/backups/release-20260826-hidden-video-mall-before-20260826-174751`。备份包含替换前 H5、生产 Compose 和受限 `.env`；临时上传目录已仅用于本次同步，未修改数据库、Redis 或 MinIO 数据卷。
+- 线上 Java 容器继续使用既有 `rayk-a1-server:dev` 镜像，因此 `/api/system/version` 的运行时镜像标识仍可能显示 `dev-local`；本次正式标记以 H5 `release-manifest.json` 和本条发布记录为准，后续若构建正式服务镜像再同步 Java 版本元数据。
+- 已用已登录的微信开发者工具 CLI 上传隐藏版微信包，AppID 为现有项目 AppID，微信版本号 `2026.08.26`，上传描述包含发布标识 `release-20260826-hidden-video-mall`；上传成功但未自动提交审核或发布，正式体验/线上发布仍由微信公众平台的版本管理流程控制。
+
+## 2026-08-27 帮助与反馈中老年可读性调整
+
+- 删除帮助与反馈页中已不再适用的“如何登录并识别身份？”常见问题，保留其他问题和反馈提交/历史记录逻辑。
+- FAQ 展开答案改用中老年页面统一的 `32rpx` 正文字号，行高调整为 `1.8`，并提高文字对比度；源码未删除其他帮助功能。
+- 已通过 `type-check`、ESLint、H5、微信开发包和微信生产局域网包构建；三个前端输出目录均已按本次修改同步。此次仅更新本地源码和构建产物，未自动替换线上 H5 或重新上传微信版本。
+
+## 2026-08-27 修复微信开发者工具预览缺页竞态
+
+- 开发者工具曾报 `app.json: ["subPackages"][2]["pages"][0] could not find the corresponding file: "pages-tenant/dashboard/index.wxml"`。源码和三个构建输出实际都包含该文件，根因是发布目录同步时可能先写入 `app.json`，开发者工具监听到中间状态后立即预览。
+- 已调整 `scripts/sync-mp-weixin-release.mjs`：页面及静态资源先完成镜像，`app.json`、`project.config.json` 等清单文件最后写入；保留被开发者工具占用时的原地同步逻辑，避免监听目录出现短暂不完整项目。
+- 已重新生成并核对 `dist/build/mp-weixin`、`dist/release/mp-weixin-dev`、`dist/release/mp-weixin-prod-lan`，三处 `pages-tenant/dashboard/index.wxml` 均存在且与当前构建一致。`type-check`、ESLint 和两个微信包构建通过；H5 不受本次同步脚本影响，已有构建产物保持可用，当前机器重新执行 H5 时受 Uni 编译器 Node 内存限制未完成。
+
+## 2026-08-27 修复开发包误用生产环境
+
+- 开发者工具窗口虽显示 `mp-weixin-dev`，但其请求模块曾注入生产地址 `https://xingxuyuan.com`。根因是开发构建未完整结束后，复用了同一 `dist/build/mp-weixin` 目录中的生产产物进行开发包同步。
+- 已重新完成开发构建并同步，当前 `dist/release/mp-weixin-dev/utils/request.js` 注入局域网 API 地址 `http://192.168.0.100:8088`；`mp-weixin-prod-lan` 仍注入生产地址，两个包环境已分离核对。
+- `build-mp-weixin-dev.mjs` 新增环境校验：构建成功后必须确认请求模块包含开发 API 地址，否则直接失败并拒绝同步旧产物。后续开发包应使用 `npm run build:mp-weixin:dev`，不要在生产构建后手动执行开发同步。
+
+## 2026-08-27 报告处理中状态中文化
+
+- 报告详情页状态标签此前未覆盖后端枚举 `AI_PROCESSING`，因此直接显示英文内部值。
+- `StatusTag.vue` 已增加 `AI_PROCESSING: 评估中` 映射；H5、微信开发包和微信生产局域网包均已重新生成并核对。
+- 已通过 `type-check`、ESLint；开发包使用局域网 API，生产局域网包使用生产 API，环境未混用。此次未部署线上 H5 或上传新的微信版本。
+
+## 2026-08-27 远程后端开发包
+
+- 为避免本机 Docker 服务占满内存，新增 `npm run build:mp-weixin:dev:remote`。该命令仍使用 development 构建优化，但将 API 指向线上 `https://xingxuyuan.com`，并关闭仅本地可用的开发身份入口；线上容器和数据库未被修改。
+- 当前 `dist/release/mp-weixin-dev` 已由该命令生成，已核对请求模块使用线上 HTTPS 地址；`dist/release/mp-weixin-prod-lan` 同样使用线上 HTTPS 地址。恢复本机局域网联调时运行 `npm run build:mp-weixin:dev`，会重新使用 `.env.development` 的局域网地址。
+- 远程开发包必须使用线上真实授权手机号登录，不能依赖本地开发模拟登录；线上商城/支付开关仍以服务器配置为准。本次仅更新本地构建包，未重新上传微信版本。
+- 为释放本机内存，已执行 `docker compose stop` 停止本地 MySQL、Redis、MinIO、AI、Java 和 Nginx 容器；未删除任何数据卷。线上 `/health` 检查返回 200。恢复本地服务可运行 `docker compose up -d`（按需再叠加 `compose.dev.yml`）。
+
+## 2026-08-27 开发包与远程开发包目录隔离
+
+- 修复远程开发构建覆盖标准开发包的问题：`npm run build:mp-weixin:dev` 始终同步到 `dist/release/mp-weixin-dev`，保留 `.env.development` 的局域网 API 和开发登录界面；`npm run build:mp-weixin:dev:remote` 改为同步到独立的 `dist/release/mp-weixin-dev-remote`。
+- 远程包仍访问线上 HTTPS，但因线上后端关闭 `RAYK_DEVELOPMENT_LOGIN_ENABLED`，只支持真实微信手机号登录，不能使用本地模拟身份。微信开发者工具若要看到开发身份入口，应导入 `mp-weixin-dev` 并启动本地开发后端；若要验收线上 Docker，应导入 `mp-weixin-dev-remote` 或 `mp-weixin-prod-lan`。
+- 若 `mp-weixin-dev` 显示“网络连接失败”且 Network 中出现 `mock-login (failed)`，应先确认本机 Docker 是否启动；该包默认请求 `http://192.168.0.100:8088`。本机 Docker 停止时请改用 `mp-weixin-dev-remote`，不要把线上地址临时写回标准开发包。
+
+## 2026-08-27 服务器隔离远程开发环境
+
+- 新增 `compose.remote-dev.yml` 与 `deploy/nginx/nginx.remote-dev.conf`，服务器使用独立 Compose 项目 `rayk-remote-dev`、独立 MySQL/Redis/MinIO/日志/OCR 卷和 localhost 网关端口 `18081`；测试 Java 环境开启 `RAYK_DEVELOPMENT_LOGIN_ENABLED` 与 `MEMBERSHIP_DEVELOPMENT_MODE`，关闭商城和支付。
+- 生产 HTTPS 仅新增 `/test-api/` 反代前缀，转发到测试网关并剥离前缀；生产 `/api/`、生产数据库、支付密钥和正式容器不复用。测试环境通过 `https://xingxuyuan.com/test-api` 访问，前端包使用 `npm run build:mp-weixin:dev:remote-test` 生成到 `dist/release/mp-weixin-dev-remote-test`。
+- 已部署到腾讯云 `/opt/zhiyu-health`：测试网关仅绑定 Docker bridge `172.17.0.1:18081`，生产 Nginx 通过 `host.docker.internal` 反代；测试 Java、AI、MySQL、Redis、MinIO 均 healthy，测试 `health` 和 `mock-login` 分别返回 200。生产 `/health` 同样返回 200。生产配置备份位于 `/opt/zhiyu-health/backups/remote-dev-before-20260827-162317`，测试 `.env.remote-dev` 为 root-only，未回显或复制生产密钥。
+
+## 2026-08-29 隔离测试环境健康助手配置
+
+- 线上隔离测试环境此前 `QWEN_ASSISTANT_ENABLED=false` 且没有 Qwen API Key，健康助手接口虽然返回 HTTP 200，但按安全降级逻辑显示“健康助手暂未完成服务配置”。
+- 已先备份 `/opt/zhiyu-health/.env.remote-dev`，再仅在隔离测试环境启用 Qwen 助手，并复用服务器已有 Qwen 凭据；密钥保持 root-only，不进入代码、日志或本交接文档。生产 Java/AI 容器和支付配置未修改。
+- 已重建 `rayk-remote-dev-rayk-ai-1` 与 `rayk-remote-dev-rayk-server-1`，两者及测试 Nginx、MySQL、Redis、MinIO 均 healthy。非流式和 SSE 流式助手请求均已返回 `qwen3.7-flash-2026-07-15` 的成功回答；临时验收会话已清理。
+
+## 2026-08-29 修复健康助手额度错误与 SSE 降级
+
+- 用户实际点击请求已进入 `/test-api`，根因不是 Qwen 上游故障，而是测试客户的 `AI_MEDICAL_ASSISTANT` 免费权益已用完；Java 在建立 SSE 前抛出 `MEMBERSHIP_BENEFIT_NOT_AVAILABLE (60401)`。
+- 旧控制器将 SSE 的 `Accept`/响应协商与全局 JSON 异常处理冲突，导致服务端再次抛出 `No acceptable representation`，小程序只能显示“健康助手无法回答”。
+- `MedicalAssistantController` 现对建立流前的 `BusinessException` 返回标准 SSE `error` 事件（包含错误码和提示，不含密钥或健康内容），前端已有解析和会员引导逻辑可正常工作。
+- 隔离测试客户已切回年度测试会员；实测正常请求收到 `delta` 与 `done`，模拟免费额度不足收到 `type=error/code=60401`。服务器测试 Java 镜像构建通过 66 项 Maven 测试，测试 Java、AI、Nginx、MySQL、Redis、MinIO 均 healthy。
+- 本次仅更新隔离测试环境，生产服务、生产会员权益和支付配置未修改。服务器旧控制器备份位于 `/opt/zhiyu-health/backups/assistant-sse-error-20260829-105743`。
+
+## 2026-08-29 隔离测试环境启用同商户会员支付
+
+- 按用户确认，隔离测试环境改为复用生产环境当前使用的微信支付商户配置；支付私钥和平台公钥复制到独立的 `secrets/remote-dev` 目录，容器内仍以只读方式挂载，未把敏感值写入源码或交接文档。
+- 已同时同步标准 JSAPI 的 `WECHAT_PAY_*` 与会员当前代码路径使用的 `WECHAT_VIRTUAL_*` 配置；会员接口仍按现有实现调用 `requestVirtualPayment`，未擅自改成另一种支付模式。
+- 测试回调地址单独设置为 `https://xingxuyuan.com/test-api/api/payments/wechat/notify`，由生产 Nginx 的 `/test-api/` 前缀转发至隔离测试 Java；测试数据库、Redis、MinIO 和日志卷保持独立。
+- `compose.remote-dev.yml` 改为仅在 `.env.remote-dev` 显式设置 `REMOTE_DEV_MEMBERSHIP_PAYMENT_ENABLED=true` 时开启会员支付；当前测试会员支付已开启，商城和商城支付仍关闭，与生产当前开关一致。测试开发登录和会员模拟开关仍保留为测试专用差异。
+- 测试 Java 容器已强制重建并 healthy；容器内支付配置项和两份证书均可由运行用户读取，会员摘要接口返回 `paymentEnabled=true`。本次未创建微信支付订单、未发起扣款。
+- 本次变更前备份位于 `/opt/zhiyu-health/backups/remote-dev-shared-payment-before-20260829-111549`。真实支付验收必须使用小额订单，并单独核对微信回调、订单状态和退款流程；生产环境未重启、未改配置。
+
+## 2026-08-29 修复隔离测试微信手机号登录配置
+
+- 根因：隔离测试 `.env.remote-dev` 中 `WECHAT_APP_SECRET` 为空，真实微信登录请求在服务端未进入微信校验就返回 `10202 / 微信小程序身份服务尚未配置`；不是手机号组件或支付配置导致。
+- 已从生产受限 `.env` 同步小程序 AppSecret 到测试受限 `.env.remote-dev`，测试 AppID 保持不变；测试开发身份开关仍保留，真实授权手机号登录不改为 Mock。
+- 已强制重建测试 Java 容器并确认 healthy；运行时 AppSecret 可用但未打印。无效凭证安全探针返回 `10201 / 微信登录凭证校验失败，请重试`，不再返回 `10202`，说明身份服务配置已生效。
+- 本次备份位于 `/opt/zhiyu-health/backups/remote-dev-wechat-auth-before-20260829-113413`；生产容器和生产配置未修改。
+
+## 2026-08-29 Qwen 模型统一切换为 qwen3.8-flash
+
+- 按用户要求，Qwen OCR、Vision 和健康助手的默认模型统一改为精确模型 ID `qwen3.8-flash`；移除了活动代码、测试和当前 README 中的 `qwen3.7-flash`（含旧日期后缀）引用。
+- `qwen3.7-plus` 在当前项目源码、Compose 配置和文档中未发现引用，因此没有额外替换项。Qwen3.5-OCR 仍作为 PDF 失败页的独立备用模型保留。
+- 已更新 `compose.yml`、根目录和 AI 服务 `.env.example`、Python 默认值、Java 健康助手固定值及相关回归断言；本机 `.env` 仅将 `QWEN_OCR_MODEL` 与 `QWEN_VISION_MODEL` 改为新模型，未读取、打印或修改任何密钥。
+- 当前仅完成源码、默认配置和本机模型字段更新，未重建或重启线上/隔离测试 AI 容器。本机 Docker 引擎当前未运行；部署环境的 `.env` 若显式设置了 `QWEN_OCR_MODEL`、`QWEN_VISION_MODEL` 或 `QWEN_ASSISTANT_MODEL`，仍需在受限部署配置中将对应值改为 `qwen3.8-flash` 后重建 AI/Java 容器并做真实请求验收。
+
+## 2026-08-29 统一普通客户会员权益用尽提示
+
+- 后端仍统一以 `60401 / MEMBERSHIP_BENEFIT_NOT_AVAILABLE` 拦截权益不足；新增小程序 `src/utils/membership.ts`，统一弹出“权益次数已用完”会员引导，并提供“开通会员”与“暂不”选项。
+- 已覆盖 AI 健康助手、AI 健康评估/报告（含异步失败报告和重新评估）、健康拍、吃饭/睡眠语音提醒（页面试听与后台定时试听）、首次健康随访和持续健康随访。初始随访因额度不足而被自动跳过时，随访列表会根据报告和权益状态补充提示。
+- 前端只展示后端返回的额度错误，不绕过会员限制；跳转目标为现有 `/pages-customer/member/subscribe` 开通页。非额度错误仍保留原有网络或服务失败提示。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev` 和 `npm run build:mp-weixin`；H5、微信开发包、微信生产局域网包均已重新同步。此次仅更新本地源码和构建产物，未自动部署线上或上传新的微信版本。
+
+## 2026-08-29 生产与隔离测试同步 qwen3.8-flash
+
+- 按用户确认，将线上生产和服务器隔离测试两套运行环境中活动配置的 `qwen3.7-flash`（含日期后缀）统一替换为 `qwen3.8-flash`；未发现 `qwen3.7-plus`。生产原本显式使用的 OCR 专用 `qwen3.5-ocr` 保持不变，作为独立 OCR 配置。
+- 已先在服务器创建回滚备份 `/opt/zhiyu-health/backups/qwen38-20260829-153812`，随后只修改 Compose 默认值、Qwen Vision 默认值、健康助手 Java 模型常量及两套受限环境中对应模型字段；未输出或写入交接文档任何密钥。
+- 已分别使用生产 Compose 与 `rayk-remote-dev` Compose 重建 `rayk-ai`、`rayk-server`（未停止或删除 MySQL、Redis、MinIO 数据卷）。生产助手/视觉运行时为 `qwen3.8-flash`，测试助手/OCR/视觉运行时均为 `qwen3.8-flash`；Java 健康助手常量已核对为新模型。
+- 重建后生产和隔离测试的 Java、AI、Nginx、MySQL、Redis、MinIO 均 healthy；生产 `/health` 与测试网关 `/health` 均返回 HTTP 200。真实 AI 请求和支付扣款未在本次部署中发起。
+
+## 2026-08-29 隔离测试 OCR 与生产配置对齐
+
+- 根据用户复核，隔离测试 OCR 不应使用通用 `qwen3.8-flash`，已恢复为生产使用的专用 `qwen3.5-ocr`；测试助手和视觉仍保持 `qwen3.8-flash`。
+- 已更新 `compose.remote-dev.yml` 的测试覆盖配置，并在服务器受限 `.env.remote-dev` 显式写入 `QWEN_OCR_MODEL=qwen3.5-ocr`；生产配置未改动。
+- 已备份测试原配置至 `/opt/zhiyu-health/backups/remote-dev-ocr-rollback-20260829-154642`，仅重建隔离测试 `rayk-ai` 容器。测试 AI、Java、Nginx、MySQL、Redis、MinIO 均 healthy；生产和测试健康检查仍返回 HTTP 200。两套 AI 容器运行时模型已核对一致为：助手/视觉 `qwen3.8-flash`，OCR `qwen3.5-ocr`。
+
+## 2026-08-29 生产与隔离测试全量更新重启
+
+- 按用户确认，已先备份当前 Compose、Nginx 和受限环境配置至 `/opt/zhiyu-health/backups/full-restart-before-20260829-155143`，随后分别对生产和 `rayk-remote-dev` 执行 `docker compose up -d --build --force-recreate`；未执行 `down -v`、未删除任何数据卷。
+- 生产与隔离测试的 Java、AI、Nginx、MySQL、Redis、MinIO 全部重建/重启后均为 healthy；生产和测试健康检查均返回 HTTP 200。
+- 两套 AI 容器运行时模型仍一致：助手/视觉 `qwen3.8-flash`，OCR `qwen3.5-ocr`。生产与测试数据卷均保留，未发起真实支付扣款或额外数据迁移。

@@ -59,14 +59,18 @@
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getMyFollowups } from '@/api/followup'
+import { getMyHealthReports } from '@/api/health-report'
+import { getMembershipBenefits } from '@/api/membership'
 import type { Followup } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CareFeedbackCard from '@/components/CareFeedbackCard.vue'
 import { cleanHealthText } from '@/utils/health-text'
+import { showMembershipUpgradePrompt } from '@/utils/membership'
 const items = ref<Followup[]>([]),
   loading = ref(true),
-  error = ref('')
+  error = ref(''),
+  followupPromptShown = ref(false)
 const filters = [
   { code: 'ALL' as const, label: '全部' },
   { code: 'PENDING' as const, label: '进行中' },
@@ -193,12 +197,29 @@ onShow(async () => {
   error.value = ''
   try {
     items.value = await getMyFollowups()
+    if (!items.value.length) void promptForMissingInitialFollowup()
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '随访任务加载失败'
   } finally {
     loading.value = false
   }
 })
+
+async function promptForMissingInitialFollowup() {
+  if (followupPromptShown.value) return
+  try {
+    const [reports, benefits] = await Promise.all([getMyHealthReports(), getMembershipBenefits()])
+    const initialFollowup = benefits.find((item) => item.benefitCode === 'AI_FOLLOWUP_INITIAL')
+    if (!reports.length || !initialFollowup || initialFollowup.available) return
+    followupPromptShown.value = true
+    showMembershipUpgradePrompt({
+      title: '健康随访次数已用完',
+      content: '当前会员的首次健康随访权益已用完，开通年度健康会员后可继续使用健康随访。',
+    })
+  } catch {
+    // The follow-up list remains usable when the optional membership check fails.
+  }
+}
 const feedback = (id: string) =>
   uni.navigateTo({ url: `/pages-customer/followup/feedback?id=${id}` })
 </script>

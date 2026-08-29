@@ -5,6 +5,7 @@ import {
 } from '@/api/voice-reminder'
 import { getApiBaseUrl, getRequestHeaders } from '@/utils/request'
 import { useAuthStore } from '@/stores/auth'
+import { handleMembershipBenefitError } from '@/utils/membership'
 
 type ReminderType = 'MEAL' | 'SLEEP'
 
@@ -75,7 +76,12 @@ const playScheduledAudio = (type: ReminderType) => {
         },
       })
     })
-    .catch(() => undefined)
+    .catch((cause) => {
+      handleMembershipBenefitError(cause, {
+        title: '语音提醒次数已用完',
+        content: '免费客户的吃饭和睡眠语音提醒各可试听 3 次，开通年度健康会员后可继续使用。',
+      })
+    })
     .finally(() => pending.delete(type))
 }
 

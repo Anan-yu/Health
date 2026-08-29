@@ -97,6 +97,7 @@ import {
   type VoiceReminderSetting,
 } from '@/api/voice-reminder'
 import { getApiBaseUrl, getRequestHeaders } from '@/utils/request'
+import { handleMembershipBenefitError } from '@/utils/membership'
 import { refreshVoiceReminderRuntime } from '@/utils/voice-reminder-runtime'
 
 const defaultSetting: VoiceReminderSetting = {
@@ -192,6 +193,10 @@ const preview = async (type: 'MEAL' | 'SLEEP') => {
     lastPreviewText.value = result.text
     playAudio(result.audioUrl)
   } catch (error) {
+    if (handleMembershipBenefitError(error, {
+      title: '语音提醒次数已用完',
+      content: '免费客户的吃饭和睡眠语音提醒各可试听 3 次，开通年度健康会员后可继续使用。',
+    })) return
     setting.serviceAvailable = false
     uni.showToast({ title: error instanceof Error ? error.message : '试听生成失败', icon: 'none' })
   } finally {

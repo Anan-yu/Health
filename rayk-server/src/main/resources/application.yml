@@ -143,6 +143,8 @@ rayk:
       merchant-serial-number: ${WECHAT_PAY_MERCHANT_SERIAL_NUMBER:}
       private-key-path: ${WECHAT_PAY_PRIVATE_KEY_PATH:}
       api-v3-key: ${WECHAT_PAY_API_V3_KEY:}
+      platform-public-key-id: ${WECHAT_PAY_PLATFORM_PUBLIC_KEY_ID:}
+      platform-public-key-path: ${WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH:}
       notify-url: ${WECHAT_PAY_NOTIFY_URL:}
     wechat-virtual-pay:
       app-id: ${WECHAT_VIRTUAL_APP_ID:${WECHAT_APP_ID:}}
@@ -154,6 +156,10 @@ rayk:
       mode: ${WECHAT_VIRTUAL_MODE:short_series_goods}
       product-id: ${WECHAT_VIRTUAL_PRODUCT_ID:}
       notify-url: "${WECHAT_VIRTUAL_NOTIFY_URL:https://xingxuyuan.com/api/payments/wechat/virtual/notify}"
+  mall:
+    enabled: ${MALL_ENABLED:false}
+    payment-enabled: ${MALL_PAYMENT_ENABLED:false}
+    order-expire-minutes: ${MALL_ORDER_EXPIRE_MINUTES:30}
 
 logging:
   pattern:

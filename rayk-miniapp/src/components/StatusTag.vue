@@ -14,6 +14,7 @@ const labels: Record<string, string> = {
   OCR_PENDING: '排队中',
   STORED: '已存储',
   OCR_PROCESSING: '识别中',
+  AI_PROCESSING: '评估中',
   OCR_FAILED: '识别失败',
   WAITING_CONFIRMATION: '待确认',
   CONFIRMED: '已确认',

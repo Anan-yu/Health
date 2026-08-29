@@ -1,4 +1,5 @@
 import type { Role } from '@/types/api'
+import { mallEnabled } from '@/constants/features'
 
 export interface MenuItem {
   title: string
@@ -114,6 +115,13 @@ const platform: MenuItem[] = [
     permission: 'platform:tenant:list',
   },
   {
+    title: '商城商品',
+    description: '维护实物商品、价格、库存和上下架状态',
+    icon: '商',
+    route: '/pages-platform/mall/index',
+    permission: 'platform:tenant:list',
+  },
+  {
     title: '反馈中心',
     description: '查看、回复与关闭用户反馈',
     icon: '答',
@@ -121,5 +129,7 @@ const platform: MenuItem[] = [
   },
 ]
 
-export const menusFor = (role: Role | '') =>
-  role === 'CUSTOMER' ? customer : role === 'PLATFORM_ADMIN' ? platform : doctor
+export const menusFor = (role: Role | '') => {
+  const menus = role === 'CUSTOMER' ? customer : role === 'PLATFORM_ADMIN' ? platform : doctor
+  return mallEnabled ? menus : menus.filter((item) => item.route !== '/pages-platform/mall/index')
+}

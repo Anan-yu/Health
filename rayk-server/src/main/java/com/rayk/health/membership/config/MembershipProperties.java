@@ -28,10 +28,12 @@ public record MembershipProperties(
             String merchantSerialNumber,
             String privateKeyPath,
             String apiV3Key,
+            String platformPublicKeyId,
+            String platformPublicKeyPath,
             String notifyUrl) {
 
         public static WeChatPayProperties empty() {
-            return new WeChatPayProperties("", "", "", "", "", "");
+            return new WeChatPayProperties("", "", "", "", "", "", "", "");
         }
 
         public boolean configured() {
@@ -41,6 +43,14 @@ public record MembershipProperties(
                     && hasText(privateKeyPath)
                     && hasText(apiV3Key)
                     && hasText(notifyUrl);
+        }
+
+        public boolean hasAnyPlatformPublicKeySetting() {
+            return hasText(platformPublicKeyId) || hasText(platformPublicKeyPath);
+        }
+
+        public boolean platformPublicKeyConfigured() {
+            return hasText(platformPublicKeyId) && hasText(platformPublicKeyPath);
         }
 
         private static boolean hasText(String value) {

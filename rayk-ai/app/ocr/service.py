@@ -1731,7 +1731,7 @@ class PaddleOcrService(OcrService):
                 if is_pdf:
                     primary_model = (
                         getattr(getattr(self.qwen_client, "settings", None), "model", None)
-                        or "qwen3.7-flash-2026-07-15"
+                        or "qwen3.8-flash"
                     )
                     fallback_model = (
                         getattr(
@@ -1852,7 +1852,7 @@ class PaddleOcrService(OcrService):
     def _recognize_with_qwen(self, request: OcrRecognizeRequest) -> OcrRecognizeData:
         qwen_model = (
             getattr(getattr(self.qwen_client, "settings", None), "model", None)
-            or "qwen3.7-flash-2026-07-15"
+            or "qwen3.8-flash"
         )
         qwen_fallback_model = (
             getattr(getattr(self.qwen_client, "settings", None), "fallback_model", None)

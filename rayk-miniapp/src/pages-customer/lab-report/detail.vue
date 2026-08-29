@@ -167,10 +167,16 @@ import { getLabReport, submitAi } from '@/api/lab-report'
 import type { ImageAnalysisFinding, Indicator, LabReport, OcrFinding } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import {
+  handleMembershipBenefitError,
+  isMembershipBenefitMessage,
+  showMembershipUpgradePrompt,
+} from '@/utils/membership'
 const report = ref<LabReport>(),
   loading = ref(true),
   reassessing = ref(false),
-  error = ref('')
+  error = ref(''),
+  membershipPromptedReportId = ref('')
 const summaryLabels = new Set([
   '小结',
   '检查小结',
@@ -426,6 +432,19 @@ const assessmentNoticeCopy = computed(() =>
 const assessmentButtonLabel = computed(() =>
   directImageAssessmentAvailable.value ? '直接用图片生成健康报告' : '继续生成 AI 健康报告',
 )
+const membershipPromptOptions = {
+  title: 'AI 健康评估次数已用完',
+  content: '免费客户的 AI 健康评估和健康报告各可使用 3 次，开通年度健康会员后可继续使用。',
+}
+function promptForPersistedMembershipFailure(value?: LabReport) {
+  if (
+    !value ||
+    membershipPromptedReportId.value === value.id ||
+    !isMembershipBenefitMessage(value.failureReason)
+  ) return
+  membershipPromptedReportId.value = value.id
+  showMembershipUpgradePrompt(membershipPromptOptions)
+}
 const reportId = ref('')
 const autoReturn = ref(false)
 let pollTimer: ReturnType<typeof globalThis.setTimeout> | undefined
@@ -444,6 +463,7 @@ onShow(async () => {
   error.value = ''
   try {
     report.value = await getLabReport(reportId.value)
+    promptForPersistedMembershipFailure(report.value)
     syncDisplayedProgress()
     startProgressTicker()
     scheduleOcrPoll()
@@ -549,6 +569,7 @@ async function retryAssessment() {
     report.value = await getLabReport(reportId.value)
     uni.showToast({ title: '评估已生成，请在健康报告中查看', icon: 'success' })
   } catch (cause) {
+    if (handleMembershipBenefitError(cause, membershipPromptOptions)) return
     error.value = cause instanceof Error ? cause.message : '评估生成失败，请稍后重试'
     report.value = await getLabReport(reportId.value).catch(() => report.value)
   } finally {

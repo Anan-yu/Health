@@ -13,6 +13,15 @@ services:
       WECHAT_MOCK_ENABLED: "false"
       WECHAT_AUTO_BIND_USERNAME: ""
       MEMBERSHIP_PAYMENT_ENABLED: "true"
+      # Keep the complete mall implementation available but hidden/disabled
+      # until product, fulfilment and payment materials are ready.
+      MALL_ENABLED: ${MALL_ENABLED:-false}
+      # Physical-goods payment is deliberately opt-in until the standard API v3
+      # merchant certificate, delivery process and refund handling are accepted.
+      # Keep physical-goods payments off unless the deployment secret config
+      # explicitly opts in after the merchant and fulfilment acceptance checks.
+      MALL_PAYMENT_ENABLED: ${MALL_PAYMENT_ENABLED:-false}
+      MALL_ORDER_EXPIRE_MINUTES: "30"
       JWT_EXPIRE_SECONDS: "604800"
       MINIO_PUBLIC_ENDPOINT: "https://xingxuyuan.com"
     ports: []

@@ -49,7 +49,7 @@ import reactor.core.scheduler.Schedulers;
 @Service
 public class MedicalAssistantApplicationService {
     private static final Logger log = LoggerFactory.getLogger(MedicalAssistantApplicationService.class);
-    private static final String MODEL = "qwen3.7-flash-2026-07-15";
+    private static final String MODEL = "qwen3.8-flash";
     private static final String BENEFIT_CODE = "AI_MEDICAL_ASSISTANT";
     private static final String BIZ_TYPE = "MEDICAL_ASSISTANT";
     private static final String DISCLAIMER =

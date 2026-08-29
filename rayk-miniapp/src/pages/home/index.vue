@@ -17,7 +17,13 @@
         </view>
       </view>
 
+      <HomeVideoCard
+        v-if="homeVideoEnabled"
+        :src="homeVideoUrl"
+        :poster="homeVideoPoster"
+      />
       <CareFeedbackCard
+        v-else
         :title="careFeedback.title"
         :message="careFeedback.message"
         :detail="careFeedback.detail"
@@ -143,9 +149,11 @@ import { computed, ref } from 'vue'
 import { onHide, onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import PageState from '@/components/PageState.vue'
 import CareFeedbackCard from '@/components/CareFeedbackCard.vue'
+import HomeVideoCard from '@/components/HomeVideoCard.vue'
 import { getAiModelRuntimeConfigs } from '@/api/admin'
 import { getMyProfile } from '@/api/patient'
 import { getHomeSummary } from '@/api/workbench'
+import { homeVideoEnabled } from '@/constants/features'
 import { menusFor } from '@/constants/menus'
 import { useAuthStore } from '@/stores/auth'
 import type { HomeSummary, Role } from '@/types/api'
@@ -159,6 +167,8 @@ const loading = ref(true),
 const lastUpdatedAt = ref<Date | null>(null)
 let refreshTimer: ReturnType<typeof globalThis.setInterval> | undefined
 const metricIcons = ['待', '报', '评', '康']
+const homeVideoUrl = String(import.meta.env.VITE_HOME_VIDEO_URL || '').trim()
+const homeVideoPoster = String(import.meta.env.VITE_HOME_VIDEO_POSTER || '').trim()
 const roleNames: Record<Role, string> = {
   PLATFORM_ADMIN: '平台管理工作台',
   DOCTOR: '医生工作台',

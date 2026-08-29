@@ -217,7 +217,7 @@ class QwenOcrSettings:
             api_key=os.getenv("QWEN_OCR_API_KEY", "").strip(),
             workspace_id=os.getenv("QWEN_OCR_WORKSPACE_ID", "").strip(),
             base_url=os.getenv("QWEN_OCR_BASE_URL", "").strip(),
-            model=os.getenv("QWEN_OCR_MODEL", "qwen3.7-flash-2026-07-15").strip(),
+            model=os.getenv("QWEN_OCR_MODEL", "qwen3.8-flash").strip(),
             timeout_seconds=float(os.getenv("QWEN_OCR_TIMEOUT_SECONDS", "180")),
             max_pixels=int(os.getenv("QWEN_OCR_MAX_PIXELS", "16000000")),
             max_pages=max(1, int(os.getenv("QWEN_OCR_MAX_PAGES", "50"))),

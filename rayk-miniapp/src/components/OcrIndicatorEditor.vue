@@ -151,6 +151,7 @@ import {
 import type { Indicator, LabReport, OcrTask } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import { handleMembershipBenefitError } from '@/utils/membership'
 
 const props = defineProps<{ reportId: string; assessmentRoute: string }>()
 const report = ref<LabReport>()
@@ -350,6 +351,10 @@ async function evaluate() {
     uni.showToast({ title: '已提交医生审核' })
     uni.redirectTo({ url: '/pages-customer/lab-report/index' })
   } catch (e) {
+    if (handleMembershipBenefitError(e, {
+      title: 'AI 健康评估次数已用完',
+      content: '免费客户的 AI 健康评估和健康报告各可使用 3 次，开通年度健康会员后可继续使用。',
+    })) return
     error.value = e instanceof Error ? e.message : 'AI 初评提交失败'
   } finally {
     evaluating.value = false

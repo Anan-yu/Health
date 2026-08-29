@@ -121,6 +121,7 @@ import {
   uploadHealthScanVideo,
 } from '@/api/health-scan'
 import type { HealthScanResult, HealthScanSession } from '@/types/api'
+import { handleMembershipBenefitError } from '@/utils/membership'
 
 declare const requirePlugin: (name: string) => any
 declare const wx: any
@@ -317,6 +318,10 @@ async function uploadVideo(filePath: string) {
       icon: 'success',
     })
   } catch (error) {
+    if (handleMembershipBenefitError(error, {
+      title: '健康拍次数已用完',
+      content: '免费客户可使用 3 次健康拍，开通年度健康会员后可获得每日健康拍额度。',
+    })) return
     const message = error instanceof Error ? error.message : '上传失败，请稍后重试'
     uni.showModal({ title: '检测未完成', content: message, showCancel: false })
   } finally {

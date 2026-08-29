@@ -3,6 +3,7 @@ package com.rayk.health.membership.controller;
 import com.rayk.health.common.exception.BusinessException;
 import com.rayk.health.membership.application.MembershipApplicationService;
 import com.rayk.health.membership.payment.WeChatPayClient;
+import com.rayk.health.mall.application.MallApplicationService;
 import com.wechat.pay.java.core.exception.MalformedMessageException;
 import com.wechat.pay.java.core.exception.ValidationException;
 import com.wechat.pay.java.core.notification.RequestParam;
@@ -21,11 +22,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class WechatPayNotificationController {
     private final WeChatPayClient weChatPayClient;
     private final MembershipApplicationService membershipService;
+    private final MallApplicationService mallService;
 
     public WechatPayNotificationController(
-            WeChatPayClient weChatPayClient, MembershipApplicationService membershipService) {
+            WeChatPayClient weChatPayClient,
+            MembershipApplicationService membershipService,
+            MallApplicationService mallService) {
         this.weChatPayClient = weChatPayClient;
         this.membershipService = membershipService;
+        this.mallService = mallService;
     }
 
     @PostMapping("/notify")
@@ -46,7 +51,14 @@ public class WechatPayNotificationController {
                             .signType(signType)
                             .body(body)
                             .build();
-            membershipService.handleWechatPayment(weChatPayClient.parseNotification(requestParam));
+            var transaction = weChatPayClient.parseNotification(requestParam);
+            if (transaction != null
+                    && transaction.getOutTradeNo() != null
+                    && transaction.getOutTradeNo().startsWith("G")) {
+                mallService.handleWechatPayment(transaction);
+            } else {
+                membershipService.handleWechatPayment(transaction);
+            }
             return ResponseEntity.ok(Map.of("code", "SUCCESS", "message", "成功"));
         } catch (ValidationException | MalformedMessageException exception) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

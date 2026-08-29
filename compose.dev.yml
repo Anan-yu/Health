@@ -31,6 +31,9 @@ services:
       # Real payment remains opt-in in development. Set MEMBERSHIP_PAYMENT_ENABLED=true
       # in the host .env only after configuring the virtual-payment AppKey/ProductID.
       MEMBERSHIP_PAYMENT_ENABLED: ${MEMBERSHIP_PAYMENT_ENABLED:-false}
+      MALL_ENABLED: "true"
+      MALL_PAYMENT_ENABLED: ${MALL_PAYMENT_ENABLED:-false}
+      MALL_ORDER_EXPIRE_MINUTES: ${MALL_ORDER_EXPIRE_MINUTES:-30}
       WECHAT_VIRTUAL_NOTIFY_URL: ${WECHAT_VIRTUAL_NOTIFY_URL:-https://xingxuyuan.com/api/payments/wechat/virtual/notify}
       RAYK_AI_READ_TIMEOUT_SECONDS: "${RAYK_AI_READ_TIMEOUT_SECONDS:-600}"
       # 禁止把模拟微信身份自动绑定到固定账号；本地角色调试使用开发入口。

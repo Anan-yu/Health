@@ -7,6 +7,11 @@
       "style": { "navigationBarTitleText": "首页", "enablePullDownRefresh": true }
     },
     { "path": "pages/workbench/index", "style": { "navigationBarTitleText": "工作台" } },
+    { "path": "pages/mall/index", "style": { "navigationBarTitleText": "健康商城" } },
+    { "path": "pages/mall/detail", "style": { "navigationBarTitleText": "商品详情" } },
+    { "path": "pages/mall/checkout", "style": { "navigationBarTitleText": "确认订单" } },
+    { "path": "pages/mall/address", "style": { "navigationBarTitleText": "收货地址" } },
+    { "path": "pages/mall/orders", "style": { "navigationBarTitleText": "我的订单" } },
     { "path": "pages/message/index", "style": { "navigationBarTitleText": "消息" } },
     { "path": "pages/mine/index", "style": { "navigationBarTitleText": "我的" } },
     { "path": "pages/support/index", "style": { "navigationBarTitleText": "帮助与反馈" } },
@@ -69,7 +74,8 @@
       "pages": [
         { "path": "support/index", "style": { "navigationBarTitleText": "反馈中心" } },
         { "path": "model/index", "style": { "navigationBarTitleText": "AI模型管理" } },
-        { "path": "membership/index", "style": { "navigationBarTitleText": "会员管理" } }
+        { "path": "membership/index", "style": { "navigationBarTitleText": "会员管理" } },
+        { "path": "mall/index", "style": { "navigationBarTitleText": "商城商品" } }
       ]
     }
   ],

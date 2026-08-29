@@ -97,7 +97,7 @@ def _settings(*, enabled: bool = True) -> DeepSeekSettings:
         enabled=enabled,
         api_key="test-key" if enabled else "",
         base_url="https://example.invalid",
-        model="qwen3.7-flash-2026-07-15",
+        model="qwen3.8-flash",
         timeout_seconds=1,
         max_tokens=1600,
         thinking_enabled=False,
@@ -118,7 +118,7 @@ def _request(content: str = "最近报告里哪项需要优先复查？") -> Med
         },
         latestReportSummary="最近一次报告提示血脂部分指标偏高。",
         latestAssessmentSnapshot='{"summary":"需要关注血脂"}',
-        model="qwen3.7-flash-2026-07-15",
+        model="qwen3.8-flash",
         thinkingEnabled=False,
     )
 
@@ -136,7 +136,7 @@ def test_qwen_assistant_settings_use_fixed_model_and_qwen_endpoint(monkeypatch: 
     assert settings.enabled is True
     assert settings.api_key == "qwen-test-key"
     assert settings.base_url.endswith("/compatible-mode/v1")
-    assert settings.model == "qwen3.7-flash-2026-07-15"
+    assert settings.model == "qwen3.8-flash"
 
 
 def test_emergency_guard_returns_urgent_without_model_call() -> None:
@@ -225,7 +225,7 @@ def test_deepseek_answer_is_structured_and_grounded() -> None:
     result = MedicalAssistantService(settings=_settings(), client=client).answer(_request())
 
     assert result.risk_level == "ATTENTION"
-    assert result.model == "qwen3.7-flash-2026-07-15"
+    assert result.model == "qwen3.8-flash"
     assert result.followup_questions
     assert client.payload is not None
     prompt = json.loads(client.payload["messages"][1]["content"])
@@ -253,7 +253,7 @@ def test_stream_answer_emits_reply_deltas_and_structured_done_event() -> None:
         item["content"] for item in payloads if item["type"] == "delta"
     )
     assert payloads[-1]["type"] == "done"
-    assert payloads[-1]["data"]["model"] == "qwen3.7-flash-2026-07-15"
+    assert payloads[-1]["data"]["model"] == "qwen3.8-flash"
     assert client.payload and client.payload["stream"] is True
 
 

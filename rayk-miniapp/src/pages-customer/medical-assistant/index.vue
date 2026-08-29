@@ -165,7 +165,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { ApiError } from '@/utils/request'
+import { handleMembershipBenefitError } from '@/utils/membership'
 import {
   createMedicalAssistantConversation,
   deleteMedicalAssistantConversation,
@@ -188,8 +188,6 @@ const sending = ref(false)
 const error = ref('')
 const scrollIntoView = ref('conversation-bottom')
 const streamAbort = ref<(() => void)>()
-const MEDICAL_ASSISTANT_QUOTA_EXHAUSTED = 60401
-
 const suggestions = [
   '帮我解释最近一次健康报告',
   '我现在最需要先关注哪些指标？',
@@ -315,16 +313,10 @@ function sendSuggestion(value: string) {
 }
 
 function handleSendError(cause: unknown) {
-  if (cause instanceof ApiError && cause.code === MEDICAL_ASSISTANT_QUOTA_EXHAUSTED) {
-    uni.showModal({
-      title: '健康助手次数已用完',
-      content: '免费客户可使用 3 次健康助手对话，开通年度健康会员后可继续使用。',
-      confirmText: '开通会员',
-      cancelText: '暂不',
-      success: (result) => {
-        if (result.confirm) uni.navigateTo({ url: '/pages-customer/member/subscribe' })
-      },
-    })
+  if (handleMembershipBenefitError(cause, {
+    title: '健康助手次数已用完',
+    content: '免费客户可使用 3 次健康助手对话，开通年度健康会员后可继续使用。',
+  })) {
     return
   }
   uni.showToast({ title: cause instanceof Error ? cause.message : '发送失败，请稍后重试', icon: 'none' })

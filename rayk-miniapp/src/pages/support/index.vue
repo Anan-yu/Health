@@ -68,11 +68,6 @@ import type { SupportTicket } from '@/types/api'
 
 const faqs = [
   {
-    question: '如何登录并识别身份？',
-    answer:
-      '使用微信授权手机号登录。平台已预录入的医生手机号会自动进入医生工作台；未预录入的手机号将创建个人健康账户。',
-  },
-  {
     question: '健康档案和问卷有什么作用？',
     answer:
       '身高、体重、睡眠、压力、饮食、运动、既往史和家族史等内容会与检验指标一起作为健康报告与健康随访的评估依据，请尽量如实、完整填写。',
@@ -174,10 +169,10 @@ onShow(load)
   font-weight: 650;
 }
 .faq-answer {
-  margin-top: 16rpx;
-  color: #687b74;
-  font-size: 23rpx;
-  line-height: 1.7;
+  margin-top: 20rpx;
+  color: #4b635a;
+  font-size: var(--elder-text);
+  line-height: 1.8;
 }
 .feedback-title,
 .history-title {

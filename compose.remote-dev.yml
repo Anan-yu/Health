@@ -1,0 +1,37 @@
+# Isolated remote development stack.
+# Run with: docker compose --env-file .env.remote-dev \
+#   -f compose.yml -f compose.remote-dev.yml up -d --no-build
+#
+# This overlay deliberately keeps the production stack untouched: it uses a
+# separate Compose project, named data volumes and a localhost-only gateway.
+services:
+  mysql:
+    ports: []
+  redis:
+    ports: []
+  minio:
+    ports: []
+  rayk-ai:
+    ports: []
+    environment:
+      # Keep OCR aligned with production's dedicated OCR model while the
+      # assistant and vision services use qwen3.8-flash.
+      QWEN_OCR_MODEL: "qwen3.5-ocr"
+  rayk-server:
+    ports: []
+    environment:
+      RAYK_DEVELOPMENT_LOGIN_ENABLED: "true"
+      MEMBERSHIP_DEVELOPMENT_MODE: "true"
+      # Keep the isolated environment safe by default, while allowing an
+      # explicit test deployment to mirror the production payment feature
+      # flags through .env.remote-dev.
+      MEMBERSHIP_PAYMENT_ENABLED: "${REMOTE_DEV_MEMBERSHIP_PAYMENT_ENABLED:-false}"
+      MALL_ENABLED: "${REMOTE_DEV_MALL_ENABLED:-false}"
+      MALL_PAYMENT_ENABLED: "${REMOTE_DEV_MALL_PAYMENT_ENABLED:-false}"
+      WECHAT_MOCK_ENABLED: "false"
+      WECHAT_AUTO_BIND_USERNAME: ""
+  nginx:
+    ports:
+      # Bind only to Docker's host bridge; production Nginx reaches this via
+      # host.docker.internal while the test gateway is not Internet-exposed.
+      - "${REMOTE_DEV_BIND_ADDRESS:-172.17.0.1}:${REMOTE_DEV_GATEWAY_PORT:-18081}:80"

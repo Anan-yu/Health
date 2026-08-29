@@ -5,11 +5,13 @@ import { resolve } from 'node:path'
 const target = process.argv[2]
 const targets = {
   dev: 'mp-weixin-dev',
+  'dev-remote': 'mp-weixin-dev-remote',
+  'dev-remote-test': 'mp-weixin-dev-remote-test',
   prod: 'mp-weixin-prod-lan',
 }
 
 if (!targets[target]) {
-  console.error('Usage: node scripts/sync-mp-weixin-release.mjs <dev|prod>')
+  console.error('Usage: node scripts/sync-mp-weixin-release.mjs <dev|dev-remote|dev-remote-test|prod>')
   process.exit(1)
 }
 
@@ -18,6 +20,17 @@ const buildDir = resolve(root, 'dist', 'build', 'mp-weixin')
 const releaseDir = resolve(root, 'dist', 'release', targets[target])
 const memberStaticSourceDir = resolve(root, 'src', 'pages-customer', 'static', 'member')
 const memberStaticBuildDir = resolve(buildDir, 'pages-customer', 'static', 'member')
+// WeChat DevTools watches the release directory. Updating app.json before all
+// referenced page files are present creates a short-lived invalid project and
+// can make auto-preview fail with "could not find ... index.wxml". Keep the
+// project manifest as the final write so DevTools only reloads after the mirror
+// is complete.
+const manifestFiles = new Set([
+  'app.json',
+  'project.config.json',
+  'project.private.config.json',
+  'sitemap.json',
+])
 
 if (!existsSync(buildDir)) {
   console.error(`微信构建目录不存在：${buildDir}`)
@@ -38,9 +51,15 @@ cpSync(memberStaticSourceDir, memberStaticBuildDir, { recursive: true })
 
 const syncInPlace = (sourceDir, targetDir) => {
   mkdirSync(targetDir, { recursive: true })
-  const sourceEntries = new Set(readdirSync(sourceDir))
+  const sourceEntryNames = readdirSync(sourceDir)
+  const sourceEntries = new Set(sourceEntryNames)
+  const entries = [...sourceEntryNames].sort((a, b) => {
+    const aManifest = manifestFiles.has(a) ? 1 : 0
+    const bManifest = manifestFiles.has(b) ? 1 : 0
+    return aManifest - bManifest || a.localeCompare(b)
+  })
 
-  for (const entry of sourceEntries) {
+  for (const entry of entries) {
     const sourcePath = resolve(sourceDir, entry)
     const targetPath = resolve(targetDir, entry)
     if (statSync(sourcePath).isDirectory()) {
@@ -56,18 +75,16 @@ const syncInPlace = (sourceDir, targetDir) => {
   }
 }
 
-// Release directories are generated artifacts. Remove the exact target first so
-// hashed files from an earlier build cannot remain alongside the current assets.
-// If WeChat DevTools is watching the directory, Windows may reject removing the
-// root. Fall back to an in-place mirror so unlocked files still update without
-// silently leaving stale files behind.
-try {
-  rmSync(releaseDir, { recursive: true, force: true })
-  mkdirSync(releaseDir, { recursive: true })
-  cpSync(buildDir, releaseDir, { recursive: true })
-} catch (error) {
-  if (!['EPERM', 'EBUSY', 'EACCES'].includes(error?.code)) throw error
-  console.warn(`目标目录被占用，改为原地同步：${releaseDir}`)
-  syncInPlace(buildDir, releaseDir)
-}
-console.log(`已同步微信${target === 'dev' ? '开发' : '生产局域网'}包：${releaseDir}`)
+// Always mirror in place. This keeps a DevTools-watched directory present and
+// lets syncInPlace remove stale files only after current assets are copied;
+// app.json is still the final root-level write.
+syncInPlace(buildDir, releaseDir)
+const label =
+  target === 'dev'
+    ? '开发'
+    : target === 'dev-remote'
+      ? '远程开发'
+      : target === 'dev-remote-test'
+        ? '远程隔离测试'
+        : '生产局域网'
+console.log(`已同步微信${label}包：${releaseDir}`)
