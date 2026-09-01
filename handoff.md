@@ -1,5 +1,56 @@
 # 三羊健康项目交接说明
 
+## 2026-09-01 开发版手机号授权校验修复
+
+- 开发包登录失败的可观测性根因是 Java `WeChatPhoneNumberClient` 将手机号接口、access_token 获取和缓存异常全部压缩为同一个 10205，既无法确认微信实际返回的 `errcode/errmsg`，也不会在缓存 token 失效时刷新重试。当前已改为读取并安全记录 HTTP 状态、微信错误码/消息、是否返回手机号信息、请求 ID 和脱敏的 AppID 哈希；绝不记录手机号、手机号授权 code、access_token、AppSecret 或其他密钥。
+- access_token 缓存改为按 AppID 哈希隔离；微信返回无效/过期 token（40001、40014、42001，或 HTTP 401/403）时自动删除缓存并用新 token 重试一次；Redis 仅作为缓存，临时读写故障会降级为直接请求微信，不再因缓存故障直接阻断授权。
+- 开发包 `pages/login/index.vue` 增加了手机号授权事件的前置校验：微信没有返回一次性手机号凭证时不再向后端发送空 code，而是提示重新点击授权并在真机预览；取消授权仍显示可操作提示。正常手机号 code 仍只交给后端真实校验。
+- 服务器隔离测试环境已备份旧源码至 `/opt/zhiyu-health/backups/phone-auth-before-20260901-114905`（登录服务）和 `/opt/zhiyu-health/backups/phone-auth-before-20260901-115248`（最终手机号客户端），重建并强制重建 `rayk-remote-dev-rayk-server-1`，70 个 Maven 测试通过，容器健康。使用服务器当前微信配置做无效 code 探针返回 `errcode=40029`（invalid code），说明 AppID/AppSecret 与微信手机号接口连通且凭证有效；真实登录仍需在开发包中由用户重新点击并授权一次性 code。
+- 已重新生成 H5、`dist/release/mp-weixin-dev`、`dist/release/mp-weixin-dev-remote-test` 和 `dist/release/mp-weixin-prod-lan`。本次未修改、未重启、未发布生产环境；正式生产仍使用原 Java 镜像和配置。
+- 接手测试时优先导入 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`（请求地址为 `https://xingxuyuan.com/test-api`），在真机上重新点击手机号授权并让微信生成新的 `getPhoneNumber` code；旧 code 或旧页面不要重复提交。标准开发包 `mp-weixin-dev` 请求本机局域网 `http://192.168.0.100:8088`，只有 Docker Desktop 启动并按本地 Compose 启动 Java 后才能使用，本次会话未完成本机 Docker 运行验证。
+- 当前未验证项：尚未用真实用户在设备上完成一次成功手机号登录；若仍失败，先看隔离测试 Java 日志中的 `hasPhoneCode`、HTTP 状态、微信 `errcode/errmsg` 和请求 ID，再区分“客户端未返回一次性 code”和“微信接口拒绝 code”。生产 H5、生产微信包和生产 Java 均未因本次修复变更。
+
+## 2026-09-01 用户服务协议与隐私政策阅读页
+
+- 登录页的《用户服务协议》和《隐私政策》已从静态文案改为可点击入口，统一打开 `/pages/legal/index`，通过 `type=service|privacy` 切换两份正文；正文使用中老年友好的字号、行距和明显链接色，并可在页面底部互相切换。
+- 新增 `rayk-miniapp/src/pages/legal/index.vue` 和 `pages/legal/index` 路由，内容覆盖健康数据、体检报告、AI 健康管理辅助边界、第三方受托处理、访问/更正/删除/撤回授权、未成年人和安全事件等说明。页面不再展示生效日期，正式发布前仍需运营方核对主体、联系方式、第三方服务清单并完成法务审核。
+- 隐私授权新记录版本统一为 `2026.09`（前端 `src/api/privacy.ts` 与 Java `PrivacyConsentService.CURRENT_POLICY_VERSION`）；历史授权记录不改动，重新授权时会记录新版本。仅修改协议入口与版本标记，未改变登录鉴权和健康数据权限。
+
+## 2026-09-01 登录前主动同意协议
+
+- 登录页协议区域不再使用默认勾选的静态对勾，改为用户主动点击的勾选按钮；同意状态按隐私政策版本保存在本机，版本变化后会重新要求确认。
+- 微信手机号登录在未同意时渲染为普通按钮，不会提前触发微信手机号授权；点击登录会先打开简洁的协议确认弹窗。弹窗点击“同意并继续”后，手机号登录需再次点击授权按钮以遵守微信原生授权触发要求；开发调试登录和无需手机号授权的微信登录会在确认后继续原操作。
+- 登录页协议链接保留点击打开完整协议的能力，但取消下划线并压缩为同一行；协议弹窗只保留“登录前请阅读并同意《用户服务协议》和《隐私政策》。”及“暂不/同意并继续”操作。按钮点击区域不小于 88rpx，并保留按压反馈；未改变后端登录接口。
+- 用户服务协议第 8 节的政策更新文案已改为“我们可能因服务内容、法律法规或安全要求变化而更新本协议，请您及时查看，重大变化会通过适当方式提示。继续使用服务即视为接受更新后的协议。”，不再展示具体生效日期。
+
+## 2026-09-01 登录协议改动同步线上
+
+- 已将本次登录页主动同意协议、无下划线紧凑协议入口、协议确认弹窗和用户协议正文更新同步到生产 H5：服务器 `/opt/zhiyu-health/rayk-miniapp/dist/build/h5`。切换前的 H5 保存在 `/opt/zhiyu-health/backups/login-consent-before-20260901-100738/h5.tgz`，当前旧目录保留为 `rayk-miniapp/dist/build/h5.previous-login-consent-20260901-100738`，可用于回滚。
+- Nginx 已按新静态目录重建，生产 Java、AI、MySQL、Redis、MinIO 和 Nginx 容器均通过健康检查；`https://xingxuyuan.com/` 返回 HTTP 200，公网健康接口、登录页 bundle 和协议页 bundle 均核验为本次版本，旧弹窗“你可以点击下方链接查看完整内容”计数为 0。
+- 使用生产配置包 `rayk-miniapp/dist/release/mp-weixin-prod-lan` 上传微信小程序体验版本 `2026.09.01.1`，上传描述为 `login-consent-legal-ui-20260901`，AppID 为现有生产小程序。该操作仅上传体验版本，不代表已提交审核或正式发布；正式发布仍需在微信开发者工具/平台完成后续流程。
+- 本次未重新构建或更换 Java 镜像、未执行数据库迁移、未修改生产密钥；切换 Nginx 时 Compose 重新创建了依赖的 Java 容器，健康检查已通过。微信原生手机号授权在首次同意协议后需用户再次点击授权按钮，属于微信授权触发限制。
+
+## 2026-08-31 开发环境金豆会员需求 V1
+
+- 已依据 `C:\Users\An'an\Desktop\需求梳理.docx` 在现有小程序基础上新增开发环境专用金豆会员演示能力：普通会员登记状态、60 金豆初始奖励、每日 60 金豆 20 天、直推等级（普通/铜牌/银牌/金牌/钻石）、直推与二级奖励、7 天活跃保护期、降级提醒、双账本和钻石区域演示。后端以 Java 校验和追加账本流水，前端只负责展示和操作入口。
+- 数据库新增 Flyway `V46__gold_bean_membership.sql`，包含账户、推荐关系、金豆账本、区域和分润记录基础表；未完成开发注册的账号保持 `UNPAID`，不会提前获得初始或每日金豆。真实收款、数字银行购买、机器人能力、交易撮合和区域分润结算未伪造实现，待业务/支付/合规口径明确后再开发。
+- 功能隔离：`compose.dev.yml` 与 `compose.remote-dev.yml` 开启 `GOLD_BEAN_ENABLED`、`GOLD_BEAN_DEVELOPMENT_MODE`；生产配置保持关闭。小程序 `.env.development` 开启 `VITE_GOLD_BEAN_ENABLED`，`.env.production` 关闭，因此生产包不显示入口，生产容器和线上版本本次未修改、未重启、未发布。
+- 前端页面为 `rayk-miniapp/src/pages-customer/gold-bean/index.vue`，入口仅对开发客户显示；接口前缀为 `/api/client/gold-bean`。已生成并同步 H5、微信开发包、生产局域网包，以及服务器隔离测试包 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。
+- 验证结果：小程序 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin`、`npm run build:mp-weixin:dev:remote-test` 均通过；开发/隔离测试包的功能开关为 `true`，生产局域网包为 `false`。服务器 `rayk-remote-dev` 使用 Java 21 构建，68 个测试通过，V46 已在隔离测试库执行，`rayk-server` 与全套远程测试服务运行正常。
+- 验收入口：本地 Docker 使用 `dist\release\mp-weixin-dev`；服务器隔离测试使用 `dist\release\mp-weixin-dev-remote-test`。两者均为开发包，不得上传到生产体验版本；正式生产开关继续保持关闭。
+
+### 2026-08-31 金豆注册地区两级选择
+
+- 开发版金豆注册卡片的“所在地区”已改为微信原生 `picker mode="region" level="city"`，用户只能选择省和市，不再显示城市自由输入框，也不会出现区/县选项。
+- 提交前强制完成省、市选择，接口继续使用现有 `city` 字段并保存为“省 / 市”标签；未新增数据库迁移，不影响已存在的 V46 数据和生产开关。
+- 本次前端检查与构建均通过：`npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin`、`npm run build:mp-weixin:dev:remote-test`。仅刷新本地构建产物，未部署或重启线上生产服务。
+
+### 2026-08-31 金豆会员首屏加载修复
+
+- 隔离测试包进入“金豆会员”显示“加载遇到问题 / 系统内部错误”的根因是 `GoldBeanApplicationService.createReferralCode` 对短用户 ID 生成的 9 字符前缀强制执行 `substring(0, 20)`，触发 `StringIndexOutOfBoundsException`；与微信登录、权限、支付和 V46 迁移无关。
+- 已改为推荐码至少保留完整生成值、超过数据库字段长度时才截断，并新增短 ID/长 ID 回归测试。服务器隔离测试 `rayk-server` 已使用 Java 21 重建，70 个 Maven 测试全部通过并仅重启隔离测试服务。
+- 使用隔离测试开发账号实际请求 `/api/client/gold-bean/summary` 已返回 HTTP 200，首次账号状态为 `UNPAID`，推荐码长度为 13；远程测试六个服务均 healthy。生产容器和生产配置未修改。
+
 > 本文只记录当前代码和运行环境的真实状态。历史讨论、已废弃方案和逐次排障过程不在此保留。接手前请同时阅读根目录 `AGENTS.md`、`README.md`，并执行 `git status --short`。
 
 ## 1. 当前产品边界
@@ -1110,3 +1161,19 @@ docker compose -f compose.yml -f compose.dev.yml ps
 - 按用户确认，已先备份当前 Compose、Nginx 和受限环境配置至 `/opt/zhiyu-health/backups/full-restart-before-20260829-155143`，随后分别对生产和 `rayk-remote-dev` 执行 `docker compose up -d --build --force-recreate`；未执行 `down -v`、未删除任何数据卷。
 - 生产与隔离测试的 Java、AI、Nginx、MySQL、Redis、MinIO 全部重建/重启后均为 healthy；生产和测试健康检查均返回 HTTP 200。
 - 两套 AI 容器运行时模型仍一致：助手/视觉 `qwen3.8-flash`，OCR `qwen3.5-ocr`。生产与测试数据卷均保留，未发起真实支付扣款或额外数据迁移。
+
+## 2026-08-29 帮助与反馈页同步线上与隔离测试端
+
+- 根因：帮助与反馈页删除登录 FAQ、放大答案字体的修改已存在于源码和本地构建，但线上 Nginx 挂载的 H5 目录仍是旧静态包，所以线上继续显示“如何登录并识别身份？”。提交反馈按钮及其接口逻辑未因本次同步而改变。
+- 已重新通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin` 和 `npm run build:mp-weixin:dev:remote-test`。H5、微信开发包、生产局域网包和隔离测试包均确认不含旧 FAQ，并保留新的三个 FAQ；答案字体规则仍为中老年适配字号。
+- 已先备份线上 H5 至 `/opt/zhiyu-health/backups/help-feedback-h5-before-20260829-161526/h5.tgz`，再同步到 `/opt/zhiyu-health/rayk-miniapp/dist/build/h5`。线上实际访问的 `pages-support-index.BxsMi4Cl.js` 已核对旧 FAQ 不存在、新 FAQ 存在。
+- 已按生产 Compose 重载线上 Nginx；生产 Java、AI、Nginx、MySQL、Redis、MinIO 均 running，`https://xingxuyuan.com/health` 返回 HTTP 200。隔离测试各服务均 running，`https://xingxuyuan.com/test-api/health` 返回 HTTP 200。
+- 隔离测试微信包已生成到 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`，请求地址核对为 `https://xingxuyuan.com/test-api`；该包需在微信开发者工具中重新导入或编译，未上传到同一 AppID，避免测试接口进入线上体验包。生产配置包已按 AppID `wxf6f4549c8c962948` 上传为微信开发/体验版本 `2026.08.29`，上传成功但未提交审核或发布。
+
+## 2026-08-29 修复帮助与反馈提交按钮 UI
+
+- 根因：帮助与反馈页提交按钮只设置了颜色和圆角，未覆盖微信原生按钮的默认宽度、内边距、边框和伪元素样式，导致出现白色外壳包裹绿色按钮的错位 UI；点击事件和后端提交接口本身无需改动。
+- 已为 `src/pages/support/index.vue` 的提交按钮补齐全宽、固定高度、Flex 居中、内边距归零、边框/伪元素重置和轻量阴影；同步保留旧登录 FAQ 删除和答案字号调整。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`。四个前端输出目录均已生成新按钮样式，且不含旧登录 FAQ。
+- 已先备份线上 H5 至 `/opt/zhiyu-health/backups/help-feedback-button-ui-before-20260829-164749/h5.tgz`，再更新生产与隔离测试网关共同挂载的 H5 目录。公网实际加载的 `index-Dz4Rolo-.css` 已包含全宽和固定高度规则，`/health` 返回 200；临时上传文件已清理。
+- 已将生产配置微信包上传至现有 AppID 的开发/体验版本 `2026.08.29.1`，描述为 `fix-support-feedback-button-ui-20260829`，上传成功但未提交审核或发布。隔离测试包仍在 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`，需在开发者工具中重新导入/编译，避免测试接口进入生产体验包。

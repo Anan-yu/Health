@@ -160,6 +160,17 @@ rayk:
     enabled: ${MALL_ENABLED:false}
     payment-enabled: ${MALL_PAYMENT_ENABLED:false}
     order-expire-minutes: ${MALL_ORDER_EXPIRE_MINUTES:30}
+  gold-bean:
+    # The new 金豆/推荐等级 rules are a development pilot. Production keeps
+    # this disabled until the business and compliance review is complete.
+    enabled: ${GOLD_BEAN_ENABLED:false}
+    development-mode: ${GOLD_BEAN_DEVELOPMENT_MODE:false}
+    initial-beans: ${GOLD_BEAN_INITIAL_BEANS:60}
+    daily-reward-beans: ${GOLD_BEAN_DAILY_REWARD_BEANS:60}
+    daily-reward-days: ${GOLD_BEAN_DAILY_REWARD_DAYS:20}
+    registration-fee-cent: ${GOLD_BEAN_REGISTRATION_FEE_CENT:99800}
+    protection-days: ${GOLD_BEAN_PROTECTION_DAYS:7}
+    limited-trade-percent: ${GOLD_BEAN_LIMITED_TRADE_PERCENT:50}
 
 logging:
   pattern:

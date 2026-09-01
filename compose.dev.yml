@@ -28,6 +28,8 @@ services:
       # the separate mock-login endpoint remains available to the H5/debug card.
       WECHAT_PHONE_LOGIN_REQUIRED: ${WECHAT_PHONE_LOGIN_REQUIRED:-true}
       MEMBERSHIP_DEVELOPMENT_MODE: "true"
+      GOLD_BEAN_ENABLED: "true"
+      GOLD_BEAN_DEVELOPMENT_MODE: "true"
       # Real payment remains opt-in in development. Set MEMBERSHIP_PAYMENT_ENABLED=true
       # in the host .env only after configuring the virtual-payment AppKey/ProductID.
       MEMBERSHIP_PAYMENT_ENABLED: ${MEMBERSHIP_PAYMENT_ENABLED:-false}

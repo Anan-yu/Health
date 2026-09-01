@@ -14,6 +14,8 @@ import com.rayk.health.security.wechat.entity.WeChatUserBindingEntity;
 import com.rayk.health.security.wechat.mapper.WeChatUserBindingMapper;
 import com.rayk.health.system.mapper.SysUserMapper;
 import java.time.LocalDateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,8 @@ import org.springframework.util.StringUtils;
 
 @Service
 public class WeChatAuthService {
+    private static final Logger log = LoggerFactory.getLogger(WeChatAuthService.class);
+
     private final WeChatCode2SessionClient code2SessionClient;
     private final WeChatPhoneNumberClient phoneNumberClient;
     private final WeChatCustomerProvisioningService customerProvisioningService;
@@ -59,6 +63,9 @@ public class WeChatAuthService {
     public AuthData login(String code, String phoneCode) {
         boolean hasPhoneCode = StringUtils.hasText(phoneCode);
         if (properties.phoneLoginRequired() && !hasPhoneCode) {
+            log.warn(
+                    "WeChat login rejected before phone verification: hasPhoneCode=false, "
+                            + "phoneLoginRequired=true");
             throw new BusinessException(ErrorCode.WECHAT_PHONE_AUTH_FAILED);
         }
         // A real getPhoneNumber credential is authoritative, even when the

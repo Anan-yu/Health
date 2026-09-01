@@ -45,6 +45,14 @@
         </view>
         <view class="setting-arrow">›</view>
       </view>
+      <view v-if="isCustomer && goldBeanEnabled" class="setting" @click="goGoldBean">
+        <view class="setting-icon amber">豆</view>
+        <view class="setting-content">
+          <view class="setting-title">金豆会员</view>
+          <view class="muted">开发环境体验等级与金豆规则</view>
+        </view>
+        <view class="setting-arrow">›</view>
+      </view>
       <view class="setting last" @click="goSupport">
         <view class="setting-icon purple">帮</view>
         <view class="setting-content">
@@ -65,6 +73,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { getMyProfile } from '@/api/patient'
 import { useAuthStore } from '@/stores/auth'
 import type { Role } from '@/types/api'
+import { goldBeanEnabled } from '@/constants/features'
 
 const auth = useAuthStore()
 const roleNames: Record<Role, string> = {
@@ -81,6 +90,7 @@ const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
 const goAssistant = () => uni.navigateTo({ url: '/pages-customer/medical-assistant/index' })
 const goMembership = () => uni.navigateTo({ url: '/pages-customer/member/index' })
+const goGoldBean = () => uni.navigateTo({ url: '/pages-customer/gold-bean/index' })
 const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
 const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
 const profileName = ref('')

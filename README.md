@@ -21,7 +21,7 @@
 ## 核心业务闭环
 
 ```text
-微信身份进入系统（企业主体通过微信授权手机号匹配客户、预录入医生和平台管理员）。本地开发包的微信手机号登录也走真实微信校验；H5 三角色调试请使用开发调试入口，不要把固定 Mock 手机号当作真实身份测试。
+微信身份进入系统（企业主体通过微信授权手机号匹配客户、预录入医生和平台管理员）。本地开发包的微信手机号登录也走真实微信校验；H5 三角色调试请使用开发调试入口，不要把固定 Mock 手机号当作真实身份测试。登录页的《用户服务协议》和《隐私政策》支持点击进入小程序内阅读页；登录前必须由用户主动勾选同意，未勾选时会先弹出协议确认框；正式发布前仍需由运营方核对主体、联系方式、第三方服务清单和法务文本。
   → 完善健康档案与问卷
   → 上传 PDF 或图片体检报告
   → OCR 保留原分类、原顺序和原内容
@@ -426,6 +426,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\restore-mysql.ps1 -BackupFile
 更详细的当前状态、已知未完成事项和不可重复的工程坑见 [handoff.md](handoff.md)。永久开发规则见 [AGENTS.md](AGENTS.md)。
 
 开发环境真实支付验收使用 `compose.real-payment-dev.yml`，它会强制开启支付、使用新域名 HTTPS 配置，并在缺少 `WECHAT_VIRTUAL_APP_KEY` 或 `WECHAT_VIRTUAL_PRODUCT_ID` 时拒绝启动。确认域名已指向当前服务器后执行：`docker compose -f compose.yml -f compose.real-payment-dev.yml up -d --build`。该配置会占用 80/443 端口，只能在具备公网 DNS、证书和防火墙权限的验收服务器上使用；普通本地开发继续使用 `compose.dev.yml`。
+
+## 开发环境金豆会员需求 V1
+
+《需求梳理.docx》中的金豆、普通会员直推等级、每日奖励、活跃保护期和区域演示能力已作为独立的开发环境能力接入，不改变现有普通客户会员权益，也不向生产环境开放。开发包使用 `VITE_GOLD_BEAN_ENABLED=true`，开发/隔离测试 Java 服务使用 `GOLD_BEAN_ENABLED=true` 与 `GOLD_BEAN_DEVELOPMENT_MODE=true`；生产环境保持关闭，接口在生产仍拒绝访问，生产构建不显示入口。
+
+开发包客户可从“我的”进入“金豆会员（开发演示）”，查看等级、历史最高等级、直推进度、数字银行/交易双账本、每日奖励和 7 天保护期，并演示注册、推荐关系和钻石区域。注册演示中的所在地区使用微信原生两级选择器（省 → 市），固定为 `level=city`，不再允许自由输入或选择区/县；提交时按“省 / 市”规范化写入现有 `city` 字段，兼容 `V46__gold_bean_membership.sql`，无需改动生产数据结构。后端通过 `gold_member_account`、`gold_member_referral`、`gold_member_ledger`、`gold_region` 等表记录状态；未完成开发注册不会提前发放初始或每日金豆，注册演示后才建立可追溯流水。金豆不可提现。
+
+该版本只完成可审计的开发演示账本和规则骨架，不伪造 998 元真实收款、数字银行购买、机器人权益、交易撮合或区域分润结算；这些能力需先补齐支付/结算接口、业务口径和合规评审后再实现。开发验收使用 `dist\\release\\mp-weixin-dev-remote-test`（服务器隔离 Docker、独立测试数据库）或本地 `dist\\release\\mp-weixin-dev`，不要把开发包上传为生产体验版本；本次未部署或修改线上生产容器。
 
 ## 普通客户会员体系（V1）
 

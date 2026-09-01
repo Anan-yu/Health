@@ -8,4 +8,5 @@ interface ImportMetaEnv {
   readonly VITE_HOME_VIDEO_URL?: string
   readonly VITE_HOME_VIDEO_POSTER?: string
   readonly VITE_MALL_ENABLED?: string
+  readonly VITE_GOLD_BEAN_ENABLED?: string
 }

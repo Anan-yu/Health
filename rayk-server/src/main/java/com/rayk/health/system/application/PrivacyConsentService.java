@@ -19,6 +19,7 @@ public class PrivacyConsentService {
     public static final String TYPE_HEALTH_ASSESSMENT = "HEALTH_ASSESSMENT";
     public static final String TYPE_DATA_SHARING = "DATA_SHARING";
     public static final String TYPE_MARKETING = "MARKETING";
+    public static final String CURRENT_POLICY_VERSION = "2026.09";
 
     private final PrivacyConsentMapper consentMapper;
     private final DataScopeService dataScopeService;
@@ -102,7 +103,7 @@ public class PrivacyConsentService {
         }
         // Health-service consent is recorded automatically on first use. The mini-program no
         // longer presents a separate authorization-card workflow that can block core services.
-        grantConsent(patientId, consentType, "2026.07");
+        grantConsent(patientId, consentType, CURRENT_POLICY_VERSION);
     }
 
     /**

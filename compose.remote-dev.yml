@@ -22,6 +22,8 @@ services:
     environment:
       RAYK_DEVELOPMENT_LOGIN_ENABLED: "true"
       MEMBERSHIP_DEVELOPMENT_MODE: "true"
+      GOLD_BEAN_ENABLED: "true"
+      GOLD_BEAN_DEVELOPMENT_MODE: "true"
       # Keep the isolated environment safe by default, while allowing an
       # explicit test deployment to mirror the production payment feature
       # flags through .env.remote-dev.

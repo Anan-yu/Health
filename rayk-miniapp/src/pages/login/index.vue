@@ -45,7 +45,7 @@
       <view class="login-subtitle">快捷登录，安全可靠</view>
       <image class="wechat-mark" :src="wechatArt" mode="aspectFit" />
       <button
-        v-if="supportsPhoneLogin"
+        v-if="supportsPhoneLogin && legalAgreed"
         class="wechat"
         :loading="wechatLoading"
         :disabled="Boolean(identified) || wechatLoading"
@@ -64,7 +64,7 @@
         hover-class="wechat-hover"
         @click="handleWeChatLogin()"
       >
-        微信一键登录
+        {{ supportsPhoneLogin ? '授权手机号并登录' : '微信一键登录' }}
       </button>
       <view v-if="wechatLoading" class="recognizing">
         {{ supportsPhoneLogin ? '正在安全识别微信身份与授权手机号…' : '正在安全识别微信身份…' }}
@@ -76,7 +76,25 @@
           ><text>将进入{{ identified.workbench }}</text></view
         >
       </view>
-      <view class="agreement"><text class="agreement-mark">✓</text>登录即表示同意《用户服务协议》和《隐私政策》</view>
+      <view class="agreement">
+        <button
+          class="agreement-toggle"
+          :class="{ checked: legalAgreed }"
+          :aria-label="
+            legalAgreed
+              ? '已同意用户服务协议和隐私政策'
+              : '未同意用户服务协议和隐私政策，点击勾选'
+          "
+          hover-class="agreement-toggle-hover"
+          @tap="toggleLegalAgreement"
+        >
+          <view class="agreement-mark">{{ legalAgreed ? '✓' : '' }}</view>
+          <text class="agreement-copy">我已阅读并同意</text>
+        </button>
+        <text class="agreement-link" hover-class="agreement-link-hover" @tap="openLegal('service')">《用户服务协议》</text>
+        <text class="agreement-copy agreement-joiner">和</text>
+        <text class="agreement-link" hover-class="agreement-link-hover" @tap="openLegal('privacy')">《隐私政策》</text>
+      </view>
       <view v-if="wechatError" class="error">{{ wechatError }}</view>
       <view class="service-heading">
         <view class="service-heading-line" />
@@ -114,7 +132,7 @@
     <view v-if="isDevBuild" class="developer-trigger" @click="showDeveloper = !showDeveloper">
       <text>开发调试身份</text><text>{{ showDeveloper ? '收起' : '展开' }} ›</text>
     </view>
-    <view v-if="isDevBuild && showDeveloper" class="card development-card">
+      <view v-if="isDevBuild && showDeveloper" class="card development-card">
       <view class="row development-head">
         <view>
           <view class="card-title">选择体验身份</view>
@@ -143,6 +161,17 @@
         进入三羊健康
       </button>
       <view v-if="error" class="error">{{ error }}</view>
+    </view>
+
+    <view v-if="showConsentDialog" class="consent-mask" @tap="closeConsentDialog">
+      <view class="consent-dialog" @tap.stop>
+        <view class="consent-title">请先同意相关协议</view>
+        <view class="consent-copy-text">登录前请阅读并同意《用户服务协议》和《隐私政策》。</view>
+        <view class="consent-actions">
+          <button class="consent-secondary" hover-class="consent-secondary-hover" @tap="closeConsentDialog">暂不</button>
+          <button class="consent-primary" hover-class="consent-primary-hover" @tap="confirmLegalAgreement">同意并继续</button>
+        </view>
+      </view>
     </view>
   </view>
 </template>
@@ -193,8 +222,12 @@ const username = ref(accounts[1].username),
   error = ref(''),
   wechatError = ref(''),
   expired = ref(false),
-  identified = ref<{ category: string; workbench: string } | null>(null)
+  identified = ref<{ category: string; workbench: string } | null>(null),
+  legalAgreed = ref(false),
+  showConsentDialog = ref(false),
+  pendingLogin = ref<'wechat' | 'developer' | null>(null)
 const auth = useAuthStore()
+const LEGAL_CONSENT_STORAGE_KEY = 'rayk_legal_consent_2026.09'
 const isDevBuild = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEVELOPMENT_LOGIN === 'true'
 // Enterprise production builds must use the verified phone credential even when a
 // checkout does not contain the ignored local .env.production file. Development
@@ -212,6 +245,10 @@ const identityLabels: Record<Role, string> = {
   DOCTOR: '医生',
   CUSTOMER: '客户',
 }
+type LegalDocument = 'service' | 'privacy'
+const openLegal = (type: LegalDocument) => {
+  uni.navigateTo({ url: `/pages/legal/index?type=${type}` })
+}
 const identifiedFor = (data: AuthData) => ({
   category: identityLabels[data.defaultWorkbench],
   workbench: workbenchNames[data.defaultWorkbench],
@@ -223,13 +260,61 @@ const selectDeveloperAccount = (account: (typeof accounts)[number]) => {
 }
 onLoad((query) => {
   expired.value = query?.expired === '1'
+  legalAgreed.value = uni.getStorageSync(LEGAL_CONSENT_STORAGE_KEY) === true
 })
 
-async function handleWeChatLogin(event?: { detail?: { code?: string; errMsg?: string } }) {
+function toggleLegalAgreement() {
+  legalAgreed.value = !legalAgreed.value
+  if (legalAgreed.value) uni.setStorageSync(LEGAL_CONSENT_STORAGE_KEY, true)
+  else uni.removeStorageSync(LEGAL_CONSENT_STORAGE_KEY)
+}
+
+function ensureLegalAgreement(target: 'wechat' | 'developer') {
+  if (legalAgreed.value) return true
+  pendingLogin.value = target
+  showConsentDialog.value = true
+  return false
+}
+
+function closeConsentDialog() {
+  showConsentDialog.value = false
+  pendingLogin.value = null
+}
+
+async function confirmLegalAgreement() {
+  legalAgreed.value = true
+  uni.setStorageSync(LEGAL_CONSENT_STORAGE_KEY, true)
+  showConsentDialog.value = false
+  const target = pendingLogin.value
+  pendingLogin.value = null
+  if (target === 'developer') await handleLogin()
+  else if (target === 'wechat' && !supportsPhoneLogin) await handleWeChatLogin()
+  else if (target === 'wechat') {
+    uni.showToast({ title: '已同意，请再次点击授权手机号并登录', icon: 'none' })
+  }
+}
+
+async function handleWeChatLogin(
+  event?: { detail?: { code?: string; errMsg?: string; encryptedData?: string; iv?: string } },
+) {
   if (wechatLoading.value) return
+  if (!ensureLegalAgreement('wechat')) return
   wechatLoading.value = true
   wechatError.value = ''
-  const phoneCode = supportsPhoneLogin ? event?.detail?.code : undefined
+  const phoneError = event?.detail?.errMsg ?? ''
+  const phoneCode = supportsPhoneLogin ? event?.detail?.code?.trim() || undefined : undefined
+  // A getPhoneNumber event is the only safe source of the one-time phone
+  // credential. Do not send an empty value to the server (which used to be
+  // reported as the generic 10205 authorization failure); it also makes a
+  // cancelled/unsupported client immediately actionable for development
+  // package users.
+  if (supportsPhoneLogin && !phoneCode) {
+    wechatError.value = /deny|cancel/i.test(phoneError)
+      ? '您取消了手机号授权，请重新点击并允许授权'
+      : '微信未返回手机号授权凭证，请重新点击授权手机号并确认授权；开发包请使用真机预览'
+    wechatLoading.value = false
+    return
+  }
   try {
     const result = await uni.login({ provider: 'weixin' })
     if (!result.code) throw new Error('微信未返回登录凭证')
@@ -238,20 +323,14 @@ async function handleWeChatLogin(event?: { detail?: { code?: string; errMsg?: st
     await new Promise((resolve) => setTimeout(resolve, 900))
     uni.switchTab({ url: '/pages/home/index' })
   } catch (e) {
-    const phoneError = event?.detail?.errMsg ?? ''
-    if (supportsPhoneLogin && !phoneCode && /deny|cancel/i.test(phoneError)) {
-      wechatError.value = '您取消了手机号授权，请重新点击并允许授权'
-    } else if (supportsPhoneLogin && !phoneCode && !isDevBuild) {
-      wechatError.value = '当前小程序未取得手机号授权凭证，请确认已使用正式 AppID 并开通手机号快速验证'
-    } else {
-      wechatError.value = e instanceof Error ? e.message : '微信登录失败，请重试'
-    }
+    wechatError.value = e instanceof Error ? e.message : '微信登录失败，请重试'
   } finally {
     wechatLoading.value = false
   }
 }
 
 async function handleLogin() {
+  if (!ensureLegalAgreement('developer')) return
   loading.value = true
   error.value = ''
   try {
@@ -471,10 +550,57 @@ async function handleLogin() {
   transform: translateY(1rpx);
 }
 .agreement {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0 4rpx;
   margin-top: 18rpx;
   color: #94a09c;
   text-align: center;
   font-size: 20rpx;
+}
+.agreement-toggle {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 10rpx;
+  min-height: 88rpx;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 14rpx;
+  background: transparent;
+  color: #94a09c;
+  font-size: inherit;
+  line-height: 1.65;
+  text-align: left;
+}
+.agreement-toggle::after {
+  border: 0;
+}
+.agreement-toggle-hover,
+.agreement-link-hover,
+.consent-secondary-hover,
+.consent-primary-hover {
+  opacity: 0.78;
+}
+.agreement-copy {
+  display: inline-flex;
+  align-items: center;
+  min-height: 88rpx;
+}
+.agreement-joiner {
+  padding: 0 2rpx;
+}
+.agreement-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 88rpx;
+  padding: 0 6rpx;
+  color: #0f7a62;
+  font-weight: 700;
+  text-decoration: none;
 }
 .agreement-mark {
   display: inline-flex;
@@ -482,13 +608,18 @@ async function handleLogin() {
   justify-content: center;
   width: 30rpx;
   height: 30rpx;
-  margin-right: 10rpx;
+  border: 2rpx solid #a9beb7;
   border-radius: 50%;
-  background: #18af72;
-  color: #fff;
+  background: #fff;
+  color: transparent;
   font-size: 18rpx;
   font-weight: 800;
   vertical-align: -3rpx;
+}
+.agreement-toggle.checked .agreement-mark {
+  border-color: #18af72;
+  background: #18af72;
+  color: #fff;
 }
 .recognizing {
   margin-top: 18rpx;
@@ -868,5 +999,67 @@ async function handleLogin() {
 .login-page.elder-page .recognizing {
   font-size: 25rpx;
   line-height: 1.65;
+}
+.consent-mask {
+  position: fixed;
+  z-index: 1000;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 36rpx 28rpx calc(36rpx + env(safe-area-inset-bottom));
+  background: rgba(18, 37, 32, 0.52);
+}
+.consent-dialog {
+  width: 100%;
+  max-width: 680rpx;
+  padding: 38rpx 32rpx 30rpx;
+  border-radius: 32rpx;
+  background: #fff;
+  box-shadow: 0 24rpx 60rpx rgba(11, 58, 43, 0.22);
+}
+.consent-title {
+  color: #173e34;
+  font-size: 36rpx;
+  font-weight: 780;
+  line-height: 1.45;
+  text-align: center;
+}
+.consent-copy-text {
+  margin-top: 18rpx;
+  color: #526d64;
+  font-size: 28rpx;
+  line-height: 1.7;
+  text-align: left;
+}
+.consent-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 28rpx;
+}
+.consent-actions button {
+  flex: 1;
+  min-height: 88rpx;
+  margin: 0;
+  border-radius: 20rpx;
+  font-size: 28rpx;
+  line-height: 88rpx;
+}
+.consent-actions button::after {
+  border: 0;
+}
+.consent-secondary {
+  border: 2rpx solid #d5e5df;
+  background: #f7fbf9;
+  color: #53756a;
+}
+.consent-primary {
+  background: #0f7a62;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 10rpx 22rpx rgba(15, 122, 98, 0.2);
 }
 </style>

@@ -1,0 +1,125 @@
+-- 开发环境金豆会员体系（V1）
+--
+-- 该迁移只建立隔离的金豆账本、推荐关系和区域数据表。
+-- 业务开关由 GOLD_BEAN_ENABLED / GOLD_BEAN_DEVELOPMENT_MODE 控制，生产默认关闭。
+
+CREATE TABLE gold_member_account (
+    id BIGINT NOT NULL,
+    tenant_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    member_level VARCHAR(16) NOT NULL DEFAULT 'ORDINARY',
+    historical_level VARCHAR(16) NOT NULL DEFAULT 'ORDINARY',
+    direct_referral_count INT NOT NULL DEFAULT 0,
+    referrer_id BIGINT NULL,
+    referral_code VARCHAR(32) NOT NULL,
+    registration_fee_status VARCHAR(16) NOT NULL DEFAULT 'UNPAID',
+    registration_fee_recipient VARCHAR(16) NULL,
+    registration_fee_cent INT NOT NULL DEFAULT 99800,
+    registration_fee_paid_at DATETIME NULL,
+    city VARCHAR(64) NULL,
+    digital_bank_balance BIGINT NOT NULL DEFAULT 30,
+    trading_balance BIGINT NOT NULL DEFAULT 30,
+    daily_reward_start_at DATETIME NOT NULL,
+    daily_reward_days INT NOT NULL DEFAULT 0,
+    daily_reward_last_at DATETIME NULL,
+    protection_started_at DATETIME NULL,
+    protection_until DATETIME NULL,
+    last_protection_referral_at DATETIME NULL,
+    last_level_drop_at DATETIME NULL,
+    trade_limit_percent INT NOT NULL DEFAULT 100,
+    status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',
+    created_by BIGINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    updated_by BIGINT NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    version INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_gold_member_account_user (tenant_id, user_id),
+    UNIQUE KEY uk_gold_member_account_referral_code (referral_code),
+    KEY idx_gold_member_account_referrer (tenant_id, referrer_id),
+    KEY idx_gold_member_account_level (tenant_id, member_level, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE gold_member_referral (
+    id BIGINT NOT NULL,
+    tenant_id BIGINT NOT NULL,
+    referrer_id BIGINT NOT NULL,
+    referred_id BIGINT NOT NULL,
+    referral_code VARCHAR(32) NOT NULL,
+    registration_fee_cent INT NOT NULL DEFAULT 99800,
+    registration_fee_recipient VARCHAR(16) NOT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',
+    registered_at DATETIME NOT NULL,
+    created_by BIGINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    updated_by BIGINT NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    version INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_gold_member_referral_referred (tenant_id, referred_id),
+    KEY idx_gold_member_referral_referrer (tenant_id, referrer_id, registered_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE gold_member_ledger (
+    id BIGINT NOT NULL,
+    tenant_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    bucket VARCHAR(20) NOT NULL,
+    direction VARCHAR(8) NOT NULL,
+    amount BIGINT NOT NULL,
+    event_type VARCHAR(40) NOT NULL,
+    related_user_id BIGINT NULL,
+    related_referral_id BIGINT NULL,
+    idempotency_key VARCHAR(180) NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    created_by BIGINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    updated_by BIGINT NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    version INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_gold_member_ledger_idempotency (idempotency_key),
+    KEY idx_gold_member_ledger_user (tenant_id, user_id, created_at),
+    KEY idx_gold_member_ledger_event (tenant_id, event_type, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE gold_region (
+    id BIGINT NOT NULL,
+    tenant_id BIGINT NOT NULL,
+    owner_user_id BIGINT NOT NULL,
+    city VARCHAR(64) NOT NULL,
+    parent_region_id BIGINT NULL,
+    depth INT NOT NULL DEFAULT 1,
+    status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',
+    created_by BIGINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    updated_by BIGINT NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    version INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_gold_region_owner (tenant_id, owner_user_id),
+    UNIQUE KEY uk_gold_region_city (tenant_id, city),
+    KEY idx_gold_region_parent (tenant_id, parent_region_id, depth)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE gold_region_profit (
+    id BIGINT NOT NULL,
+    tenant_id BIGINT NOT NULL,
+    region_id BIGINT NOT NULL,
+    amount BIGINT NOT NULL,
+    idempotency_key VARCHAR(180) NOT NULL,
+    settled_at DATETIME NOT NULL,
+    created_by BIGINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    updated_by BIGINT NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    version INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_gold_region_profit_idempotency (idempotency_key),
+    KEY idx_gold_region_profit_region (tenant_id, region_id, settled_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -7,7 +7,7 @@ export const grantPrivacyConsent = (patientId: string, consentType: string) =>
   request<PrivacyConsent>({
     url: `/api/v1/patients/${patientId}/consents`,
     method: 'POST',
-    data: { consentType, policyVersion: '2026.07' },
+    data: { consentType, policyVersion: '2026.09' },
   })
 export const revokePrivacyConsent = (patientId: string, consentType: string) =>
   request<void>({

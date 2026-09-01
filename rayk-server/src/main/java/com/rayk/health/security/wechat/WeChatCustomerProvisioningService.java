@@ -2,6 +2,7 @@ package com.rayk.health.security.wechat;
 
 import com.rayk.health.common.exception.BusinessException;
 import com.rayk.health.common.exception.ErrorCode;
+import com.rayk.health.goldbean.application.GoldBeanApplicationService;
 import com.rayk.health.patient.entity.HealthProfileEntity;
 import com.rayk.health.patient.entity.PatientEntity;
 import com.rayk.health.patient.mapper.HealthProfileMapper;
@@ -39,6 +40,7 @@ public class WeChatCustomerProvisioningService {
     private final HealthProfileMapper profileMapper;
     private final UserCatalog catalog;
     private final PasswordEncoder passwordEncoder;
+    private final GoldBeanApplicationService goldBeanService;
 
     public WeChatCustomerProvisioningService(
             WeChatProperties properties,
@@ -50,7 +52,8 @@ public class WeChatCustomerProvisioningService {
             PatientMapper patientMapper,
             HealthProfileMapper profileMapper,
             UserCatalog catalog,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            GoldBeanApplicationService goldBeanService) {
         this.properties = properties;
         this.tenantMapper = tenantMapper;
         this.userMapper = userMapper;
@@ -61,6 +64,7 @@ public class WeChatCustomerProvisioningService {
         this.profileMapper = profileMapper;
         this.catalog = catalog;
         this.passwordEncoder = passwordEncoder;
+        this.goldBeanService = goldBeanService;
     }
 
     @Transactional
@@ -133,6 +137,7 @@ public class WeChatCustomerProvisioningService {
         profile.setDeleted(0);
         profile.setVersion(0);
         profileMapper.insert(profile);
+        goldBeanService.initializeForCustomer(tenant.getTenantId(), user.getId());
         return catalog.findByUserId(user.getId());
     }
 
@@ -211,6 +216,7 @@ public class WeChatCustomerProvisioningService {
         profile.setDeleted(0);
         profile.setVersion(0);
         profileMapper.insert(profile);
+        goldBeanService.initializeForCustomer(tenant.getTenantId(), user.getId());
         return catalog.findByUserId(user.getId());
     }
 

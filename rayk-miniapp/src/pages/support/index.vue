@@ -200,10 +200,26 @@ onShow(load)
   font-size: 20rpx;
 }
 .primary-button {
-  margin-top: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 104rpx;
+  min-height: 104rpx;
+  margin: 24rpx 0 0;
+  padding: 0 28rpx;
+  border: 0;
   border-radius: 18rpx;
   background: #0f7a62;
   color: #fff;
+  font-size: 32rpx;
+  line-height: 1.35;
+  font-weight: 720;
+  box-shadow: 0 12rpx 24rpx rgba(15, 122, 98, 0.16);
+}
+.primary-button::after {
+  display: none;
 }
 .ticket-card {
   margin-bottom: 18rpx;
