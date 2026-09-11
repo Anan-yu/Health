@@ -1,5 +1,12 @@
 # 三羊健康项目交接说明
 
+## 2026-09-11 对齐直推趋势图日期坐标
+
+- 仅调整趋势图下方日期标签：日期标签改为使用与数据点相同的横坐标，并以标签中心对齐对应点位；未修改折线、点位、网格线或趋势数据计算。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev:remote-test`、`npm run build:mp-weixin:dev` 和 `npm run build:mp-weixin`；H5、微信开发包、远程隔离测试包和生产局域网包均重新生成。
+- 远程开发测试 H5 已同步到 `/opt/zhiyu-health/rayk-miniapp/dist/build/h5-remote-dev`；最新组件资源为 `GoldBeanPanel.C53hxWWw.js`，SHA-256 为 `69a093b75c9016da69268a8f593ee4d210b2ea2dfa717b3ae7d70789cf758b5e`，与本地一致，远程目录包含 `trend-date-label` 且不再包含 `trend-canvas`。同步前回退副本位于 `/opt/zhiyu-health/backups/trend-date-alignment-before-20260911-152333/h5-remote-dev`。
+- 远程六个容器均为 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。生产环境未更新，生产 H5、Java、数据库、容器和配置均未修改。
+
 ## 2026-09-11 恢复跨端 CSS 趋势折线并修复测量时序
 
 - 微信端 Canvas 未可靠绘制，已移除 Canvas 路径，恢复为按实际图表像素坐标生成的 CSS 折线段；修正同值水平段合并边界，保留 `09/05→09/06→09/11` 的真实路径和数据点，不显示点位数字。

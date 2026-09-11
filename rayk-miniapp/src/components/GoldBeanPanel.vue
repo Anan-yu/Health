@@ -143,7 +143,7 @@
               </view>
             </view>
             <view class="trend-date-row">
-              <text v-for="point in trendChartPoints" :key="point.date">{{ point.label }}</text>
+              <text v-for="point in trendChartPoints" :key="point.date" class="trend-date-label" :style="trendDateStyle(point)">{{ point.label }}</text>
             </view>
             <view class="trend-summary">
               <text>当前 {{ summary.memberLevelName }}</text>
@@ -504,6 +504,9 @@ const trendPointStyle = (point: {
 }) => ({
   left: point.xPx === null ? `${point.x}%` : `${point.xPx}px`,
   bottom: point.yPx === null ? `${point.y}%` : `${point.yPx}px`,
+})
+const trendDateStyle = (point: { x: number; xPx: number | null }) => ({
+  left: point.xPx === null ? `${point.x}%` : `${point.xPx}px`,
 })
 const trendAriaLabel = computed(() => {
   const points = trendChartPoints.value
@@ -1428,8 +1431,8 @@ async function openRegion() {
 .trend-segment { position: absolute; z-index: 2; height: 2px; border-radius: 0; background: linear-gradient(90deg, #4ac89a, #0d8d6c); transform-origin: left center; }
 .trend-point { position: absolute; z-index: 3; width: 0; height: 0; }
 .trend-point-dot { position: absolute; top: -7rpx; left: -7rpx; width: 14rpx; height: 14rpx; border: 4rpx solid #d8f4e9; border-radius: 50%; box-sizing: border-box; background: #0c8e6c; box-shadow: 0 3rpx 8rpx rgba(12, 142, 108, .2); }
-.trend-date-row { display: flex; box-sizing: border-box; margin: 2rpx 0 0 38rpx; padding: 0 4%; }
-.trend-date-row text { flex: 1; color: #91a39d; font-size: 16rpx; text-align: center; }
+.trend-date-row { position: relative; box-sizing: border-box; height: 22rpx; margin: 2rpx 0 0 38rpx; padding: 0; }
+.trend-date-row text { position: absolute; top: 0; display: block; transform: translateX(-50%); color: #91a39d; font-size: 16rpx; line-height: 22rpx; text-align: center; white-space: nowrap; }
 .trend-summary { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 18rpx; padding-top: 16rpx; border-top: 1rpx solid #e2eee9; color: #5d7d73; font-size: 20rpx; }
 .trend-summary text:first-child { color: #0c8568; font-weight: 700; }
 .reward-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12rpx; margin-top: 18rpx; }
