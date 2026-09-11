@@ -46,6 +46,7 @@ public class SecurityConfig {
                                                 "/api/v1/auth/wechat-admin-login",
                                                 "/api/payments/wechat/notify",
                                                 "/api/payments/wechat/virtual/notify",
+                                                "/api/payments/wechat/merchant-transfer/authorization-notify",
                                                 "/api/system/version",
                                                 "/actuator/health/**",
                                                 "/v3/api-docs/**",

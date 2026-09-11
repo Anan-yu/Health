@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Data;
 
@@ -23,8 +24,8 @@ public class GoldBeanAccountEntity {
     private Integer registrationFeeCent;
     private LocalDateTime registrationFeePaidAt;
     private String city;
-    private Long digitalBankBalance;
-    private Long tradingBalance;
+    private BigDecimal digitalBankBalance;
+    private BigDecimal tradingBalance;
     private LocalDateTime dailyRewardStartAt;
     private Integer dailyRewardDays;
     private LocalDateTime dailyRewardLastAt;

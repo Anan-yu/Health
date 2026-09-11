@@ -2,7 +2,11 @@
   <view class="page elder-page"
     ><view class="title">已发布健康报告</view
     ><PageState :loading="loading" :error="error" :empty="items.length === 0"
-      ><view v-for="item in items" :key="item.id" class="card report-card" @click="detail(item.id)"
+      ><view v-for="item in items" :key="item.id" class="report-item"
+        ><AiGeneratedNotice
+          v-if="item.assessment?.results?.interpretation?.source === 'DEEPSEEK'"
+          description="本报告中的综合解读由人工智能辅助生成，仅供健康管理参考，不作为临床诊断依据。"
+        /><view class="card report-card" @click="detail(item.id)"
         ><view class="row"
           ><view class="section-title">{{ item.title }}</view
           ><StatusTag :status="item.status" /></view
@@ -14,6 +18,7 @@
           </template>
           查看报告 ›</view
         ></view
+      ></view
       ></PageState
     ></view
   >
@@ -25,6 +30,7 @@ import { getMyHealthReports } from '@/api/health-report'
 import type { HealthReport } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import AiGeneratedNotice from '@/components/AiGeneratedNotice.vue'
 const items = ref<HealthReport[]>([]),
   loading = ref(true),
   error = ref('')

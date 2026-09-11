@@ -1,11 +1,23 @@
 <template>
-  <view class="page workbench-page" :class="{ 'elder-page': isCustomer }">
+  <PlatformAdminShell :enabled="isPlatform">
+    <view class="page workbench-page" :class="{ 'elder-page': isCustomer || isGuest }">
     <view class="workbench-hero">
       <view class="hero-pattern" />
       <view class="hero-title">{{ workbenchName }}</view>
       <view class="hero-copy">{{ workbenchDescription }}</view>
       <view class="hero-stats">
-        <template v-if="isCustomer">
+        <template v-if="isGuest">
+          <view
+            ><text>{{ visibleMenus.length }}</text
+            ><text>项服务可先了解</text></view
+          >
+          <view class="divider" />
+          <view
+            ><text>无需授权</text
+            ><text>可先浏览</text></view
+          >
+        </template>
+        <template v-else-if="isCustomer">
           <view
             ><text>{{ visibleMenus.length }}</text
             ><text>项健康服务已为您整理</text></view
@@ -27,7 +39,7 @@
 
     <view class="section-head">
       <view>
-        <view class="section-title">{{ isCustomer ? '健康服务' : '全部功能' }}</view>
+        <view class="section-title">{{ isGuest || isCustomer ? '健康服务' : '全部功能' }}</view>
       </view>
       <view v-if="isDoctor" class="soft-button" @click="goSwitch">切换身份</view>
     </view>
@@ -37,7 +49,7 @@
         v-for="(item, index) in visibleMenus"
         :key="item.route"
         class="menu-card"
-        @click="open(item.route)"
+        @click="openMenu(item)"
       >
         <view class="menu-icon" :class="`tone-${index % 4}`">{{ item.icon }}</view>
         <view class="menu-title">{{ item.title }}</view>
@@ -52,21 +64,34 @@
       </view>
     </view>
 
+    <view v-if="!isGuest" class="message-card" hover-class="message-card-hover" @click="goMessages">
+      <view class="message-icon">信</view>
+      <view class="message-content">
+        <view class="message-title">消息中心</view>
+        <view class="message-copy">{{ isCustomer ? '查看报告发布、随访提醒和健康动态' : '查看平台报告和健康随访动态' }}</view>
+      </view>
+      <view class="message-arrow">›</view>
+    </view>
+
     <view v-if="!isPlatform" class="help-card" @click="goSupport">
       <view class="help-icon">?</view>
       <view class="help-content">
-        <view class="help-title">找不到需要的功能？</view>
-        <view class="muted">查看使用指南或提交问题反馈</view>
+        <view class="help-title">{{ isGuest ? '先看看常见问题？' : '找不到需要的功能？' }}</view>
+        <view class="muted">{{
+          isGuest ? '查看使用指南和健康服务说明' : '查看使用指南或提交问题反馈'
+        }}</view>
       </view>
       <view class="help-arrow">›</view>
     </view>
-  </view>
+    </view>
+  </PlatformAdminShell>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { menusFor } from '@/constants/menus'
+import { menusFor, type MenuItem } from '@/constants/menus'
+import PlatformAdminShell from '@/components/PlatformAdminShell.vue'
 import type { Role } from '@/types/api'
 
 const auth = useAuthStore()
@@ -80,25 +105,45 @@ const roleDescriptions: Record<Role, string> = {
   DOCTOR: '按姓名或手机号查询体检者，并查看其健康资料和报告',
   CUSTOMER: '管理个人档案、报告、评估与随访反馈',
 }
+const isGuest = computed(() => !auth.isLoggedIn)
 const workbenchName = computed(() =>
-  auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '我的工作台',
+  isGuest.value ? '健康服务' : auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '我的工作台',
 )
 const workbenchDescription = computed(() =>
-  auth.currentWorkbench
+  isGuest.value
+    ? '先浏览服务介绍，登录后再使用个人健康数据功能'
+    : auth.currentWorkbench
     ? roleDescriptions[auth.currentWorkbench]
     : '功能入口随角色、权限和当前工作台变化',
 )
 const visibleMenus = computed(() =>
-  menusFor(auth.currentWorkbench).filter(
-    (item) => !item.permission || auth.permissions.includes(item.permission),
+  menusFor(isGuest.value ? '' : auth.currentWorkbench).filter(
+    (item) => isGuest.value || !item.permission || auth.permissions.includes(item.permission),
   ),
 )
 const open = (url: string) => uni.navigateTo({ url })
+const goLogin = () => uni.navigateTo({ url: '/pages/login/index?from=guest' })
+const openMenu = (item: MenuItem) => {
+  if (!isGuest.value) {
+    open(item.route)
+    return
+  }
+  uni.showModal({
+    title: item.title,
+    content: `${item.description}。登录后即可使用本人数据并保存进度。`,
+    cancelText: '继续浏览',
+    confirmText: '去登录',
+    success: ({ confirm }) => {
+      if (confirm) goLogin()
+    },
+  })
+}
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
-const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
-const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
-const isDoctor = computed(() => auth.currentWorkbench === 'DOCTOR')
+const goMessages = () => uni.navigateTo({ url: '/pages/message/index' })
+const isPlatform = computed(() => !isGuest.value && auth.currentWorkbench === 'PLATFORM_ADMIN')
+const isCustomer = computed(() => !isGuest.value && auth.currentWorkbench === 'CUSTOMER')
+const isDoctor = computed(() => !isGuest.value && auth.currentWorkbench === 'DOCTOR')
 </script>
 
 <style scoped>
@@ -232,6 +277,59 @@ const isDoctor = computed(() => auth.currentWorkbench === 'DOCTOR')
   color: #0f7a62;
   font-size: 34rpx;
 }
+.message-card {
+  display: flex;
+  align-items: center;
+  min-height: 92rpx;
+  margin-top: 24rpx;
+  padding: 24rpx 28rpx;
+  box-sizing: border-box;
+  border: 1rpx solid #dbeae5;
+  border-radius: 26rpx;
+  background: linear-gradient(135deg, #ffffff, #f1faf7);
+  box-shadow: 0 10rpx 28rpx rgba(35, 78, 67, 0.055);
+}
+.message-card-hover {
+  opacity: 0.84;
+}
+.message-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 66rpx;
+  height: 66rpx;
+  margin-right: 20rpx;
+  border-radius: 21rpx;
+  background: #eaf1ff;
+  color: #476fac;
+  font-size: 23rpx;
+  font-weight: 740;
+}
+.message-content {
+  flex: 1;
+  min-width: 0;
+}
+.message-title {
+  color: #1f4138;
+  font-size: 28rpx;
+  line-height: 1.4;
+  font-weight: 720;
+}
+.message-copy {
+  margin-top: 5rpx;
+  overflow: hidden;
+  color: #7a8984;
+  font-size: 22rpx;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.message-arrow {
+  margin-left: 18rpx;
+  color: #7f918b;
+  font-size: 38rpx;
+}
 .help-card {
   display: flex;
   align-items: center;
@@ -310,6 +408,23 @@ const isDoctor = computed(() => auth.currentWorkbench === 'DOCTOR')
 }
 .workbench-page.elder-page .help-card {
   min-height: 104rpx;
+}
+.workbench-page.elder-page .message-card {
+  min-height: 112rpx;
+  padding: 24rpx 28rpx;
+  border-width: 2rpx;
+  border-radius: 28rpx;
+}
+.workbench-page.elder-page .message-icon {
+  width: 76rpx;
+  height: 76rpx;
+  font-size: 28rpx;
+}
+.workbench-page.elder-page .message-title {
+  font-size: 30rpx;
+}
+.workbench-page.elder-page .message-copy {
+  font-size: 26rpx;
 }
 .workbench-page.elder-page .help-title {
   font-size: 30rpx;

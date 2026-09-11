@@ -9,8 +9,10 @@ import com.rayk.health.membership.vo.MembershipPaymentVo;
 import com.rayk.health.security.wechat.WeChatSessionKeyStore;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -41,10 +43,56 @@ public class WeChatVirtualPayClient {
         return properties.wechatVirtualPay().configured();
     }
 
+    public MembershipProperties.WeChatVirtualPayProperties paymentProperties() {
+        return properties.wechatVirtualPay();
+    }
+
     public MembershipPaymentVo createGoodsPayment(String orderNo, int amountCent, long userId) {
         MembershipProperties.WeChatVirtualPayProperties pay = properties.wechatVirtualPay();
-        if (!configured()) {
-            throw new BusinessException(ErrorCode.MEMBERSHIP_PAYMENT_NOT_CONFIGURED);
+        return createGoodsPayment(orderNo, 1, pay.productId(), amountCent, userId, "membership:" + orderNo);
+    }
+
+    public boolean configuredFor(String productId) {
+        MembershipProperties.WeChatVirtualPayProperties pay = properties.wechatVirtualPay();
+        return StringUtils.hasText(productId)
+                && StringUtils.hasText(pay.appId())
+                && StringUtils.hasText(pay.merchantId())
+                && StringUtils.hasText(pay.offerId())
+                && StringUtils.hasText(pay.appKeyForCurrentEnv())
+                && pay.env() >= 0
+                && pay.env() <= 1
+                && "short_series_goods".equals(pay.mode());
+    }
+
+    /** Verifies the HMAC that the virtual-payment platform puts on its delivery payload. */
+    public boolean verifyPaymentEventSignature(String event, String payload, String payEventSig) {
+        MembershipProperties.WeChatVirtualPayProperties pay = properties.wechatVirtualPay();
+        if (!StringUtils.hasText(event)
+                || !StringUtils.hasText(payload)
+                || !StringUtils.hasText(payEventSig)
+                || !StringUtils.hasText(pay.appKeyForCurrentEnv())) {
+            return false;
+        }
+        try {
+            String expected = hmacSha256(pay.appKeyForCurrentEnv(), event + "&" + payload);
+            byte[] expectedBytes = expected.getBytes(StandardCharsets.UTF_8);
+            byte[] actualBytes = payEventSig.trim().toLowerCase(Locale.ROOT).getBytes(StandardCharsets.UTF_8);
+            return MessageDigest.isEqual(expectedBytes, actualBytes);
+        } catch (NoSuchAlgorithmException | InvalidKeyException exception) {
+            return false;
+        }
+    }
+
+    public MembershipPaymentVo createGoodsPayment(
+            String orderNo,
+            int buyQuantity,
+            String productId,
+            int goodsPriceCent,
+            long userId,
+            String attach) {
+        MembershipProperties.WeChatVirtualPayProperties pay = properties.wechatVirtualPay();
+        if (!configuredFor(productId) || buyQuantity <= 0 || goodsPriceCent <= 0) {
+            throw new BusinessException(ErrorCode.MEMBERSHIP_PAYMENT_UNAVAILABLE);
         }
         String sessionKey = sessionKeyStore.get(pay.appId(), userId);
         if (!StringUtils.hasText(sessionKey)) {
@@ -53,13 +101,13 @@ public class WeChatVirtualPayClient {
 
         Map<String, Object> signData = new LinkedHashMap<>();
         signData.put("offerId", pay.offerId());
-        signData.put("buyQuantity", 1);
+        signData.put("buyQuantity", buyQuantity);
         signData.put("env", pay.env());
         signData.put("currencyType", "CNY");
-        signData.put("productId", pay.productId());
-        signData.put("goodsPrice", amountCent);
+        signData.put("productId", productId);
+        signData.put("goodsPrice", goodsPriceCent);
         signData.put("outTradeNo", orderNo);
-        signData.put("attach", "membership:" + orderNo);
+        signData.put("attach", StringUtils.hasText(attach) ? attach : "gold-bean:" + orderNo);
 
         try {
             String signDataJson = objectMapper.writeValueAsString(signData);

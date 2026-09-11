@@ -1,8 +1,8 @@
 <template>
-  <view class="assistant-page elder-page">
+  <view class="assistant-page elder-page" :class="{ 'tree-hole-mode': isTreeHole }">
     <view class="assistant-topbar">
       <view class="topbar-back" @tap="goBack">‹</view>
-      <view class="topbar-title">健康助手</view>
+      <view class="topbar-title">{{ pageTitle }}</view>
       <view class="topbar-spacer" aria-hidden="true" />
     </view>
 
@@ -16,24 +16,43 @@
         <view class="hero-orbit orbit-one" />
         <view class="hero-orbit orbit-two" />
         <image class="hero-mark" :src="assistantAvatar" mode="aspectFill" aria-hidden="true" />
-        <view class="hero-eyebrow">健康管理陪伴</view>
-        <view class="hero-title">把健康问题说清楚，<br />一起找到下一步</view>
-        <view class="hero-copy">
+        <view class="hero-eyebrow">{{ isTreeHole ? '每日状态记录' : '健康管理陪伴' }}</view>
+        <view v-if="isTreeHole" class="hero-title">把今天的状态说给我听，<br />这里会认真记住</view>
+        <view v-else class="hero-title">把健康问题说清楚，<br />一起找到下一步</view>
+        <view v-if="isTreeHole" class="hero-copy">
+          普通客户可免费体验7天，健康会员可无限使用，每七天树洞会给出一次总结反馈。
+        </view>
+        <view v-else class="hero-copy">
           结合健康档案、健康报告和健康拍，帮你理清重点，找到下一步。
         </view>
         <view class="context-row">
-          <view class="context-chip"><text class="chip-dot mint" />健康档案</view>
-          <view class="context-chip"><text class="chip-dot blue" />健康报告</view>
-          <view class="context-chip"><text class="chip-dot violet" />健康拍</view>
+          <template v-if="isTreeHole">
+            <view class="context-chip"><text class="chip-dot mint" />身体感受</view>
+            <view class="context-chip"><text class="chip-dot blue" />心情压力</view>
+            <view class="context-chip"><text class="chip-dot violet" />免费7天体验</view>
+          </template>
+          <template v-else>
+            <view class="context-chip"><text class="chip-dot mint" />健康档案</view>
+            <view class="context-chip"><text class="chip-dot blue" />健康报告</view>
+            <view class="context-chip"><text class="chip-dot violet" />健康拍</view>
+          </template>
         </view>
       </view>
+
+      <AiGeneratedNotice
+        :description="
+          isTreeHole
+            ? '树洞反馈和助手回复由人工智能生成，仅供健康管理参考；如有不适，请及时咨询专业人员。'
+            : '健康助手回复由人工智能生成，仅供健康管理参考；如有不适，请及时咨询专业人员。'
+        "
+      />
 
       <view v-if="loading" class="loading-card">
         <view class="loading-dot" />正在准备你的健康资料…
       </view>
 
       <view v-else-if="error" class="error-card">
-        <view class="error-title">暂时无法打开助手</view>
+        <view class="error-title">暂时无法打开{{ isTreeHole ? '树洞' : '助手' }}</view>
         <view class="error-copy">{{ error }}</view>
         <button class="retry-button" @tap="loadConversation">重新打开</button>
       </view>
@@ -41,19 +60,87 @@
       <view v-else class="chat-area">
         <view class="conversation-tools">
           <view class="conversation-tools-copy">
-            <view class="conversation-tools-title">对话记录</view>
-            <view class="conversation-tools-hint">切换会话，不会带入其他对话内容</view>
+            <view class="conversation-tools-title">{{ isTreeHole ? '树洞记录' : '对话记录' }}</view>
+            <view class="conversation-tools-hint">{{ isTreeHole ? '每天都可以写，记录会按七天周期整理' : '切换会话，不会带入其他对话内容' }}</view>
           </view>
           <button class="history-entry" aria-label="查看对话记录" @tap="toggleHistory">
-            <text>查看记录</text>
+            <text>{{ isTreeHole ? '查看树洞记录' : '查看记录' }}</text>
             <text class="history-entry-arrow">›</text>
           </button>
         </view>
-        <view class="date-note">本次对话仅用于本人健康管理</view>
+        <view v-if="isTreeHole" class="tree-hole-feedback-card">
+          <view class="feedback-card-head">
+            <view class="feedback-card-heading">
+              <view class="feedback-card-mark" aria-hidden="true">7</view>
+              <view class="feedback-card-heading-copy">
+                <view class="feedback-card-title">七天反馈总结</view>
+                <view class="feedback-card-subtitle">后台会在周期完成后自动整理</view>
+              </view>
+            </view>
+            <view class="feedback-status" :class="feedbackStatusClass">{{ feedbackStatusText }}</view>
+          </view>
+
+          <view v-if="feedbackLoading" class="feedback-loading-row">
+            <view class="feedback-loading-dot" />
+            <text>正在同步你的记录…</text>
+          </view>
+          <view v-else-if="feedbackError" class="feedback-error-row">
+            <text class="feedback-error-copy">{{ feedbackError }}</text>
+            <button class="feedback-retry" @tap="loadTreeHoleFeedback">重试</button>
+          </view>
+          <view v-else-if="!treeHoleFeedback" class="feedback-loading-row">
+            <view class="feedback-loading-dot" />
+            <text>正在准备七天反馈…</text>
+          </view>
+          <template v-else-if="treeHoleFeedback.hasFeedback && !feedbackPending">
+            <view class="feedback-period">
+              {{ formatFeedbackPeriod(treeHoleFeedback.feedbackPeriodStart, treeHoleFeedback.feedbackPeriodEnd) }}
+              · 记录 {{ treeHoleFeedback.recordedDays }} 天 / {{ treeHoleFeedback.entryCount }} 次
+            </view>
+            <view class="feedback-content">{{ treeHoleFeedback.content }}</view>
+            <view
+              v-if="treeHoleFeedback.riskLevel"
+              class="feedback-risk"
+              :class="feedbackRiskClass(treeHoleFeedback.riskLevel)"
+            >
+              <text class="feedback-risk-label">状态提醒</text>
+              <text>{{ feedbackRiskLabel(treeHoleFeedback.riskLevel) }}</text>
+            </view>
+            <view v-if="treeHoleFeedback.recommendedAction" class="feedback-action">
+              <view class="feedback-action-label">下一周小行动</view>
+              <view class="feedback-action-copy">{{ treeHoleFeedback.recommendedAction }}</view>
+            </view>
+            <view class="feedback-disclaimer">{{ treeHoleFeedback.disclaimer }}</view>
+          </template>
+          <template v-else>
+            <view class="feedback-progress-copy">
+              <view class="feedback-progress-title">本周期记录进度</view>
+              <view class="feedback-progress-value">
+                <text>已记录 {{ treeHoleFeedback.recordedDays }} / 7 天</text>
+                <text v-if="treeHoleFeedback.nextFeedbackDate">
+                  预计 {{ formatFeedbackDate(treeHoleFeedback.nextFeedbackDate) }} 整理
+                </text>
+                <text v-else>记录后自动开始</text>
+              </view>
+            </view>
+            <view class="feedback-progress-track">
+              <view class="feedback-progress-fill" :style="{ width: `${feedbackProgress}%` }" />
+            </view>
+            <view class="feedback-hint">每天写一句就可以，记录越完整，反馈越贴近你的状态。</view>
+            <view v-if="treeHoleFeedback.canGenerate" class="feedback-ready-row">
+              <text>本周期已到期，等待后台整理</text>
+              <button class="feedback-retry" :disabled="feedbackGenerating" @tap="generateFeedback">
+                {{ feedbackGenerating ? '整理中' : '立即整理' }}
+              </button>
+            </view>
+          </template>
+          <view class="feedback-privacy">你的树洞记录仅对本人可见，用于长期健康观察</view>
+        </view>
+        <view v-else class="date-note">本次对话仅用于本人健康管理</view>
 
         <view v-if="messages.length === 0" class="welcome-card">
-          <view class="welcome-title">从一个问题开始</view>
-          <view class="welcome-copy">你可以问我报告里的指标、近期需要优先关注什么，或如何准备下一次就医沟通。</view>
+          <view class="welcome-title">{{ isTreeHole ? '今天想从哪里说起？' : '从一个问题开始' }}</view>
+          <view class="welcome-copy">{{ isTreeHole ? '不用组织得很完整，身体感觉、情绪起伏、压力或睡眠变化，都可以从一句话开始。' : '你可以问我报告里的指标、近期需要优先关注什么，或如何准备下一次就医沟通。' }}</view>
           <view class="suggestion-list">
             <view
               v-for="suggestion in suggestions"
@@ -144,6 +231,7 @@
           class="composer-input"
           :maxlength="4000"
           :disabled="loading || sending || !conversationId"
+          :placeholder="isTreeHole ? '今天可记录身体、心情和压力' : '输入你的健康问题'"
           auto-height
           cursor-spacing="16"
           :show-confirm-bar="false"
@@ -164,17 +252,22 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { handleMembershipBenefitError } from '@/utils/membership'
+import AiGeneratedNotice from '@/components/AiGeneratedNotice.vue'
 import {
   createMedicalAssistantConversation,
   deleteMedicalAssistantConversation,
+  generateHealthTreeHoleFeedback,
+  getHealthTreeHoleFeedback,
   getMedicalAssistantConversation,
   listMedicalAssistantConversations,
   normalizeMedicalAssistantText,
   streamMedicalAssistantMessage,
   type MedicalAssistantConversation,
+  type MedicalAssistantMode,
   type MedicalAssistantMessage,
+  type HealthTreeHoleFeedback,
 } from '@/api/medical-assistant'
 
 const conversation = ref<MedicalAssistantConversation>()
@@ -188,10 +281,20 @@ const sending = ref(false)
 const error = ref('')
 const scrollIntoView = ref('conversation-bottom')
 const streamAbort = ref<(() => void)>()
-const suggestions = [
+const isTreeHole = ref(false)
+const treeHoleFeedback = ref<HealthTreeHoleFeedback>()
+const feedbackLoading = ref(false)
+const feedbackGenerating = ref(false)
+const feedbackError = ref('')
+const assistantSuggestions = [
   '帮我解释最近一次健康报告',
   '我现在最需要先关注哪些指标？',
   '结合我的档案，下一步该准备什么？',
+]
+const treeHoleSuggestions = [
+  '今天有点累，身体和心情都提不起劲',
+  '最近压力比较大，晚上也睡得不太好',
+  '今天状态还不错，我想把它记录下来',
 ]
 
 const assistantAvatar = '/pages-customer/static/assistant/sheep-avatar.jpg'
@@ -201,29 +304,70 @@ type MessageTextPart = { text: string; bold: boolean }
 const conversationId = computed(() => conversation.value?.id || '')
 const messages = computed<MedicalAssistantMessage[]>(() => conversation.value?.messages || [])
 const canSend = computed(() => Boolean(conversationId.value && draft.value.trim() && !sending.value && !switchingConversation.value))
+const pageTitle = computed(() => (isTreeHole.value ? '健康树洞' : '健康助手'))
+const conversationMode = computed<MedicalAssistantMode | undefined>(() =>
+  isTreeHole.value ? 'TREE_HOLE' : undefined,
+)
+const suggestions = computed(() => (isTreeHole.value ? treeHoleSuggestions : assistantSuggestions))
+const feedbackProgress = computed(() => {
+  const recordedDays = treeHoleFeedback.value?.recordedDays || 0
+  return Math.min(100, Math.round((recordedDays / 7) * 100))
+})
+const feedbackPending = computed(() => {
+  const feedback = treeHoleFeedback.value
+  return Boolean(
+    feedback?.canGenerate
+      && feedback.feedbackPeriodEnd !== feedback.currentPeriodEnd,
+  )
+})
+const feedbackStatusText = computed(() => {
+  if (feedbackLoading.value) return '同步中'
+  if (feedbackError.value) return '暂时不可用'
+  if (!treeHoleFeedback.value) return '同步中'
+  if (feedbackPending.value) return '待整理'
+  if (treeHoleFeedback.value.hasFeedback) return '已生成'
+  if (treeHoleFeedback.value.canGenerate) return '待整理'
+  return '记录中'
+})
+const feedbackStatusClass = computed(() => {
+  if (feedbackError.value) return 'status-error'
+  if (feedbackPending.value || treeHoleFeedback.value?.canGenerate) return 'status-pending'
+  if (treeHoleFeedback.value?.hasFeedback) return 'status-ready'
+  return 'status-recording'
+})
+
+onLoad((options) => {
+  isTreeHole.value = String(options?.mode || '').toLowerCase() === 'tree-hole'
+})
 
 onShow(() => {
-  uni.setNavigationBarTitle({ title: '健康助手' })
-  if (!conversation.value) void loadConversation()
+  uni.setNavigationBarTitle({ title: pageTitle.value })
+  if (!conversation.value) {
+    void loadConversation()
+  } else if (isTreeHole.value) {
+    void loadTreeHoleFeedback()
+  }
 })
 
 async function loadConversation() {
   loading.value = true
   error.value = ''
   try {
-    const conversationList = await listMedicalAssistantConversations()
+    const mode = conversationMode.value
+    const conversationList = await listMedicalAssistantConversations(mode)
     conversations.value = conversationList
     const first = conversationList[0]
     if (first) {
-      conversation.value = await getMedicalAssistantConversation(first.id)
+      conversation.value = await getMedicalAssistantConversation(first.id, mode)
     } else {
-      const created = await createMedicalAssistantConversation()
+      const created = await createMedicalAssistantConversation(undefined, mode)
       conversation.value = created
       conversations.value = [created]
     }
     await scrollToBottom()
+    if (isTreeHole.value) void loadTreeHoleFeedback()
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '健康助手加载失败'
+    error.value = cause instanceof Error ? cause.message : `${pageTitle.value}加载失败`
   } finally {
     loading.value = false
   }
@@ -289,14 +433,15 @@ async function sendMessage(contentOverride?: string) {
         onDone: (nextConversation) => {
           conversation.value = nextConversation
           rememberConversation(nextConversation)
+          if (isTreeHole.value) void loadTreeHoleFeedback()
           resolve()
         },
         onError: reject,
-      }).abort
+      }, conversationMode.value).abort
     })
   } catch (cause) {
     try {
-      conversation.value = await getMedicalAssistantConversation(conversationId.value)
+      conversation.value = await getMedicalAssistantConversation(conversationId.value, conversationMode.value)
     } catch {
       if (baseConversation) conversation.value = { ...baseConversation, messages: baseMessages }
     }
@@ -314,8 +459,10 @@ function sendSuggestion(value: string) {
 
 function handleSendError(cause: unknown) {
   if (handleMembershipBenefitError(cause, {
-    title: '健康助手次数已用完',
-    content: '免费客户可使用 3 次健康助手对话，开通年度健康会员后可继续使用。',
+    title: isTreeHole.value ? '健康树洞体验已结束' : `${pageTitle.value}次数已用完`,
+    content: isTreeHole.value
+      ? '普通客户可免费体验健康树洞 7 天，开通年度健康会员后可无限使用。'
+      : `免费客户可使用 3 次${pageTitle.value}对话，开通年度健康会员后可继续使用。`,
   })) {
     return
   }
@@ -365,6 +512,30 @@ function formatConversationTime(value: string) {
   return `${date.getMonth() + 1}月${date.getDate()}日`
 }
 
+function formatFeedbackDate(value?: string) {
+  if (!value) return ''
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value.replace(/-/g, '.')
+  return `${date.getMonth() + 1}月${date.getDate()}日`
+}
+
+function formatFeedbackPeriod(start?: string, end?: string) {
+  if (!start || !end) return '最近七天'
+  return `${formatFeedbackDate(start)} - ${formatFeedbackDate(end)}`
+}
+
+function feedbackRiskLabel(level?: string) {
+  if (level === 'URGENT') return '需要及时处理'
+  if (level === 'ATTENTION') return '建议持续关注'
+  return '当前记录未见明显风险'
+}
+
+function feedbackRiskClass(level?: string) {
+  if (level === 'URGENT') return 'risk-urgent'
+  if (level === 'ATTENTION') return 'risk-attention'
+  return 'risk-info'
+}
+
 function toggleHistory() {
   if (loading.value || switchingConversation.value) return
   historyOpen.value = !historyOpen.value
@@ -381,7 +552,7 @@ async function selectConversation(id: string) {
   }
   switchingConversation.value = true
   try {
-    conversation.value = await getMedicalAssistantConversation(id)
+    conversation.value = await getMedicalAssistantConversation(id, conversationMode.value)
     draft.value = ''
     closeHistory()
     await scrollToBottom()
@@ -396,7 +567,7 @@ async function createNewConversation() {
   if (sending.value || historyLoading.value) return
   historyLoading.value = true
   try {
-    const created = await createMedicalAssistantConversation()
+    const created = await createMedicalAssistantConversation(undefined, conversationMode.value)
     conversation.value = created
     rememberConversation(created)
     draft.value = ''
@@ -425,14 +596,14 @@ async function deleteConversation(item: MedicalAssistantConversation) {
 
   historyLoading.value = true
   try {
-    await deleteMedicalAssistantConversation(item.id)
+    await deleteMedicalAssistantConversation(item.id, conversationMode.value)
     const remaining = conversations.value.filter((conversationItem) => conversationItem.id !== item.id)
     conversations.value = remaining
     if (item.id === conversationId.value) {
       if (remaining[0]) {
-        conversation.value = await getMedicalAssistantConversation(remaining[0].id)
+        conversation.value = await getMedicalAssistantConversation(remaining[0].id, conversationMode.value)
       } else {
-        const created = await createMedicalAssistantConversation()
+        const created = await createMedicalAssistantConversation(undefined, conversationMode.value)
         conversation.value = created
         conversations.value = [created]
       }
@@ -452,6 +623,39 @@ function goBack() {
     delta: 1,
     fail: () => uni.switchTab({ url: '/pages/home/index' }),
   })
+}
+
+async function loadTreeHoleFeedback() {
+  if (!isTreeHole.value) return
+  feedbackLoading.value = true
+  feedbackError.value = ''
+  try {
+    const status = await getHealthTreeHoleFeedback()
+    treeHoleFeedback.value = status
+  } catch (cause) {
+    feedbackError.value = cause instanceof Error ? cause.message : '7天反馈暂时无法加载'
+  } finally {
+    feedbackLoading.value = false
+  }
+}
+
+async function generateFeedback() {
+  if (!isTreeHole.value || feedbackGenerating.value) return
+  feedbackGenerating.value = true
+  feedbackError.value = ''
+  try {
+    treeHoleFeedback.value = await generateHealthTreeHoleFeedback()
+  } catch (cause) {
+    if (handleMembershipBenefitError(cause, {
+      title: '健康树洞体验已结束',
+      content: '普通客户可免费体验健康树洞 7 天，开通年度健康会员后可无限使用。',
+    })) {
+      return
+    }
+    feedbackError.value = cause instanceof Error ? cause.message : '反馈整理失败，请稍后重试'
+  } finally {
+    feedbackGenerating.value = false
+  }
 }
 
 async function scrollToBottom() {
@@ -517,6 +721,44 @@ async function scrollToBottom() {
 .history-entry { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 160rpx; height: 72rpx; margin: 0; padding: 0 16rpx; border: 1rpx solid #8bd8bd; border-radius: 18rpx; color: #117d64; background: #edfaf4; font-size: 24rpx; font-weight: 800; line-height: 72rpx; }
 .history-entry:active { transform: scale(.97); background: #ddf5e9; }
 .history-entry-arrow { margin-left: 7rpx; color: #32a985; font-size: 31rpx; font-weight: 400; line-height: 1; }
+.tree-hole-feedback-card { margin: 0 0 20rpx; padding: 22rpx 22rpx 18rpx; border: 1rpx solid #ccecdf; border-radius: 24rpx; background: linear-gradient(145deg, #fbfffd 0%, #f0faf5 100%); box-shadow: 0 8rpx 18rpx rgba(35, 101, 79, .05); }
+.feedback-card-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.feedback-card-heading { display: flex; align-items: center; gap: 14rpx; min-width: 0; }
+.feedback-card-mark { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 58rpx; height: 58rpx; border-radius: 18rpx; color: #14765f; background: #dff6eb; font-size: 30rpx; font-weight: 800; }
+.feedback-card-heading-copy { min-width: 0; }
+.feedback-card-title { color: #214e41; font-size: 28rpx; font-weight: 800; line-height: 1.35; }
+.feedback-card-subtitle { margin-top: 4rpx; color: #87a198; font-size: 22rpx; line-height: 1.35; }
+.feedback-status { flex: 0 0 auto; padding: 8rpx 14rpx; border-radius: 999rpx; font-size: 21rpx; font-weight: 800; }
+.feedback-status.status-recording { color: #4d7b6b; background: #e4f5ed; }
+.feedback-status.status-pending { color: #8b661f; background: #fff1cf; }
+.feedback-status.status-ready { color: #14785e; background: #d9f4e8; }
+.feedback-status.status-error { color: #a34e43; background: #ffebe8; }
+.feedback-loading-row { display: flex; align-items: center; gap: 12rpx; margin-top: 20rpx; color: #6e8a80; font-size: 25rpx; }
+.feedback-loading-dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: #2bab86; box-shadow: 0 0 0 7rpx #def5e9; }
+.feedback-error-row { display: flex; align-items: center; justify-content: space-between; gap: 14rpx; margin-top: 16rpx; color: #9a5b51; font-size: 23rpx; line-height: 1.4; }
+.feedback-error-copy { flex: 1; min-width: 0; }
+.feedback-retry { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; min-width: 128rpx; min-height: 72rpx; margin: 0; padding: 0 18rpx; border: 1rpx solid #a3dec7; border-radius: 18rpx; color: #168066; background: #e5f8ef; font-size: 24rpx; font-weight: 800; line-height: 1.2; }
+.feedback-retry[disabled] { opacity: .55; }
+.feedback-period { margin-top: 18rpx; color: #729087; font-size: 23rpx; line-height: 1.4; }
+.feedback-content { margin-top: 14rpx; color: #31584d; font-size: 27rpx; line-height: 1.62; white-space: pre-wrap; word-break: break-word; }
+.feedback-risk { display: flex; align-items: center; gap: 10rpx; margin-top: 16rpx; padding: 12rpx 14rpx; border-radius: 16rpx; font-size: 24rpx; line-height: 1.4; }
+.feedback-risk-label { font-weight: 800; }
+.feedback-risk.risk-info { color: #28735d; background: #e7f7ef; }
+.feedback-risk.risk-attention { color: #80631f; background: #fff4d9; }
+.feedback-risk.risk-urgent { color: #98483d; background: #ffebe7; }
+.feedback-action { margin-top: 14rpx; padding: 14rpx 16rpx; border-left: 5rpx solid #72cfae; border-radius: 4rpx 16rpx 16rpx 4rpx; background: #f2fbf6; }
+.feedback-action-label { color: #26735e; font-size: 24rpx; font-weight: 800; }
+.feedback-action-copy { margin-top: 6rpx; color: #466d61; font-size: 25rpx; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.feedback-disclaimer, .feedback-privacy { margin-top: 14rpx; color: #91a59e; font-size: 21rpx; line-height: 1.45; }
+.feedback-privacy { padding-top: 14rpx; border-top: 1rpx solid #e0f0e9; text-align: center; }
+.feedback-progress-copy { margin-top: 18rpx; }
+.feedback-progress-title { color: #41695d; font-size: 24rpx; font-weight: 700; }
+.feedback-progress-value { display: flex; justify-content: space-between; gap: 12rpx; margin-top: 8rpx; color: #719188; font-size: 23rpx; line-height: 1.4; }
+.feedback-progress-value text:last-child { color: #168066; text-align: right; }
+.feedback-progress-track { height: 12rpx; margin-top: 14rpx; overflow: hidden; border-radius: 999rpx; background: #dcefe7; }
+.feedback-progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #82d7b4, #1a9b7b); transition: width .2s ease; }
+.feedback-hint { margin-top: 12rpx; color: #829b92; font-size: 23rpx; line-height: 1.45; }
+.feedback-ready-row { display: flex; align-items: center; justify-content: space-between; gap: 14rpx; margin-top: 16rpx; color: #806d3b; font-size: 23rpx; line-height: 1.4; }
 .date-note { margin: 4rpx 0 18rpx; color: #9aaaA5; text-align: center; font-size: 22rpx; }
 .suggestion-list { margin-top: 22rpx; }
 .suggestion-item { position: relative; display: flex; align-items: center; justify-content: center; min-height: 76rpx; margin: 10rpx 0 0; padding: 12rpx 56rpx 12rpx 24rpx; border: 1rpx solid #d7eee7; border-radius: 18rpx; box-sizing: border-box; color: #236456; background: #f6fcf9; text-align: center; font-size: 27rpx; line-height: 1.45; }
@@ -534,11 +776,14 @@ async function scrollToBottom() {
 .urgent-card { margin-top: 12rpx; padding: 18rpx; border-left: 6rpx solid #e19a27; border-radius: 4rpx 16rpx 16rpx 4rpx; background: #fff4d9; }
 .urgent-title { color: #8c5d13; font-size: 26rpx; font-weight: 800; }.urgent-copy { margin-top: 6rpx; color: #876b3e; font-size: 24rpx; line-height: 1.45; }
 .followup-list { margin-top: 10rpx; }.followup-item { display: flex; align-items: center; justify-content: flex-start; min-height: 72rpx; margin: 8rpx 0 0; padding: 12rpx 22rpx; border: 1rpx solid #bfe8dc; border-radius: 18rpx; box-sizing: border-box; color: #11846a; background: #f4fcf8; text-align: left; font-size: 27rpx; line-height: 1.45; }.followup-item text { display: block; width: 100%; }
+.tree-hole-mode .assistant-hero { background: linear-gradient(135deg, #345f4e 0%, #759d78 100%); box-shadow: 0 18rpx 34rpx rgba(57, 103, 73, .18); }
+.tree-hole-mode .hero-eyebrow { color: #e2f1c9; }
+.tree-hole-mode .chip-dot.mint { background: #d5f3b5; }
 .typing-bubble { display: flex; align-items: center; gap: 8rpx; padding: 24rpx; border-radius: 8rpx 26rpx 26rpx 26rpx; background: #fff; }.typing-bubble.inline-typing { padding: 4rpx 2rpx; background: transparent; }.typing-bubble view { width: 10rpx; height: 10rpx; border-radius: 50%; background: #62b9a0; animation: typing-pulse 1.1s infinite ease-in-out; }.typing-bubble view:nth-child(2) { animation-delay: .16s; }.typing-bubble view:nth-child(3) { animation-delay: .32s; }
 .conversation-bottom { height: 2rpx; }
 .composer-shell { padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #dcece6; background: rgba(255,255,255,.98); box-shadow: 0 -8rpx 24rpx rgba(24, 90, 73, .05); }
 .composer-row { display: flex; align-items: flex-end; gap: 12rpx; }.composer-input { flex: 1; min-height: 72rpx; max-height: 180rpx; padding: 16rpx 18rpx; border: 1rpx solid #d4e9e2; border-radius: 22rpx; box-sizing: border-box; color: #254d42; background: #f7fcfa; font-size: 28rpx; line-height: 1.45; }
 .send-button { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 128rpx; min-width: 0; height: 72rpx; min-height: 0; margin: 0; padding: 0 12rpx; border: 0; border-radius: 22rpx; box-sizing: border-box; color: #a4b5b0; background: #e7f0ed; font-size: 24rpx; line-height: 1; transition: transform .16s ease, box-shadow .16s ease; }.send-button.ready { color: #fff; background: linear-gradient(135deg, #19ad86 0%, #087e65 100%); box-shadow: 0 8rpx 16rpx rgba(12, 137, 104, .2); }.send-button.ready:active { transform: scale(.96); box-shadow: 0 4rpx 10rpx rgba(12, 137, 104, .16); }.send-button[disabled] { opacity: 1; }.send-label { font-weight: 800; letter-spacing: 1rpx; }.send-glyph { margin-left: 6rpx; font-size: 30rpx; font-weight: 700; line-height: 1; }.send-loading { min-width: 42rpx; font-size: 30rpx; font-weight: 800; letter-spacing: 4rpx; }
 @keyframes typing-pulse { 0%, 70%, 100% { opacity: .35; transform: translateY(0); } 35% { opacity: 1; transform: translateY(-4rpx); } }
-@media (prefers-reduced-motion: reduce) { .typing-bubble view, .send-button { animation: none; transition: none; } }
+@media (prefers-reduced-motion: reduce) { .typing-bubble view, .send-button, .feedback-progress-fill { animation: none; transition: none; } }
 </style>

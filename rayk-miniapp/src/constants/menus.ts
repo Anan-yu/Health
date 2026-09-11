@@ -1,5 +1,5 @@
 import type { Role } from '@/types/api'
-import { mallEnabled } from '@/constants/features'
+import { goldBeanEnabled, mallEnabled } from '@/constants/features'
 
 export interface MenuItem {
   title: string
@@ -82,6 +82,75 @@ const customer: MenuItem[] = [
   },
 ]
 
+/**
+ * Public service descriptions shown before a user chooses to log in.
+ * These entries intentionally point at the authenticated routes, but the
+ * guest pages intercept the tap and explain why login is needed instead of
+ * sending an unauthenticated request.
+ */
+export const guestMenus: MenuItem[] = [
+  {
+    title: '健康档案',
+    description: '了解如何整理个人基础健康资料',
+    icon: '档',
+    route: '/pages-customer/profile/index',
+  },
+  {
+    title: '健康检测',
+    description: '了解面部影像健康检测服务',
+    icon: '测',
+    route: '/pages-customer/health-scan/index',
+  },
+  {
+    title: '健康助手',
+    description: '了解结合个人资料的健康问答',
+    icon: '助',
+    route: '/pages-customer/medical-assistant/index',
+  },
+  {
+    title: '上传检验报告',
+    description: '了解报告上传和识别流程',
+    icon: '传',
+    route: '/pages-customer/lab-report/upload',
+  },
+  {
+    title: '我的检验报告',
+    description: '了解已上传检验报告的查看方式',
+    icon: '报',
+    route: '/pages-customer/lab-report/index',
+  },
+  {
+    title: '健康总览',
+    description: '了解指标整理与健康管理建议',
+    icon: '评',
+    route: '/pages-customer/assessment/index',
+  },
+  {
+    title: '我的健康报告',
+    description: '了解综合健康报告和阶段建议',
+    icon: '康',
+    route: '/pages-customer/health-report/index',
+  },
+  {
+    title: '健康随访',
+    description: '了解持续记录和行动反馈服务',
+    icon: '访',
+    route: '/pages-customer/followup/index',
+  },
+  {
+    title: '指标趋势',
+    description: '了解历次健康指标变化趋势',
+    icon: '趋',
+    route: '/pages-customer/trend/index',
+  },
+  {
+    title: '健康提醒',
+    description: '了解吃饭与睡眠语音提醒服务',
+    icon: '音',
+    route: '/pages-customer/voice-reminder/index',
+  },
+]
+
 const doctor: MenuItem[] = [
   {
     title: '体检者查询',
@@ -115,6 +184,13 @@ const platform: MenuItem[] = [
     permission: 'platform:tenant:list',
   },
   {
+    title: '金豆会员运营',
+    description: '查看开发环境会员、推荐关系、费用归属与金豆流水',
+    icon: '豆',
+    route: '/pages-platform/gold-bean/index',
+    permission: 'platform:tenant:list',
+  },
+  {
     title: '商城商品',
     description: '维护实物商品、价格、库存和上下架状态',
     icon: '商',
@@ -130,6 +206,10 @@ const platform: MenuItem[] = [
 ]
 
 export const menusFor = (role: Role | '') => {
-  const menus = role === 'CUSTOMER' ? customer : role === 'PLATFORM_ADMIN' ? platform : doctor
-  return mallEnabled ? menus : menus.filter((item) => item.route !== '/pages-platform/mall/index')
+  const menus =
+    role === '' ? guestMenus : role === 'CUSTOMER' ? customer : role === 'PLATFORM_ADMIN' ? platform : doctor
+  const mallMenus = mallEnabled ? menus : menus.filter((item) => item.route !== '/pages-platform/mall/index')
+  return goldBeanEnabled
+    ? mallMenus
+    : mallMenus.filter((item) => item.route !== '/pages-platform/gold-bean/index')
 }

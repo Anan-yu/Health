@@ -3,6 +3,10 @@
     <view class="title">健康总览</view>
     <PageState :loading="loading" :error="error" :empty="items.length === 0">
       <view v-for="assessment in items" :key="assessment.id" class="assessment-block">
+        <AiGeneratedNotice
+          v-if="assessment.results?.interpretation?.source === 'DEEPSEEK'"
+          description="本段综合解读由人工智能生成，仅供健康管理参考，不作为临床诊断依据。"
+        />
         <view v-if="assessment.results?.interpretation" class="card interpretation-card">
           <view class="row">
             <view class="section-title">综合解读</view>
@@ -30,6 +34,7 @@ import type { Assessment } from '@/types/api'
 import { cleanHealthText } from '@/utils/health-text'
 import HealthDimensionDashboard from '@/components/HealthDimensionDashboard.vue'
 import PageState from '@/components/PageState.vue'
+import AiGeneratedNotice from '@/components/AiGeneratedNotice.vue'
 
 const items = ref<Assessment[]>([])
 const loading = ref(true)

@@ -167,6 +167,13 @@ const freeTiles = computed<BenefitTile[]>(() => [
     tone: 'mint',
   },
   {
+    title: '健康树洞',
+    description: '记录身体、心情和压力',
+    status: '免费体验 7 天',
+    icon: freeAssessment,
+    tone: 'blue',
+  },
+  {
     title: 'AI 初始随访 / 健康拍',
     description: '生成首次随访与面部检测',
     status: `${benefitStatus('AI_FOLLOWUP_INITIAL')} · ${benefitStatus('HEALTH_SHOT')}`,
@@ -193,6 +200,7 @@ const yearlyTiles = computed<BenefitTile[]>(() => [
   { title: 'AI 健康评估', description: '多维评估健康风险', status: '已解锁', icon: yearlyAssessment, tone: 'mint' },
   { title: 'AI 随访计划', description: '智能生成并持续调整', status: `${benefitStatus('AI_FOLLOWUP_INITIAL')} · ${benefitStatus('AI_FOLLOWUP_CONTINUE')}`, icon: yearlyFollowup, tone: 'blue' },
   { title: 'AI 健康报告', description: '整合报告一目了然', status: '已解锁', icon: yearlyReport, tone: 'purple' },
+  { title: '健康树洞', description: '每日记录与 7 天反馈', status: '会员期内不限使用', icon: yearlyReport, tone: 'cyan' },
   { title: '健康趋势档案', description: '长期趋势智能分析', status: '会员专享', icon: yearlyTrend, tone: 'orange' },
   { title: '健康拍每日额度', description: '每日额度专属加赠', status: benefitStatus('HEALTH_SHOT_DAILY'), icon: yearlyCamera, tone: 'cyan' },
   { title: '吃饭 / 睡眠提醒', description: '个性化健康提醒', status: `${benefitStatus('TTS_MEAL_REMINDER')} · ${benefitStatus('TTS_SLEEP_REMINDER')}`, icon: yearlyReminder, tone: 'pink' },

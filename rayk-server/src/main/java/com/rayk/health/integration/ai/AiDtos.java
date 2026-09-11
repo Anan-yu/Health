@@ -336,7 +336,31 @@ public final class AiDtos {
       String latestReportSummary,
       String latestAssessmentSnapshot,
       String model,
-      Boolean thinkingEnabled) {}
+      Boolean thinkingEnabled,
+      String mode) {
+    public MedicalAssistantRequest(
+        String conversationId,
+        String patientId,
+        String patientName,
+        List<MedicalAssistantMessage> messages,
+        PatientContext patientContext,
+        String latestReportSummary,
+        String latestAssessmentSnapshot,
+        String model,
+        Boolean thinkingEnabled) {
+      this(
+          conversationId,
+          patientId,
+          patientName,
+          messages,
+          patientContext,
+          latestReportSummary,
+          latestAssessmentSnapshot,
+          model,
+          thinkingEnabled,
+          "MEDICAL_ASSISTANT");
+    }
+  }
 
   public record MedicalAssistantData(
       String reply,

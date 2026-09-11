@@ -2,6 +2,7 @@ import { ApiError, getApiBaseUrl, getRequestHeaders, request } from '@/utils/req
 
 export type MedicalAssistantRole = 'USER' | 'ASSISTANT'
 export type MedicalAssistantRiskLevel = 'INFO' | 'ATTENTION' | 'URGENT'
+export type MedicalAssistantMode = 'TREE_HOLE'
 
 export interface MedicalAssistantMessage {
   id: string
@@ -133,37 +134,43 @@ function normalizeMedicalAssistantConversation(
   }
 }
 
-export const listMedicalAssistantConversations = () =>
+const modeQuery = (mode?: MedicalAssistantMode) => (mode === 'TREE_HOLE' ? '?mode=TREE_HOLE' : '')
+
+export const listMedicalAssistantConversations = (mode?: MedicalAssistantMode) =>
   request<MedicalAssistantConversation[]>({
-    url: '/api/client/medical-assistant/conversations',
+    url: `/api/client/medical-assistant/conversations${modeQuery(mode)}`,
     method: 'GET',
   })
     .then((conversations) => conversations.map(normalizeMedicalAssistantConversation))
 
-export const createMedicalAssistantConversation = (title?: string) =>
+export const createMedicalAssistantConversation = (title?: string, mode?: MedicalAssistantMode) =>
   request<MedicalAssistantConversation>({
-    url: '/api/client/medical-assistant/conversations',
+    url: `/api/client/medical-assistant/conversations${modeQuery(mode)}`,
     method: 'POST',
     data: title ? { title } : {},
   })
     .then(normalizeMedicalAssistantConversation)
 
-export const getMedicalAssistantConversation = (conversationId: string) =>
+export const getMedicalAssistantConversation = (conversationId: string, mode?: MedicalAssistantMode) =>
   request<MedicalAssistantConversation>({
-    url: `/api/client/medical-assistant/conversations/${encodeURIComponent(conversationId)}`,
+    url: `/api/client/medical-assistant/conversations/${encodeURIComponent(conversationId)}${modeQuery(mode)}`,
     method: 'GET',
   })
     .then(normalizeMedicalAssistantConversation)
 
-export const deleteMedicalAssistantConversation = (conversationId: string) =>
+export const deleteMedicalAssistantConversation = (conversationId: string, mode?: MedicalAssistantMode) =>
   request<void>({
-    url: `/api/client/medical-assistant/conversations/${encodeURIComponent(conversationId)}`,
+    url: `/api/client/medical-assistant/conversations/${encodeURIComponent(conversationId)}${modeQuery(mode)}`,
     method: 'DELETE',
   })
 
-export const sendMedicalAssistantMessage = (conversationId: string, content: string) =>
+export const sendMedicalAssistantMessage = (
+  conversationId: string,
+  content: string,
+  mode?: MedicalAssistantMode,
+) =>
   request<MedicalAssistantConversation>({
-    url: `/api/client/medical-assistant/conversations/${encodeURIComponent(conversationId)}/messages`,
+    url: `/api/client/medical-assistant/conversations/${encodeURIComponent(conversationId)}/messages${modeQuery(mode)}`,
     method: 'POST',
     data: { content },
   })
@@ -192,6 +199,7 @@ export function streamMedicalAssistantMessage(
   conversationId: string,
   content: string,
   callbacks: MedicalAssistantStreamCallbacks,
+  mode?: MedicalAssistantMode,
 ) {
   let settled = false
   let aborted = false
@@ -236,7 +244,7 @@ export function streamMedicalAssistantMessage(
     let receivedChunk = false
     const decoder = createChunkDecoder()
     const task = nativeWechat.request({
-      url: `${getApiBaseUrl()}/api/client/medical-assistant/conversations/${encodeURIComponent(conversationId)}/messages/stream`,
+      url: `${getApiBaseUrl()}/api/client/medical-assistant/conversations/${encodeURIComponent(conversationId)}/messages/stream${modeQuery(mode)}`,
       method: 'POST',
       data: { content },
       header: {
@@ -279,7 +287,7 @@ export function streamMedicalAssistantMessage(
     void (async () => {
       try {
         const response = await fetch(
-          `${getApiBaseUrl()}/api/client/medical-assistant/conversations/${encodeURIComponent(conversationId)}/messages/stream`,
+          `${getApiBaseUrl()}/api/client/medical-assistant/conversations/${encodeURIComponent(conversationId)}/messages/stream${modeQuery(mode)}`,
           {
             method: 'POST',
             headers: {
@@ -324,7 +332,7 @@ export function streamMedicalAssistantMessage(
     }
   }
 
-  void sendMedicalAssistantMessage(conversationId, content)
+  void sendMedicalAssistantMessage(conversationId, content, mode)
     .then((conversation) => {
       if (!aborted && !settled) {
         settled = true
@@ -334,6 +342,47 @@ export function streamMedicalAssistantMessage(
     .catch(fail)
   return { abort: () => { aborted = true } }
 }
+
+export interface HealthTreeHoleFeedback {
+  canGenerate: boolean
+  hasFeedback: boolean
+  recordedDays: number
+  entryCount: number
+  currentPeriodStart?: string
+  currentPeriodEnd?: string
+  nextFeedbackDate?: string
+  feedbackPeriodStart?: string
+  feedbackPeriodEnd?: string
+  content?: string
+  riskLevel?: MedicalAssistantRiskLevel
+  recommendedAction?: string
+  model?: string
+  generatedAt?: string
+  disclaimer: string
+}
+
+function normalizeHealthTreeHoleFeedback(feedback: HealthTreeHoleFeedback): HealthTreeHoleFeedback {
+  return {
+    ...feedback,
+    content: feedback.content ? normalizeMedicalAssistantText(feedback.content) : feedback.content,
+    recommendedAction: feedback.recommendedAction
+      ? normalizeMedicalAssistantText(feedback.recommendedAction)
+      : feedback.recommendedAction,
+    disclaimer: normalizeMedicalAssistantText(feedback.disclaimer),
+  }
+}
+
+export const getHealthTreeHoleFeedback = () =>
+  request<HealthTreeHoleFeedback>({
+    url: '/api/client/health-tree-hole/feedback',
+    method: 'GET',
+  }).then(normalizeHealthTreeHoleFeedback)
+
+export const generateHealthTreeHoleFeedback = () =>
+  request<HealthTreeHoleFeedback>({
+    url: '/api/client/health-tree-hole/feedback/generate',
+    method: 'POST',
+  }).then(normalizeHealthTreeHoleFeedback)
 
 function createSseParser(onPayload: (payload: string) => void) {
   let buffer = ''

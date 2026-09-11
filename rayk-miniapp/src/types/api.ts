@@ -468,6 +468,190 @@ export interface PlatformCustomerMembership {
   expireAt?: string
 }
 
+export interface PlatformGoldBeanOverview {
+  enabled: boolean
+  developmentMode: boolean
+  recordOnly: boolean
+  registrationFeeYuan: number
+  initialBeans: number
+  dailyRewardBeans: number
+  dailyRewardDays: number
+  protectionDays: number
+  limitedTradePercent: number
+  firstRegistrationScope: string
+  totalMemberCount: number
+  registeredMemberCount: number
+  pendingMemberCount: number
+  platformFeeRegistrationCount: number
+  referrerFeeRegistrationCount: number
+  totalGoldBeanBalance: number
+  digitalBankBalance: number
+  tradingBalance: number
+  dailyRewardBeansIssued: number
+  activeRegionCount: number
+  recentLedgers: PlatformGoldBeanLedger[]
+}
+
+export interface PlatformGoldBeanAccount {
+  accountId: string
+  tenantId: string
+  tenantName: string
+  userId: string
+  displayName: string
+  phoneMasked: string
+  memberLevel: string
+  memberLevelName: string
+  historicalLevel: string
+  historicalLevelName: string
+  directReferralCount: number
+  referrerId?: string
+  referrerName: string
+  referralCode?: string | null
+  registrationFeeStatus: string
+  feeRecipientType?: string
+  feeRecipientName: string
+  registrationFeeYuan: number
+  registrationFeePaidAt?: string
+  totalBalance: number
+  digitalBankBalance: number
+  tradingBalance: number
+  tradeLimitPercent: number
+  dailyRewardDays: number
+  dailyRewardTotalDays: number
+  dailyRewardRemainingDays: number
+  protectionUntil?: string
+  city?: string
+  status: string
+  createdAt: string
+}
+
+export interface PlatformGoldBeanReferral {
+  id: string
+  tenantId: string
+  tenantName: string
+  referrerId: string
+  referrerName: string
+  referredId: string
+  referredName: string
+  referralCode: string
+  registrationFeeYuan: number
+  feeRecipientType?: string
+  feeRecipientName: string
+  status: string
+  registeredAt: string
+}
+
+export interface PlatformGoldBeanLedger {
+  id: string
+  tenantId: string
+  tenantName: string
+  userId: string
+  displayName: string
+  bucket: string
+  direction: string
+  amount: number
+  eventType: string
+  description: string
+  createdAt: string
+}
+
+export interface PlatformGoldBeanOrder {
+  orderNo: string
+  tenantId: string
+  tenantName: string
+  customerId: string
+  customerName: string
+  orderType: string
+  status: string
+  amountCent: number
+  paymentAmountCent: number
+  goldBeanQuantity: number
+  feeRecipientName: string
+  paymentChannel?: string
+  transactionIdMasked?: string
+  createdAt: string
+  paidAt?: string
+  settlementStatus?: 'NOT_REQUIRED' | 'PENDING' | 'SETTLED' | 'FAILED' | string
+  settlementFailureReason?: string
+}
+
+export interface PlatformGoldBeanInvite {
+  id: string
+  codeMasked: string
+  status: 'AVAILABLE' | 'RESERVED' | 'CONSUMED' | 'REVOKED' | 'EXPIRED' | string
+  boundPhoneMasked?: string
+  reservedOrderNo?: string
+  consumedOrderNo?: string
+  expiresAt: string
+  createdAt: string
+  consumedAt?: string
+  revokedAt?: string
+}
+
+export interface PlatformGoldBeanInviteCreated {
+  id: string
+  code: string
+  codeMasked: string
+  status: string
+  boundPhoneMasked?: string
+  expiresAt: string
+}
+
+export interface PlatformGoldBeanLegendary {
+  id: string
+  phoneMasked: string
+  status: string
+  note?: string
+  matchedUserId?: string
+  matchedDisplayName?: string
+  matchedMemberLevelName?: string
+  matchedRegistrationStatus?: string
+  digitalBankBalance?: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PlatformGoldRegion {
+  id: string
+  tenantId: string
+  tenantName: string
+  city: string
+  depth: number
+  parentRegionId?: string
+  ownerUserId: string
+  ownerName: string
+  ownerPhoneMasked: string
+  memberLevelName: string
+  status: string
+  createdAt: string
+}
+
+export interface PlatformGoldRegionProfitDistribution {
+  recipientUserId: string
+  recipientName: string
+  recipientType: string
+  ratePercent: number
+  amount: number
+}
+
+export interface PlatformGoldRegionProfit {
+  id: string
+  tenantId: string
+  tenantName: string
+  regionId: string
+  city: string
+  depth: number
+  ownerUserId: string
+  ownerName: string
+  amount: number
+  ownerAmount: number
+  retainedAmount: number
+  status: string
+  idempotencyKey: string
+  settledAt: string
+  distributions: PlatformGoldRegionProfitDistribution[]
+}
+
 export interface AiModelRuntimeConfig {
   id: string
   modelCode: string

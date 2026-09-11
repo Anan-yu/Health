@@ -1,5 +1,6 @@
 <template>
-  <view class="page mall-admin-page">
+  <PlatformAdminShell>
+    <view class="page mall-admin-page">
     <view class="admin-hero">
       <view class="eyebrow">PHYSICAL GOODS</view>
       <view class="hero-title">商城商品</view>
@@ -41,7 +42,8 @@
         <view class="product-actions"><button @click="edit(product)">编辑</button><button v-if="product.status === 'ACTIVE'" class="danger" @click="disable(product)">下架</button></view>
       </view>
     </view>
-  </view>
+    </view>
+  </PlatformAdminShell>
 </template>
 
 <script setup lang="ts">
@@ -49,6 +51,7 @@ import { computed, reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { createMallAdminProduct, disableMallAdminProduct, getMallAdminProducts, updateMallAdminProduct } from '@/api/mall'
 import { mallEnabled } from '@/constants/features'
+import PlatformAdminShell from '@/components/PlatformAdminShell.vue'
 import type { MallProduct } from '@/types/api'
 
 type ProductForm = { productName: string; subtitle: string; description: string; mainImageUrl: string; priceYuan: string; stock: string; sortOrder: string; status: 'ACTIVE' | 'INACTIVE' }
@@ -93,7 +96,7 @@ const disable = (product: MallProduct) => {
 }
 onShow(() => {
   if (!mallEnabled) {
-    uni.switchTab({ url: '/pages/message/index' })
+    uni.navigateTo({ url: '/pages/message/index' })
     return
   }
   void load()

@@ -1,5 +1,6 @@
 <template>
-  <view class="page detail-page">
+  <PlatformAdminShell>
+    <view class="page detail-page">
     <PageState :loading="loading" :error="error" :empty="!task">
       <template v-if="task">
         <view class="hero">
@@ -88,7 +89,8 @@
         </view>
       </template>
     </PageState>
-  </view>
+    </view>
+  </PlatformAdminShell>
 </template>
 
 <script setup lang="ts">
@@ -98,6 +100,7 @@ import { getFollowup } from '@/api/followup'
 import type { Followup } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import PlatformAdminShell from '@/components/PlatformAdminShell.vue'
 
 const task = ref<Followup | null>(null)
 const loading = ref(true)

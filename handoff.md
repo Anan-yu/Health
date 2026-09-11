@@ -1,5 +1,796 @@
 # 三羊健康项目交接说明
 
+## 2026-09-11 恢复跨端 CSS 趋势折线并修复测量时序
+
+- 微信端 Canvas 未可靠绘制，已移除 Canvas 路径，恢复为按实际图表像素坐标生成的 CSS 折线段；修正同值水平段合并边界，保留 `09/05→09/06→09/11` 的真实路径和数据点，不显示点位数字。
+- 趋势图节点渲染后使用组件作用域 selector query 测量实际宽高，并在节点尚未出现时重试；折线仅在实际尺寸有效后生成，避免初始近似比例导致的端点错位和尖角。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev:remote-test`、`npm run build:mp-weixin:dev` 和 `npm run build:mp-weixin`；H5、微信开发包、远程隔离测试包和生产局域网包均重新生成。
+- 远程开发测试 H5 已同步到 `/opt/zhiyu-health/rayk-miniapp/dist/build/h5-remote-dev`；最新组件资源为 `GoldBeanPanel.8nMsl_Hx.js`，SHA-256 为 `3c4714ef2769805f41e719b2fdf3726eabab9097db1048afea0ce5ef1e4b38ac`，与本地一致，远程目录包含 `trend-segment` 且不再包含 `trend-canvas`。同步前回退副本位于 `/opt/zhiyu-health/backups/trend-css-centerline-before-20260911-150401/h5-remote-dev`。
+- 远程六个容器均为 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。生产环境未更新，生产 H5、Java、数据库、容器和配置均未修改。
+
+## 2026-09-11 修复直推趋势图拐点端头外露
+
+- 针对真机截图中 `09/06` 拐点仍露出尖角的问题，改为完整不透明的拐点圆点覆盖线段端头，并将所有线段末端收进对应点标记范围；保留 `09/05→09/06` 上升、`09/06→09/11` 水平的数据路径。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev:remote-test`、`npm run build:mp-weixin:dev` 和 `npm run build:mp-weixin`；四份前端产物均重新生成，数字标注仍未显示。
+- 远程开发测试 H5 已同步到 `/opt/zhiyu-health/rayk-miniapp/dist/build/h5-remote-dev`；最新组件资源为 `GoldBeanPanel.CKKuVGyS.js`，SHA-256 为 `3c84ca23aee3d8185c01c9be93558208dc73f04ec2afaa5221d77bbe2eefcbee`，与本地一致，远程目录未发现 `trend-point-value`。同步前回退副本位于 `/opt/zhiyu-health/backups/trend-opaque-marker-before-20260911-143807/h5-remote-dev`。
+- 远程六个容器均为 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。生产环境未更新，生产 H5、Java、数据库、容器和配置均未修改。
+
+## 2026-09-11 消除直推趋势图拐点尖角
+
+- 修复折线在首个上升拐点处因独立旋转线段端帽露出的尖角：线段末端收进数据点标记覆盖范围，并移除线段端点圆角；数据路径仍保持 `09/05→09/06` 上升、`09/06→09/11` 水平，未改变趋势数据。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev:remote-test`、`npm run build:mp-weixin:dev` 和 `npm run build:mp-weixin`；四份前端产物均重新生成，数据点数字标注仍未显示。
+- 远程开发测试 H5 已同步到 `/opt/zhiyu-health/rayk-miniapp/dist/build/h5-remote-dev`；最新组件资源为 `GoldBeanPanel.DwCo45VE.js`，SHA-256 为 `a5691dddf942b62e358b6260071efd8ed0582996374d1feb58fd5ad0b5a23abd`，与本地一致，上一版组件资源已移除。同步前回退副本位于 `/opt/zhiyu-health/backups/trend-join-cap-before-20260911-141814/h5-remote-dev`。
+- 远程六个容器均为 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。生产环境未更新，生产 H5、Java、数据库、容器和配置均未修改。
+
+## 2026-09-11 修正直推趋势图连续段边界
+
+- 修复同值水平段合并的边界错误：趋势数据为 `0, 2, 2, 2, 2, 2, 2` 时，第一条折线严格只连接 `09/05→09/06`，后续 `09/06→09/11` 才合并为水平线，不再出现从 `09/05` 一直斜连到 `09/11` 的错误路径。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev:remote-test`、`npm run build:mp-weixin:dev` 和 `npm run build:mp-weixin`；H5、微信开发包、微信远程隔离测试包和微信生产局域网包均重新生成。数据点数字标注仍未显示。
+- 远程开发测试 H5 已同步到 `/opt/zhiyu-health/rayk-miniapp/dist/build/h5-remote-dev`；最新组件资源为 `GoldBeanPanel.d71PNZpH.js`，SHA-256 为 `e5c6efbd9d0c6102b223333f512104c60c9e7be9955a053c50ff616b6d9bc71a`，与本地一致，远程目录未发现 `trend-point-value`。同步前回退副本位于 `/opt/zhiyu-health/backups/trend-boundary-before-20260911-114630/h5-remote-dev`。
+- 远程六个容器均为 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。生产环境未更新，生产 H5、Java、数据库、容器和配置均未修改。
+
+## 2026-09-11 合并直推趋势图连续水平基线
+
+- 针对真机截图中 09/06–09/11 同值水平线仍有细小段差的问题，趋势图现在按相同直推人数合并水平段，不再为每个相邻日期单独绘制短线；网格线也改为与 2px 数据线共享中心基线。
+- 保留实际图表尺寸的像素坐标计算、折线中心线定位、数据点圆点和无障碍趋势摘要；数据点上方数字标注继续不显示。该处理符合折线图连续路径和可读性要求。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev:remote-test`、`npm run build:mp-weixin:dev` 和 `npm run build:mp-weixin`；四份前端产物均重新生成。
+- 远程开发测试 H5 已同步到 `/opt/zhiyu-health/rayk-miniapp/dist/build/h5-remote-dev`；最新组件资源为 `GoldBeanPanel.0h_g3ixz.js`，SHA-256 为 `43f3db975e34aaeef3f0bdfbf4db5b5cff8a022ca7bc5cc0e57d2bca716ded41`，远程目录未发现 `trend-point-value`。同步前回退副本位于 `/opt/zhiyu-health/backups/trend-continuous-path-before-20260911-113757/h5-remote-dev`。
+- 远程六个容器均为 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。生产 Java、数据库、容器和配置未更新；生产 H5 活跃入口保持原 `index-ccDubFix.js`。
+
+## 2026-09-11 精确修正直推趋势图首个跃升拐点
+
+- 上一版仍存在首个从 0 人跃升到 2 人的拐点细小凸出，根因是折线段按百分比和固定宽高比近似定位，线条中心未完全落到数据点上。
+- `rayk-miniapp/src/components/GoldBeanPanel.vue` 现在在渲染后读取实际图表宽高，按像素计算每个点的坐标、线段长度和旋转角度；2px 线条使用 `bottom = 点坐标 + 1px` 对齐中心线，点、折线、网格线和日期刻度共用同一绘图区。数据点数字标注继续保持移除。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev:remote-test`、`npm run build:mp-weixin:dev` 和 `npm run build:mp-weixin`；本地 H5、微信远程隔离测试包、微信开发包和微信生产局域网包均已重新生成。
+- 远程开发测试 H5 已同步到 `/opt/zhiyu-health/rayk-miniapp/dist/build/h5-remote-dev`；最新组件资源为 `GoldBeanPanel.PNqUf4QV.js`，SHA-256 为 `5ed000a6acebb32da276ed2d904a40d22750665c8d3714296d25b7e5b04649d6`，远程目录未发现 `trend-point-value`。同步前回退副本位于 `/opt/zhiyu-health/backups/trend-centerline-before-20260911-112341/h5-remote-dev`。
+- 远程六个容器均为 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。未重启生产容器、未修改生产数据库或环境配置；为撤销一次归档目录层级误落风险，生产 H5 活跃入口已恢复为原 `index-ccDubFix.js`，临时未引用资源已清理，清理前副本位于 `/opt/zhiyu-health/backups/production-static-before-cleanup-20260911-112341/h5`。
+
+## 2026-09-11 修正直推趋势图首个跃升点对齐
+
+- 修复折线段按元素底边定位造成的端点偏移：折线现在按线条中心线与数据点对齐，首个从 0 人跃升到 2 人的节点不再出现错位折角。
+- 已通过前端类型检查、ESLint、H5、微信开发包、远程隔离测试包和生产局域网包构建；远程开发测试 H5 已更新，旧版本回退副本位于 `/opt/zhiyu-health/backups/trend-endpoint-before-20260911-104512/h5-remote-dev`。
+- 远程测试静态资源已核对为最新哈希，未残留点位数字标注；远程六个容器 healthy，`/test-api/health` 正常。生产环境未修改。
+
+## 2026-09-11 修正直推趋势图基线与点位标注
+
+- 直推成长趋势折线图已移除每个数据点上方的数值标注，避免图面拥挤；纵轴刻度和无障碍趋势摘要仍保留。
+- 统一折线点、水平网格线和日期刻度的绘图区边界，修复数据点与基线视觉错位；仅修改 `rayk-miniapp/src/components/GoldBeanPanel.vue` 的展示层逻辑与样式。
+- 已通过前端类型检查、ESLint、H5、微信开发包、远程隔离测试包和生产局域网包构建；远程开发测试 H5 已同步到 `/opt/zhiyu-health/rayk-miniapp/dist/build/h5-remote-dev`，同步前回退副本位于 `/opt/zhiyu-health/backups/trend-baseline-before-20260911-1033/h5-remote-dev`。远程测试容器全部 healthy，`/test-api/health` 返回 200；生产容器和生产静态资源未修改。
+
+## 2026-09-11 隔离开发环境新增推荐关系图与直推趋势图
+
+- 金豆会员页新增默认折叠的“推荐关系图”：展开后显示本人、直推成员（第 1 层）和团队成员（第 2 层），多分支支持横向滑动；为控制移动端体积，最多展开 12 个直推分支、每个分支 6 位下级，超出数量会显示汇总提示。节点昵称和等级每次从当前用户/金豆账户动态读取，不返回手机号。
+- 原“直推成长”里程碑卡改为最近 7 天累计直推人数折线图，同时保留当前等级、下一等级差额和等级门槛说明。服务端新增本人专属 `GET /api/client/gold-bean/referral-network`，按当前登录人和租户查询真实推荐关系与注册时间；前端接口失败时不会影响金豆账户主页面，并提供关系图重试入口。
+- 远程 Java 21 Docker 构建完整 160 项测试全部通过，新增两级关系与 7 日趋势单测通过；隔离开发客户登录后实测摘要和新接口均返回 200，趋势固定返回 7 个日期点。前端 `type-check`、ESLint、H5、微信开发包、远程隔离测试包和生产局域网包构建均通过，验收包为 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。
+- 已仅重建 `rayk-remote-dev-rayk-server-1` 并同步隔离测试 H5，测试服务 healthy，`https://xingxuyuan.com/test-api/health` 返回 200；生产容器、生产数据库和生产 H5 未重启、未发布。部署前备份位于 `/opt/zhiyu-health/backups/referral-network-dev-before-20260911-1003`。
+
+## 2026-09-10 生产人工开户平台根代理
+
+- 按用户明确确认，未执行真实平台注册支付，在生产环境为已存在的系统用户 `177****6158` 创建 `ACTIVE/PAID` 金豆会员账户，作为平台根代理（无上级推荐人），注册地区为“河南省驻马店市”，并生成唯一推荐码。
+- 同一事务创建平台注册根节点人工开户记录（`REGISTRATION_FEE=PAID`、`PLATFORM_ROOT`、`DEVELOPMENT_RECORD` 标记），并写入两条 `ADMIN_MANUAL_CREDIT` 账本流水：`TRADING` 与 `DIGITAL_BANK` 各 `5000.000000` 金豆。当前未修改第二位用户，也未发起真实支付、商户转账或推荐结算。
+- 生产复核确认账户、平台注册根节点、地区、余额和两条账本流水一致；生产 Java/MySQL 容器 healthy，`https://xingxuyuan.com/health` 返回 `UP`。操作前相关行备份位于服务器 `/opt/zhiyu-health/backups/manual-platform-root-before-20260910-112909/`。
+
+## 2026-09-10 生产人工推荐注册代理
+
+- 按用户明确确认，为已存在的系统用户 `199****9319` 完成推荐注册人工开户：推荐人是平台根代理 `177****6158`，推荐码为其已生成的推荐码，注册地区为“河南省驻马店市”。B 账户已设为 `ACTIVE/PAID`，并生成个人推荐码。
+- 同一事务创建人工推荐注册订单和 `gold_member_referral` 的 A→B 关系（`REGISTRATION_FEE=PAID`、`REFERRER`、`DEVELOPMENT_RECORD` 标记），未发起真实支付，也未向 A 发放注册推荐费；A 的直推人数已按关系校正为 1。B 的 `TRADING` 与 `DIGITAL_BANK` 各写入 `5000.000000` 金豆及对应 `ADMIN_MANUAL_CREDIT` 流水。
+- A、B 均有有效微信绑定，后续真实推荐支付可按正常 `REFERRER` 链路校验；生产 Java/MySQL 容器 healthy，`https://xingxuyuan.com/health` 返回 `UP`。操作前备份位于服务器 `/opt/zhiyu-health/backups/manual-referral-before-20260910-160714/`，关系修正前备份位于 `/opt/zhiyu-health/backups/manual-referral-correction-before-20260910-161200/`。
+
+## 2026-09-10 管理员端扩展为桌面 H5 管理网站
+
+- 新增 `rayk-miniapp/src/components/PlatformAdminShell.vue`，将现有 UniApp 管理端扩展为宽度达到 1024px 时的桌面布局：左侧分组导航、顶部当前模块/管理员信息、服务状态和退出登录入口；保持现有品牌绿色体系，并补充键盘焦点、悬停和按压反馈。
+- 已接入平台运营总览、合作医院、预录入医生、健康随访及详情、年度会员、金豆会员运营、商城商品、反馈中心和 AI 模型管理页面。医院详情、新建医院等深层页面会自动高亮“医院管理”。桌面端隐藏 UniApp 底部 TabBar，小屏和微信端不改变原单列页面。
+- 未新增独立 Vue 后台，未改变 Java 权限校验、角色范围或 API；桌面 H5 与小程序共用登录会话和服务端权限。退出管理台会二次确认并清理本地会话。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`。本次产物已更新到 `dist/build/h5`、`dist/release/mp-weixin-dev`、`dist/release/mp-weixin-dev-remote-test` 和 `dist/release/mp-weixin-prod-lan`，并确认各包包含 `PlatformAdminShell`。
+- 本次只更新代码和本机前端产物，未同步线上测试/生产服务器，未上传微信开发者工具、提交审核或发布生产；正式使用前仍需在浏览器打开 H5 静态站点并用平台管理员账号登录。
+
+## 2026-09-09 同步生产包并发布线上生产环境
+
+- 已按发布清单 `release-20260909-092629-prod-login-layout` 重新生成并更新 H5、微信开发包、微信生产局域网包；生产包目录为 `rayk-miniapp/dist/release/mp-weixin-prod-lan`。当前发布清单基于工作区未提交状态，`gitDirty=true`，后续正式审核包建议从干净提交重新构建。
+- 已将当前源码、V66 数据库迁移、Compose 配置和生产 H5 同步到服务器 `/opt/zhiyu-health`；服务器原 `.env`、证书、支付密钥和数据卷未被覆盖。发布前备份位于 `/opt/zhiyu-health/backups/release-20260909-092629-prod-login-layout-before/`，包含源码/配置、H5 和 MySQL 备份。
+- 已在服务器使用生产 `.env` 重建并强制重启 `rayk-server`、`rayk-ai`、`nginx`；MySQL、Redis、MinIO 未重建或删除。六个生产容器均为 healthy，公网 `/health`、`/ai/health` 均正常。
+- 本地发布清单与线上 `GET https://xingxuyuan.com/api/system/version` 已严格校验一致，线上数据库迁移版本为 V66；本次未执行微信开发者工具上传、审核或正式发布操作，需由具备小程序权限的账号导入 `mp-weixin-prod-lan` 后提交审核/发布。
+
+## 2026-09-09 调整登录页纵向布局
+
+- 登录页改为自适应纵向布局：收紧继承的底部内边距，并将“数据安全保障中”固定在页面安全区上方，减少小屏设备底部无效留白；开发调试身份展开区域不参与该底部吸附布局。
+- 已通过 `rayk-miniapp` 的 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`；四份前端输出已同步更新。本次未发布线上生产环境。
+
+## 2026-09-09 针对微信审核失败原因补充整改
+
+- 登录页已移除可见的“微信”登录文案和微信官方图标引用，保留原有小程序登录能力；可见按钮统一改为“手机号快捷登录/快捷登录”，授权失败提示也改为通用登录文案。修改位于 `rayk-miniapp/src/pages/login/index.vue`。
+- 新增 `rayk-miniapp/src/components/AiGeneratedNotice.vue`，在健康助手/健康树洞、客户健康评估、业务端健康评估和健康报告列表/详情页增加醒目的“人工智能生成内容”提示，并明确仅供健康管理参考、不作为临床诊断依据；规则回退结果不会标记为 AI 生成。
+- 已通过 `rayk-miniapp` 的 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev` 和 `npm run build:mp-weixin`；并额外同步 `npm run build:mp-weixin:dev:remote-test`。最新输出为 `dist/build/h5`、`dist/release/mp-weixin-dev`、`dist/release/mp-weixin-dev-remote-test` 和 `dist/release/mp-weixin-prod-lan`，`git diff --check` 通过。
+- 本次未推送生产环境、未修改服务器或数据库。微信公众平台的“深度合成-AI问答”服务类目仍需运营方在平台后台按审核意见选择，代码包无法替代该项平台配置。
+
+## 2026-09-08 按线上版本商品配置启用生产金豆会员
+
+- 用户已将微信公众平台“线上版本”商品调整为：`test_member` 1120 元（推荐注册费）、`normal_member_998` 1120 元（普通会员）、`gold_bean` 1.12 元（金豆）和 `vip_year_399` 399 元（年度会员）。生产服务器已按服务端业务基准 1000 元 + 12% 虚拟支付服务费核对，平台注册/推荐注册实际支付均为 1120 元，推荐人结算基数仍为 1000 元。
+- 生产 `/opt/zhiyu-health/.env` 已启用 `GOLD_BEAN_ENABLED=true`、`GOLD_BEAN_DEVELOPMENT_MODE=false`、`GOLD_BEAN_PAYMENT_ENABLED=true`，并注入平台注册、推荐注册、金豆商品 ID、单价、金额及生产虚拟支付回调地址；推荐注册商家转账场景使用已配置的 `1005`。金豆集市卖家转账保持 `GOLD_BEAN_TRADE_PAYMENT_ENABLED=false`，未在本次部署中发起真实订单、支付或转账。
+- 后端金豆服务不再把 `GOLD_BEAN_DEVELOPMENT_MODE` 作为生产可用性的唯一条件；生产启用支付时，记录式免费注册路径会被拒绝，必须走已配置的虚拟支付和回调校验。生产机器人权益名称回退为中文默认值“机器人权益服务群”。
+- 本次发布标识为 `release-20260908-2247-prod-goldbean`，生产 `/api/system/version` 已返回该标识、V66、H5 指纹和三个微信包指纹；生产 `rayk-server`、`rayk-ai`、Nginx、MySQL、Redis、MinIO 均 healthy，`/health` 与 `/ai/health` 返回 UP。
+- 生产 H5、Java、AI 和 Nginx 已同步，生产局域网验收包已生成到 `rayk-miniapp/dist/release/mp-weixin-prod-lan`；微信开发者工具仍需重新导入该目录，服务器部署不会自动替换当前打开的小程序工程。生产局域网包不是可直接提交审核的正式微信商店包。
+- 发布前备份位于 `/opt/zhiyu-health/backups/production-before-release-20260908-2247-prod-goldbean/`，未删除或重建 MySQL、Redis、MinIO 数据卷；远程 Java 构建的 159 项测试全部通过，本机前端类型检查、Lint、H5、微信开发包和生产局域网包构建均通过。
+
+## 2026-09-08 区域返利改为仅直接推荐人 20%
+
+- 已按最新方案调整区域盈利：仅统计钻石会员开辟人 A 在该开辟城市内，因代理推荐注册实际获得的 `REFERRAL_DIRECT` / `REFERRAL_DOWNLINE` 金豆作为返利基数；A 的直接推荐人额外获得该基数的 20%，再上级不再产生新的区域返利。`A→B→C` 中若 C 开辟区域，只给 B 20%，A 不再获得 5%或15%。跨城市、缺少城市信息、每日奖励、等级奖励、初始奖励及金豆交易均不触发这套区域返利。
+- 服务端修改位于 `rayk-server/src/main/java/com/rayk/health/goldbean/application/GoldRegionProfitService.java`，并更新 `GoldRegionProfitServiceTest` 回归用例；历史 `GRAND_UPLINE` 流水保留读取兼容，但新分配不再写入该类型，未编辑已执行的 Flyway 迁移，数据库仍为 V66。
+- 本地前端已通过 `npm run type-check`、`npm run lint`；已重新生成 H5、微信开发包、微信生产局域网包及线上隔离测试微信包。发布清单为 `release-20260908-220110-region20`，代码提交基线 `e52760132e15a5170ebf73310257a9738c8cd159`，工作区按实际情况标记为 dirty。
+- 线上隔离测试环境已更新 `rayk-remote-dev-rayk-server-1` 和测试 Nginx，`/test-api/health` 返回 200，容器全部 healthy；测试 H5 使用新静态目录，旧目录保留为回退副本。生产环境已更新 Java、AI、Nginx，生产 `/health`、`/api/system/version`、`/ai/health` 均返回 200，生产容器及 MySQL、Redis、MinIO 均 healthy。
+- 本次远程发布前已完成数据库及当前镜像备份：测试 `/opt/zhiyu-health/backups/remote-dev-before-20260908-220110-region20/`，生产 `/opt/zhiyu-health/backups/production-before-20260908-220110-region20/`。未使用本机 Docker，未删除数据卷；生产支付回调配置仍为正式地址，合法签名 GET 返回 200，非法/无签名请求返回 403。
+- 微信小程序包已更新到 `rayk-miniapp/dist/release/mp-weixin-dev-remote-test`、`rayk-miniapp/dist/release/mp-weixin-dev` 和 `rayk-miniapp/dist/release/mp-weixin-prod-lan`；仍需在微信开发者工具重新导入/上传对应包，服务器发布不会自动替换开发者工具当前打开的工程。
+
+## 2026-09-08 同步生产微信虚拟支付消息推送配置
+
+- 已按微信公众平台当前“明文模式 + JSON”配置，将消息推送 Token 同步到生产 `.env` 及生产 Compose 合并环境文件；生产虚拟支付回调地址保持为 `https://xingxuyuan.com/api/payments/wechat/virtual/notify`，环境为 `0`、模式为 `short_series_goods`。
+- 已确认生产虚拟支付所需 AppID、商户号、OfferID、AppKey、商品 ID、回调地址和推送 Token 均已配置；EncodingAESKey 在明文模式下不参与当前服务验签，服务端没有把它当作支付 AppKey 使用。
+- 仅重建 `rayk-server` 应用容器，MySQL、Redis、MinIO、AI 和 Nginx 未重建；服务恢复 healthy。使用线上回调实测，正确 Token 签名 GET 返回 200 并回显 `echostr`，错误签名返回 403。
+- 原生产配置已备份至 `/opt/zhiyu-health/backups/message-push-config-before-20260908-213945/.env`。截图中包含 Token 和 EncodingAESKey，正式上线前应在微信平台轮换已暴露的密钥，并同步更新服务器配置。
+
+## 2026-09-08 同步当前功能到生产环境
+
+- 已将当前工作区构建并部署到线上生产服务器 `/opt/zhiyu-health`，发布标识为 `release-20260908-204638-workspace`；因工作区原本存在未提交修改，本次发布标记为 `gitDirty=true`，未伪装成干净版本。
+- 已更新生产 H5 静态资源、Java 服务、AI 服务和生产 Compose 配置；MySQL、Redis、MinIO 数据容器未删除或重建。生产容器 `rayk-server`、`rayk-ai`、`nginx` 及其依赖当前均为 healthy。
+- 生产数据库已由 Flyway 从 V46 增量迁移至 V66，66 条迁移均校验成功；发布前备份位于 `/opt/zhiyu-health/backups/production-release-before-20260908-204947/`，包含项目文件、生产 `.env` 和 MySQL 压缩备份。
+- 已通过公网 `/health`、`/api/system/version`、`/ai/health` 和微信虚拟支付回调 GET 验证；版本接口回报数据库 V66，回调地址使用生产路径 `/api/payments/wechat/virtual/notify`。
+- Java 生产构建的 159 项测试全部通过；AI 镜像构建成功，但当前 AI 测试基线仍有 3 项既有断言不一致，未在本次发布中绕过或修改。生产上线后的业务验收仍需重点覆盖 AI 报告、七天反馈、金豆/会员支付和机器人权益兑换流程。
+- 微信小程序生产局域网包已在本机重新生成到 `rayk-miniapp/dist/release/mp-weixin-prod-lan`；小程序包仍需在微信开发者工具中导入并按发布流程上传，服务器部署不会自动提交微信审核。
+
+## 2026-09-08 删除机器人权益弹窗多余提示
+
+- 已删除兑换成功弹窗中圈选的“也可以长按二维码直接识别。”，保留二维码长按保存提示、扫码加入按钮及其原有交互；本次按现有弹窗层级做最小 UI 调整。
+- 已通过 `npm run type-check` 和 `npm run lint`，并重新生成 H5、微信开发包、远程隔离测试包和生产局域网包；各输出均核对不再包含该文案，远程包仍保留“长按图片保存二维码”和“扫一扫加入”相关内容。
+
+## 2026-09-08 重新同步远程隔离测试包并重置机器人兑换测试账号
+
+- 已重新执行 `npm run build:mp-weixin:dev:remote-test`，并同步到 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`；包内已核对包含“长按图片保存二维码”和“请先长按图片保存二维码保存到手机，再点击扫一扫加入对接群。”，且未包含旧的 `saveImageToPhotosAlbum` 调用。
+- 微信开发者工具若仍显示旧页面，应关闭当前旧工程后重新导入上述目录并清理编译缓存；本次包目录已在 2026-09-08 18:09:57 更新。
+- 按测试要求，在远程开发环境 `rayk_health_remote_dev` 中为手机号 `150****3671` 备份并清理本次新产生的机器人兑换记录及对应 `ROBOT_REDEEM` 扣豆流水，数字银行余额恢复为 `12000` 豆，可交易余额保持 `90` 豆；备份位于 `/opt/zhiyu-health/backups/robot-redeem-reset-before-20260908-1811-fourth/`。
+- 已通过线上隔离测试 API 回查总余额 `12090` 豆；生产容器、生产数据库和本机 Docker 均未修改。
+
+## 2026-09-08 第三次重置隔离测试账号机器人兑换
+
+- 按测试要求，在远程开发环境 `rayk_health_remote_dev` 中为手机号 `150****3671` 备份并清理本次新产生的机器人兑换记录及对应 `ROBOT_REDEEM` 扣豆流水，数字银行余额恢复为 `12000` 豆，可交易余额保持 `90` 豆；会员等级和其他账户数据未修改。
+- 本次备份位于 `/opt/zhiyu-health/backups/robot-redeem-reset-before-20260908-1800-third/`，线上生产容器、生产数据库和本机 Docker 均未修改。
+- 已通过线上隔离测试 API 回查，当前总余额为 `12090` 豆，数字银行余额为 `12000` 豆，可交易余额为 `90` 豆；该账号可再次测试机器人权益兑换。
+
+## 2026-09-08 再次重置隔离测试账号机器人兑换
+
+- 按测试要求，在远程开发环境 `rayk_health_remote_dev` 中为手机号 `150****3671` 备份并清理本次新产生的机器人兑换记录及对应 `ROBOT_REDEEM` 扣豆流水，数字银行余额恢复为 `12000` 豆，可交易余额保持 `90` 豆；会员等级和其他账户数据未修改。
+- 本次备份位于 `/opt/zhiyu-health/backups/robot-redeem-reset-before-20260908-1740-second/`，线上生产容器、生产数据库和本机 Docker 均未修改。
+- 已通过线上隔离测试 API 回查，当前总余额为 `12090` 豆，数字银行余额为 `12000` 豆，可交易余额为 `90` 豆；该账号可再次测试机器人权益兑换。
+
+## 2026-09-08 将二维码保存按钮改为纯提示
+
+- “长按图片保存二维码”现在是非交互提示元素，不再绑定 `saveImageToPhotosAlbum`、相册授权或保存点击事件；用户通过二维码图片自身的微信 `show-menu-by-longpress` 菜单保存图片。
+- “扫一扫加入”按钮继续保留原有扫码功能，操作提示仍明确要求先长按图片保存二维码，再扫码加入对接群。
+- 已通过前端 `type-check`、ESLint，并重新生成 H5、微信开发包、线上隔离测试包和生产局域网包；本次未修改后端、测试账号余额或兑换记录。
+
+## 2026-09-08 调整机器人权益二维码操作提示文案
+
+- 兑换成功弹窗的保存按钮已改为“长按图片保存二维码”；黄色提示已改为“请先长按图片保存二维码保存到手机，再点击扫一扫加入对接群。”，原有保存、扫码和相册授权逻辑保持不变。
+- 已通过前端 `type-check`、ESLint，并重新生成 H5、微信开发包、线上隔离测试包和生产局域网包；本次未修改后端、测试账号余额或兑换记录。
+
+## 2026-09-08 重置隔离测试账号机器人兑换并补充操作顺序提示
+
+- 已在 `rayk_health_remote_dev` 中为测试账号 `150****3671` 备份并清理上一条机器人兑换记录及对应 `ROBOT_REDEEM` 扣豆流水，数字银行余额恢复为 `12000` 豆，可交易余额保持 `90` 豆；当前可重新走一次性兑换流程。备份位于 `/opt/zhiyu-health/backups/robot-redeem-reset-before-20260908-1732/`，生产数据未修改。
+- 机器人兑换弹窗新增明确提示：“请先点击‘保存二维码’保存到手机，再打开微信‘扫一扫’加入对接群”；原有长按识别说明保留。
+- 已通过前端 `type-check`、ESLint，并重新生成 H5、微信开发包、线上隔离测试包和生产局域网包；本次未执行第二次实际兑换，未再次扣除金豆。
+
+## 2026-09-08 修复机器人权益二维码保存到相册
+
+- 修复微信端点击“保存二维码”时报 `saveImageToPhotosAlbum:fail api scope is not declared` 的问题：在 `src/manifest.json` 的微信配置中声明 `scope.writePhotosAlbum`，并在保存前显式调用 `uni.authorize`；已授权直接保存，曾拒绝时引导用户打开设置。
+- 已通过前端 `type-check` 和 ESLint；H5、微信开发包、微信远程隔离测试包和生产局域网包均已重新生成。三个微信包的最终 `app.json` 均已核对包含相册权限声明，远程隔离包同时包含机器人二维码资源和 `asset://robot-group-qr` 映射。
+- 本次仅修改小程序权限声明与保存流程，未修改兑换扣豆、二维码内容、后端接口或生产环境；线上隔离服务仍保持健康。
+
+## 2026-09-08 修复线上隔离环境机器人权益二维码未配置
+
+- 已定位根因：线上隔离 `.env.remote-dev` 中 `REMOTE_DEV_GOLD_BEAN_ROBOT_GROUP_QR_IMAGE_URL` 实际为空，旧版隔离服务端因此返回“二维码尚未配置”；当前微信远程测试包内的 `robot-group-qr` 图片资源本身存在。
+- 已备份远程配置至 `/opt/zhiyu-health/backups/robot-qr-config-before-20260908-1714/.env.remote-dev`，并在隔离配置中设置 `asset://robot-group-qr`；仅重建 `rayk-remote-dev-rayk-server-1`，容器环境已核对该值且状态为 `running|healthy`。
+- 已将 `compose.remote-dev.yml` 的默认值同步为 `asset://robot-group-qr`，避免后续隔离部署再次因空配置失效。小程序会把该标记解析为包内二维码；若以后使用企业微信活码，可继续通过远程环境变量替换为外部 HTTPS 地址。
+- 本次未再次执行机器人兑换，因此没有额外扣除金豆；生产容器、生产数据库、生产静态资源和本机 Docker 均未修改。
+
+## 2026-09-08 隔离测试账号补充机器人兑换余额
+
+- 已按测试要求将线上隔离环境 `rayk_health_remote_dev` 中手机号 `150****3671` 账号的数字银行余额设为 `12000` 豆；可交易余额保持 `90` 豆，会员等级、注册状态和推荐关系未修改。
+- 本次仅更新 `rayk-remote-dev` Compose 项目对应的 MySQL 测试容器，用于验证机器人权益一次性兑换；同服务器上的生产容器、生产数据库、支付配置和本机 Docker 均未修改。
+- 已通过线上隔离测试 API 回查，当前总余额为 `12090` 豆，数字银行余额为 `12000` 豆，可交易余额为 `90` 豆。机器人真实微信扫码/入群链路仍需在最新隔离包中手动验收。
+
+## 2026-09-08 运营数据搜索改为用户昵称和手机号
+
+- 平台管理员金豆运营数据的会员账户、支付订单、推荐关系和金豆流水四个页签，公共搜索框已改为按用户昵称/显示名和手机号匹配；完整手机号通过已有手机号哈希校验，兼容掩码手机号搜索，不输出明文手机号。
+- 机构、订单号、推荐码、流水描述、交易号等非用户字段不再参与关键词搜索，但记录卡片中的机构和订单号展示、状态筛选仍保留。
+- 前端已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`；后端 Java 21 Docker 构建及全量 Maven 测试通过，H5 和后端已同步至线上隔离开发环境，健康检查通过，正式生产环境未修改。
+
+## 2026-09-08 区域盈利按注册城市隔离
+
+- 按最新业务口径，钻石会员 A 新开辟城市区域后，区域盈利只统计该城市用户通过推荐注册、且 A 自己实际收到的 `REFERRAL_DIRECT` / `REFERRAL_DOWNLINE` 金豆奖励；服务端同时校验注册用户账户的 `gold_member_account.city` 与区域的 `gold_region.city`，跨城市或缺少城市信息的注册不会产生区域盈利或上级返利。
+- 原有返利比例和基数不变：A 由 B 推荐时 B 额外获得 A 该笔奖励的 20%；B→C→A 时 C 获得 5%、B 获得 15%。每日奖励、等级奖励、初始奖励和金豆集市交易仍不触发区域返利。
+- 已在 `GoldRegionProfitService` 增加同城前置校验，并补充跨城市注册不返利回归测试；`GoldRegionProfitServiceTest` 7 项、`GoldBeanRegistrationRewardTest` 6 项合计 13 项通过。未新增数据库结构、未修改小程序前端和支付配置；本次未部署线上环境。
+
+## 2026-09-08 前端金豆余额最多显示两位小数
+
+- 数字银行、可交易金豆及总余额在客户俱乐部、金豆集市、传奇俱乐部和平台运营界面统一最多显示两位小数；仅改变展示格式，实际余额和计算精度不变。
+- 金豆流水金额、集市挂单数量、奖励数量和其他交易明细继续使用原有精度显示，避免把非余额数据误做两位截断；用户主动输入仍按整数规则校验。
+- 已重新生成 H5、微信开发包、远程隔离测试包和生产局域网包。
+
+## 2026-09-08 金豆用户输入改为整数
+
+- 按最新业务口径，平台购豆、集市发布和集市买入的用户输入统一改为整数数字键盘（`type=number`、`step=1`、`inputmode=numeric`），提交时增加整数校验并分别提示购买、发布或买入数量必须为整数。
+- 账户余额、后台奖励、区域返利和历史账本仍保留既有小数精度；本次只限制用户主动输入的交易数量，不修改道具价格、支付金额、后端接口或数据库。
+- 已重新生成 H5、微信开发包、远程隔离测试包和生产局域网包。
+
+## 2026-09-08 修复金豆小数点输入被清除
+
+- 金豆平台购买、集市发布和集市买入输入改为保留输入中的原始字符串，用户输入 `.` 或 `10.` 等中间状态时不会被 `v-model.number` 即时转换并清除；提交时才转换为数字并沿用原有六位精度校验。
+- 道具价格配置只参与支付金额计算，不会再影响数量输入；已重新生成 H5、微信开发包、远程隔离测试包和生产局域网包，未修改后端或支付配置。
+
+## 2026-09-08 修复金豆数量输入仅支持整数
+
+- 微信端金豆购买、集市发布和买入输入改用支持小数点的 `digit` 数字键盘；现有前端数量校验、六位精度和后端 `DECIMAL(24,6)` 逻辑保持不变。
+- 仅调整输入控件类型，不改变价格、账户分账、订单或交易接口；前端需重新生成 H5、微信开发包、远程隔离测试包和生产局域网包。
+
+## 2026-09-08 隐藏金豆小数规则提示文案
+
+- 金豆购买和金豆集市的数量输入框不再展示最小值、最大位数或“支持小数”的说明；无效输入统一提示“请输入有效的购买/发布/买入数量”。
+- 仅调整界面文案，输入精度、前端校验、后端 `DECIMAL(24,6)` 数据和接口行为均保持不变。
+- 前端需重新生成 H5、微信开发包、远程隔离测试包和生产局域网包；未修改后端、数据库或生产环境。
+
+## 2026-09-08 机器人权益兑换对接群二维码与扣豆完善
+
+- 机器人权益兑换仍限定已注册、状态有效且每个用户仅一次；服务端在账户行锁事务内再次校验兑换状态和数字银行余额，成功后固定扣除 10000 枚数字银行金豆，写入幂等金豆流水和兑换记录，失败不会扣豆。
+- 兑换记录的群二维码地址支持 `GOLD_BEAN_ROBOT_GROUP_QR_IMAGE_URL` 外部配置；外部地址为空时返回内置二维码标记，由小程序解析为 `src/assets/ui/gold-bean/robot-group-qr.jpg`，因此开发/隔离测试环境未配置外部活码时也能完成兑换验收。外部配置仍可用于后续轮换群活码。
+- 兑换成功弹窗新增二维码加载失败提示、微信长按识别说明、保存到相册和“扫一扫加入”按钮；微信端保存前会下载/解析二维码并处理相册权限，H5 端改为预览并提示长按保存。扫一扫调用微信扫码能力，识别后由微信页面继续处理入群。
+- 已通过机器人权益 Java 定向测试 `9` 项、前端 `type-check` 和 ESLint；H5、微信开发包、远程隔离测试包和生产局域网包需在本次改动后重新构建。未部署后端到线上隔离或生产环境，远程真机端到端兑换仍需先重启使用本次 Java 代码的隔离服务。
+
+## 2026-09-07 掉级期间保持完整交易额度（线上隔离开发环境）
+
+- 按最新口径调整保护期后的状态机：第 8 天保护期结束后继续按自然日掉级，但掉级期间保持 100% 交易额度；掉到普通会员当天仍保持 100%，普通会员继续 1 个自然日未推荐后才进入配置的 50% 交易限制。当前等级枚举最低为普通会员，因此不新增更低等级。
+- 直推恢复逻辑不变：掉级期间推荐成功最多恢复 1 个等级且不超过历史最高等级，同时恢复 100% 交易额度并刷新 7 天保护期；数字银行和可交易金豆余额不清空。
+- 同步更新后端提醒、会员页说明和 README 口径；金豆相关定向 Java 测试 37 项全部通过，全量 Java 21 Docker 测试 148 项全部通过，后端隔离镜像已构建并重建服务，容器健康检查通过。
+- 前端已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`；H5 已同步至隔离开发目录，正式生产环境未修改。
+
+## 2026-09-07 区域返利收窄为注册推荐奖励
+
+- 按最新业务口径，区域返利仅针对钻石会员开辟区域内代理推荐注册产生的 `REFERRAL_DIRECT` / `REFERRAL_DOWNLINE` 金豆奖励；每日奖励、等级解锁奖励、初始奖励和金豆集市交易均不触发区域返利。
+- 以钻石区域开辟人 A 为中心向上读取最多两级推荐关系：A 由 B 直接推荐时，A 自己收到的注册推荐奖励作为基数，B 额外获得 20%；B→C→A 时，C 额外获得 5%，B 额外获得 15%。同一次注册中 D、C、B 等其他账户收到的推荐奖励不会再次作为 A 区域返利基数，A 也不会重复获得 100% 区域奖励；返利仍使用双账本、整枚金豆和幂等流水。
+- 已将 `GoldRegionProfitService` 的触发主体收窄为区域开辟人 A 自己的注册推荐奖励，并补充非注册奖励及同一区域其他账户奖励不返利的回归测试；小程序类型检查、Lint、H5、微信开发包、远程隔离测试包和生产局域网包均已重新构建。本次未部署生产环境。由于当前工作机未安装 Maven，定向 Java 测试需在已有 Java 21 Docker 构建环境中执行。
+
+## 2026-09-07 钻石开辟区域改用省市选择器
+
+- 钻石会员“区域权限”卡片已改为与注册流程一致的原生省市选择器，仅选择到市级；卡片会显示已选的“省 / 市”，并保留申请中的加载、成功和失败反馈。
+- 区域申请提交时继续调用原 `openGoldRegion` 接口，发送注册流程同样的 `省 / 市` 文本；后端区域唯一性、推荐链层级、钻石等级鉴权和不可更改规则未改动。
+- 小程序已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`；H5、微信开发包、远程隔离测试包和生产局域网包均来自本次构建。未部署生产环境。
+
+## 2026-09-07 隔离测试账号切换钻石会员验收
+
+- 已将隔离测试环境中手机号为 `150****3671` 的已注册账号会员等级和历史最高等级设为 `DIAMOND`（钻石会员），直推人数仍为 `0`，未伪造推荐关系或补发等级解锁奖励。
+- 该账号注册状态仍为 `PAID`，数字银行 62、可交易金 60 的账本余额未修改；平台级传奇白名单原为 `ACTIVE`，为避免客户端优先展示传奇俱乐部而遮挡钻石会员页，已在隔离库软撤销为 `REVOKED`，历史记录保留且可恢复。
+- 本次仅修改隔离数据库 `rayk_health_remote_dev`，并核对目标 MySQL 容器属于 `rayk-remote-dev` Compose 项目；未修改生产数据库、生产容器、生产静态资源或支付配置。验收时重新登录并进入“俱乐部”即可看到钻石会员页面。
+
+## 2026-09-07 传奇人物俱乐部视觉展示改造
+
+- 按用户提供的参考图重做传奇人物俱乐部展示层：新增深绿英雄卡、数字银行余额展示、金豆集市入口、专属服务区和底部品牌愿景横幅，采用主色 `#0F8A6D`、深绿 `#0B5D4E`、浅薄荷 `#DFF7F0` 与金色 `#D7B46A`。
+- 已复用用户提供的 `传奇人物俱乐部_SVG资源包`，复制到 `rayk-miniapp/src/assets/ui/legendary-club/`，用于徽章、集市、礼盒、金豆、七项服务图标、未来服务标签和波纹装饰；没有新增图片生成或外部字体依赖。
+- 七项专属服务均为不可点击的展示卡片，没有新增路由、接口或业务实现；原有传奇资格摘要加载、数字银行余额显示和“金豆集市”入口跳转保持不变，普通会员、管理员和其他页面未改动。
+- 本次前端已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`；H5、微信开发包、微信远程隔离测试包和生产局域网包均来自本次源码构建。未部署生产环境，真机视觉验收仍需重新导入远程隔离测试包并清理旧编译缓存。
+
+## 2026-09-07 传奇俱乐部英雄徽章与集市入口细节调整
+
+- 将英雄徽章与背景圆环统一到同一定位和中心，窄屏下同步调整圆环尺寸，避免徽章向右下偏移。
+- 删除金豆集市入口右侧的礼盒/健康好物宣传块，入口恢复为图标、标题、说明和独立箭头；集市跳转行为不变。
+- 已重新通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`；构建包未残留宣传块文案，未修改后端或其他页面。
+
+## 2026-09-07 传奇俱乐部英雄卡细节微调
+
+- 删除英雄卡底部 `HEALTHIER LIFE / BRIGHTER TOMORROW` 英文小字。
+- 将徽章与圆环整体向左调整 30rpx，窄屏断点保持同向偏移，避免装饰图形贴近右侧边缘。
+- 已重新生成 H5、微信开发包、微信远程隔离测试包和生产局域网包；未修改接口、跳转和其他角色功能。
+
+## 2026-09-07 金豆相关虚拟支付统一加价 12%（线上隔离开发环境）
+
+- 金豆相关虚拟支付链路已统一按 `GOLD_BEAN_VIRTUAL_PAYMENT_SURCHARGE_PERCENT` 加价，默认 12%，范围包括平台注册、推荐注册和金豆集市买入；买家支付金额与平台业务/收款人结算金额已分开持久化。
+- 平台平台注册业务基准为 998 元，买家实际支付 1117.76 元；推荐注册业务基准为 998 元，买家实际支付 1117.76 元，推荐人商家转账为 998 元；集市卖家结算基准为 1 元/豆，买家实际支付 1.12 元/豆。推荐人和卖家商家转账仍按基准金额，不会把 12% 加价转给收款人。
+- 新增 V64 迁移，为注册订单和集市交易保存支付金额快照；历史数据回填为原金额，旧订单保持兼容。虚拟支付下单、标准回调和虚拟支付回调均按支付快照校验，转账和金豆交割继续按基础结算金额执行。
+- 已在隔离服务器 Java 21 Docker 环境构建并部署，V64 已由 Flyway 执行，`https://xingxuyuan.com/test-api/health` 返回 200；容器实际生效的平台注册费和推荐注册费均为 `99800` 分，加价配置为 `12%`。本次远程 Java 21 Docker 全量 `141` 项测试全部通过。
+- 前端已通过 `type-check`、ESLint、H5、微信开发包、微信生产局域网包和远程隔离测试包构建；最新验收包为 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。本次只更新隔离测试环境，未修改生产容器、生产数据库或生产静态资源。
+- 微信虚拟支付后台商品价格已按实际支付价配置并重新发布：平台注册商品和推荐注册商品均为 1117.76 元，`gold_bean` 为 1.12 元/豆；微信侧真实支付、回调和收款到账尚未由本次构建自动验收。商品价格若与 `goodsPrice` 不一致，微信会拒绝支付请求。
+
+## 2026-09-07 传奇俱乐部移除最近集市买入记录
+
+- 传奇人物俱乐部页面移除“最近集市买入记录”卡片，同时删除对应流水查询、刷新状态和无用样式；保留数字银行余额与金豆集市入口。
+- 前端需重新通过 `type-check`、ESLint、H5、微信开发包、微信生产局域网包和微信远程隔离测试包构建；本次只修改展示层，后端账本和集市交易数据不受影响。
+
+## 2026-09-07 修复传奇俱乐部首次进入不加载
+
+- 俱乐部页首次进入时，普通会员面板与传奇面板现在同步挂载，仅通过 `v-show` 切换展示，避免异步判断传奇资格后组件引用尚未建立，导致首次进入只显示空白/加载态、第二次点击才触发刷新。
+- 传奇资格查询成功后会在首次进入直接调用已挂载的传奇面板刷新；未命中传奇资格时普通会员面板行为不变，管理员、游客和消息入口不受影响。
+- 已重新构建并核对 H5、微信开发包、微信生产局域网包和微信远程隔离测试包；本次只修改前端生命周期与渲染时序，生产环境未修改。
+
+## 2026-09-07 平台一级代理平台购豆入口恢复（线上隔离开发环境）
+
+- 已定位平台购豆消失的原因：传奇人物改为“只能购买集市数字银行挂单”时，平台直购创建接口被一并全局关闭，会员摘要也固定返回 `goldBeanPurchaseEnabled=false`，导致一级代理页面和接口同时不可用。
+- 已恢复平台直购订单：已注册的平台一级代理（以及服务端定义的其他平台购豆资格会员）可在普通金豆会员页创建 `GOLD_BEAN_PURCHASE` 虚拟支付订单，支付金额按配置加价 12%，回调成功后按双账本规则入账；传奇资格用户仍由服务端拒绝新建平台直购订单，只能走集市数字银行挂单。
+- 新增回归测试覆盖平台购豆订单金额/数量、平台一级代理摘要入口和传奇用户服务端拦截。远程 Java 21 Docker 构建通过 Maven 全量 `146` 项测试，失败 0、错误 0；隔离服务已重建并 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。
+- 前端已重新通过 `type-check`、ESLint、H5、微信开发包、微信生产局域网包和微信远程隔离测试包构建；最新验收包为 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。真实微信支付回调仍需用新的平台购豆订单完成真机验收，生产容器、生产数据库和生产静态资源未修改。
+
+## 2026-09-07 管理员查看传奇人物数字银行余额
+
+- 平台管理员“金豆会员运营”页的传奇人物资格列表现在展示已匹配会员的数字银行余额；未匹配或未建档显示“未建档”，手机号继续脱敏。余额由服务端只读读取 `gold_member_account.digital_bank_balance`，名单接口仍由 `PLATFORM_ADMIN` 权限和开发环境开关共同保护。
+- 已新增余额字段的后端映射测试，远程隔离 Java 21 Docker 构建通过 Maven 全量 `139` 项测试，失败 0、错误 0；隔离服务已重建并健康检查 HTTP 200。
+- 前端 `type-check`、ESLint、H5、微信开发包、微信生产局域网包和现有微信远程隔离测试包均已重新构建；未修改生产容器、生产数据库或生产静态资源。
+
+## 2026-09-07 传奇页面与集市展示精简
+
+- 传奇俱乐部移除无用的交易规则提示卡；传奇用户在金豆集市不展示“可交易金豆”余额、发布挂单卡片和“我的挂单”入口，只保留全国数字银行挂单浏览/买入及数字银行余额展示。普通会员的发布、区域交易和余额展示不变。
+- 传奇买入仍由服务端强制只接受 `DIGITAL_BANK` 挂单，成交后全部入买方数字银行；前端仅做对应展示和旧客户端异常提示，不能替代后端鉴权。
+- 前端已通过 `type-check`、ESLint、H5、微信开发包、微信生产局域网包和微信远程隔离测试包构建；最新验收包为 `rayk-miniapp/dist/release/mp-weixin-dev-remote-test`。远程隔离环境健康检查保持 200，生产环境未修改。
+
+## 2026-09-07 传奇人物仅集市数字银行挂单交易规则
+
+- 传奇人物交易规则已收紧为：只能在金豆集市购买全国范围的 `DIGITAL_BANK` 数字银行金豆挂单，买入后全部进入买方数字银行；不能向平台直接购买，也不能新建金豆挂单。
+- Java 后端的集市查询和买入鉴权继续作为唯一准入依据；新增传奇卖家创建挂单拒绝和平台直购接口关闭校验，旧的历史直购订单回调路径保留，避免已创建订单无法正常完成交割。普通会员的本区域 `TRADING` 挂单交易不变。
+- 传奇俱乐部已移除平台直购数量/支付卡片，改为集市入口和规则提示；金豆集市对传奇用户隐藏“我的挂单”和“发布挂单”，并保留对服务端异常或旧客户端请求的前端提示。传奇俱乐部最近流水同时纳入集市买入记录。
+- 前端已通过 `type-check`、ESLint、H5、微信开发包、微信生产局域网包和远程隔离测试包构建；最新隔离验收包为 `rayk-miniapp/dist/release/mp-weixin-dev-remote-test`。远程隔离 Java 21 Docker 构建通过 Maven 全量 `138` 项测试，容器已重建并 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。
+- 本次只部署远程隔离测试环境，备份位于 `/opt/zhiyu-health/backups/legendary-market-only-before-20260907-084633`；未修改生产容器、生产数据库或生产静态资源。真实微信虚拟支付及新交易仍需在最新隔离包中用新挂单订单验收。
+
+## 2026-09-07 隔离测试账号加入传奇资格
+
+- 已将隔离测试环境中手机号为 `150****3671` 的已注册账号加入平台级传奇资格白名单，资格状态为 `ACTIVE`；账号原有会员等级、手机号绑定、登录信息和金豆账本未修改。
+- 该账号当前仍是 `ORDINARY` 会员且注册状态为 `PAID`，已核对传奇白名单与账号现有手机号哈希一致，登录后可用于传奇购豆/金豆集市跨区域等功能验收。
+- 本次仅修改隔离测试库 `rayk_health_remote_dev`，未修改生产数据库、生产容器或生产静态资源。
+
+## 2026-09-06 平台管理员金豆运营页移除规则快照卡片
+
+- 删除平台管理员金豆运营页的“当前规则快照”卡片及其无用样式，保留会员统计、传奇人物资格、授权码和运营数据筛选功能；删除后统计区直接衔接“运营数据”，没有额外空卡片。
+- 已通过前端 `type-check` 和 ESLint；H5、微信开发包、微信生产局域网包和微信远程隔离测试包均已重新构建，构建产物不再包含该卡片文案。
+- 之前开发者工具打开的是旧的 `MP-WEIXIN-DEV-REMOTE-TEST` 包，已重新生成 `rayk-miniapp/dist/release/mp-weixin-dev-remote-test`；本次仅修改前端页面与构建产物，未修改后端、数据库或生产容器，验收时需重新导入该目录。
+
+## 2026-09-06 传奇购豆虚拟支付回调两处风险修复（线上隔离开发环境）
+
+- 虚拟支付回调现在强制要求微信回传非空交易号；缺少交易号、商品/金额等校验不通过时不会执行入账，也不会把订单标记为 `PAID`。
+- 传奇购豆回调在数字银行入账前再次校验当前传奇资格；资格被撤销的订单会回调失败并回滚，不会继续发放金豆。
+- 新增 `GoldBeanPaymentServiceTest` 覆盖“无交易号拒绝且不入账”和“先校验传奇资格再入账”。隔离服务器 Java 21 Docker 构建通过，Maven 全量 `137` 项测试失败 0、错误 0；隔离服务已重建并 healthy，`/test-api/health` 返回 200。
+- 本次未修改生产容器、生产数据库或生产静态资源。真实微信订单仍需在隔离包上完成一次支付回调验收；代码、测试和健康检查通过不等同于微信侧真实到账验收。
+
+## 2026-09-06 金豆集市区域乱码修复（线上隔离开发环境）
+
+- 已确认截图中的乱码不是微信字体或前端布局问题：测试库 `gold_member_account.city` 与 `gold_member_trade_listing.region_city` 被保存成了 UTF-8 二次编码，API 原样返回后只有区域文案出现乱码。
+- 新增 V63 数据修复迁移，已在隔离测试库执行成功；账号城市、注册订单城市和挂单区域均恢复为标准 UTF-8。后端新增安全的 `TextEncodingUtils`，在注册、区域开辟、挂单区域读取和页面摘要返回处纠正历史二次编码；有效中文、英文和正常拉丁文本保持不变。
+- 新增编码回归测试；远端 Java 21 Docker 构建通过，Maven 全量 `135` 项测试通过（失败 0、错误 0）。隔离 `rayk-server` 已重启并 healthy，生产容器、生产数据库和生产静态资源未修改。
+- 当前截图中的最新挂单区域数据已核对为标准字节序列，重新进入金豆集市即可显示正常中文。现有微信包无需改前端代码即可读取修复后的 API 数据；若使用旧包仍看到旧缓存，退出小程序后重新编译/进入即可。
+
+## 2026-09-06 自动收款授权状态恢复修复（线上隔离开发环境）
+
+- 已定位“点击自动收款后只提示授权状态已更新、后续推荐奖励仍需手动确认”的根因：微信授权状态查询在 `WAIT_USER_CONFIRM` 时可能只返回状态、不重复返回 `package_info`；旧代码却把数据库中首次申请保存的授权包覆盖为空。前端因此拿不到可再次打开微信授权页的参数，实际上没有完成首次授权，后续订单自然继续走普通商家转账并要求逐笔确认。
+- 后端现已在授权状态查询缺少字段时保留已有 `package_info`，已生效状态缺少 `authorization_id` 时保留已签回的授权编号；对历史上已经丢失授权包且没有可用授权的记录，下一次点击会安全创建新的授权申请。前端不再把未生效状态提示为“授权状态已更新”，改为明确提示尚未完成授权。
+- 隔离环境 `rayk-server` 已完成含 Maven 测试的 Docker 构建并重启，容器 healthy；`https://xingxuyuan.com/test-api/health` 与生产 `https://xingxuyuan.com/health` 均返回 200。生产容器、生产数据库和生产静态资源未修改。
+- 前端 `type-check`、ESLint、H5、微信开发包、远程隔离测试包和生产局域网包均已重新构建；最新验收包为 `rayk-miniapp/dist/release/mp-weixin-dev-remote-test`。旧订单不会被重新发起或重复转账，必须用新订单验证授权生效后的免确认转账。
+- 真机验收：推荐人导入最新隔离包并进入“俱乐部”，点击“自动收款”，在微信授权页完成同意/确认；返回后应显示自动收款已开启或不再显示入口。再用新推荐注册订单验证平台转账，订单应直接进入成功，不再出现“确认收款”。代码、容器和健康检查已验证，真实微信“首次授权→新订单→自动转账→到账”仍需完成这次真机验收。
+
+## 2026-09-06 机器人权益条件提示文案移除
+
+- 已删除金豆会员页机器人权益卡片中的“已满足兑换条件”文案，保留兑换资格判断、按钮禁用逻辑和兑换流程；同时移除对应的无用样式。
+- 前端 `type-check`、ESLint、H5、微信开发包、远程隔离测试包和生产局域网包均已重新构建，构建产物中已确认不存在该文案。
+
+## 2026-09-06 俱乐部暂无数据与隔离测试环境恢复
+
+- 已定位截图中的“暂无数据”：隔离测试 API 曾因 `rayk-remote-dev` 启动时未正确加载 `.env.remote-dev`，错误挂载生产 `rayk_mysql_data`，导致测试 MySQL 与生产 MySQL 争抢 `ibdata1` 锁；Java 后端未启动，`/test-api` 返回 502。该状态会被旧前端请求层误显示为“暂无数据”，因为 502 HTML 没有标准 `code/message`。
+- 已使用 `--env-file .env.remote-dev -f compose.yml -f compose.remote-dev.yml` 重新拉起隔离项目；现在 MySQL、Redis、MinIO、AI、Java、Nginx 六个服务均 healthy，隔离 MySQL 使用 `rayk_remote_dev_mysql_data`，`https://xingxuyuan.com/test-api/health` 返回 200，生产 `https://xingxuyuan.com/health` 仍返回 200。未删除数据卷、未重建生产服务、未修改生产数据库。
+- 前端 `request.ts` 已补充 502/503/5xx 和非 JSON 响应的明确中文错误，金豆会员页也会拒绝静默接受空 summary，避免服务故障再次伪装成空数据。已重新通过 `type-check`、ESLint、H5、微信开发包、线上隔离测试包和生产局域网包构建；最新隔离验收包为 `rayk-miniapp/dist/release/mp-weixin-dev-remote-test`。
+- 真机/开发者工具需重新导入或重新编译上述最新隔离包，并重新进入“俱乐部”。接口健康已验证，具体账号的会员数据仍需在登录态下验收；若账号在隔离库尚未注册，首次进入会由后端创建普通会员账户。
+
+## 2026-09-06 机器人权益卡片未配置提示移除（线上隔离开发环境）
+
+- 删除金豆会员页“机器人权益”卡片中截图红框的“服务群二维码尚未配置，兑换完成前请联系管理员。”提示，保留卡片说明文案、标题、兑换资格状态和“兑换机器人权益”按钮；兑换确认弹窗文案未改动。
+- 前端 `type-check`、ESLint、H5、微信开发包、`mp-weixin-dev-remote-test` 和生产局域网包均已重新构建；生产 H5 目录、生产容器和生产数据库未修改。
+- `rayk-remote-dev` 六个服务均 healthy，`https://xingxuyuan.com/test-api/health` 和生产 `https://xingxuyuan.com/health` 均返回 200。
+
+## 2026-09-06 普通会员 20 天奖励与活跃保护顺序修复（线上隔离开发环境）
+
+- 已修复普通会员状态机：注册成功后每日发放 60 金豆，最多连续 20 天；第 15-19 天没有直推时连续提示 5 天，20 天内已有直推则不显示这组提示。
+- 奖励期内的直推只记录推荐关系、等级和推荐奖励，不提前开启 7 天活跃保护期；第 20 天奖励完成后首次结算自动开启 7 天保护期。保护期结束后交易额度限制为 50%，数字银行和可交易两个账本仍保留会员间交易权；直推成功恢复 100% 额度并刷新 7 天保护期。
+- 后端回归新增“第 20 天完成后开启保护期”“第 15-19 天无直推提醒”“奖励期内直推抑制提醒但不提前保护”测试；本地金豆定向测试 22 项、Java 全量测试 132 项通过。远端 Java 21 Docker 构建通过全量 125 项测试（失败 0、错误 0）。
+- 前端 `type-check`、ESLint、H5、微信开发包和生产局域网包均已重新构建；隔离测试 H5 使用独立挂载目录 `rayk-miniapp/dist/build/h5-remote-dev`，`mp-weixin-dev`、`mp-weixin-prod-lan` 输出均来自本次构建，标准本地 H5 输出仍为 `rayk-miniapp/dist/build/h5`。
+- 远端部署前备份为 `/opt/zhiyu-health/backups/gold-daily-protection-before-20260906-113700/source-config.tgz`，本次生成的隔离 H5 另保存在同目录的 `h5-shared-before-restore`；为避免隔离测试覆盖生产静态目录，已将生产 Nginx 当前静态内容恢复到共享 `rayk-miniapp/dist/build/h5`，隔离 Nginx 改挂 `h5-remote-dev`。已重建 `rayk-remote-dev-rayk-server-1` 和隔离 Nginx，六个隔离服务 healthy，Flyway 仍为 V60，`https://xingxuyuan.com/test-api/health` 返回 200，生产 `/health` 返回 200；生产容器和生产数据库未重建/修改，生产共享 H5 最终保持为生产 Nginx 当前内容。真实微信支付未在本次验证中执行。
+
+## 2026-09-06 奖励期内多次解锁等级的保护期边界修复
+
+- 修正判断依据：是否立即启动/刷新 7 天保护期只看初始 20 天每日奖励是否完成，不再看当前是否仍为普通会员。这样用户在第 20 天前已经解锁铜牌后，继续解锁银牌、金牌或钻石时，也不会提前开启或刷新保护期。
+- 初始 20 天奖励期间若存在旧的保护期、掉级锚点或额度限制状态，结算时会清理为奖励期状态；第 20 天奖励完成后的首次结算才统一启动 7 天保护期。20 天之后的推荐仍按既有规则启动/刷新保护期。
+- 新增回归测试覆盖“铜牌状态下第 20 天前解锁银牌仍无保护期，完成第 20 天后才启动保护期”。远端 Java 21 Docker 构建完整 Maven 测试 `131` 项通过（失败 0、错误 0）。
+- 本次尝试切换线上隔离新镜像时发现隔离 Compose 与生产 Compose 共用 `rayk_mysql_data`、Redis 和 MinIO 数据卷；强制重建会让两套 MySQL 争抢 `ibdata1`。已停止本次新建的冲突隔离容器，保留全部数据卷，生产 `/health` 仍返回 `200`；新逻辑已完成源码和远端构建验证，但尚未切换到 `https://xingxuyuan.com/test-api`，需先完成隔离卷/Compose 拆分后再部署。
+
+## 2026-09-06 推荐奖励收款操作区优化（线上隔离开发环境）
+
+- 推荐奖励列表中的“确认收款/刷新状态”和“自动收款”现在使用同一操作区并排显示，统一触控尺寸；自动收款说明卡在没有待处理奖励时仍保留独立入口，避免入口消失。
+- 删除推荐奖励列表中额外的失败原因提示文案，保留状态信息和按钮反馈；微信 `requestMerchantTransfer:fail:internal`、取消或关闭收款确认弹窗时，前端统一提示“尚未确认收款”（自动收款授权场景提示“尚未完成自动收款授权”）。
+- 前端 `type-check`、ESLint、H5、微信开发包、线上隔离测试包和生产局域网包均已重新构建；最新线上隔离测试包为 `rayk-miniapp/dist/release/mp-weixin-dev-remote-test`。
+
+## 2026-09-06 推荐奖励首次授权自动收款兼容方案（线上隔离开发环境）
+
+- 新增 V60 `gold_referral_authorization`，按租户、用户、当前小程序 AppID、OpenID 和转账场景保存一次性微信商家转账收款授权；授权状态和授权编号服务端持久化，授权编号不返回给前端之外的日志或普通业务展示。
+- 推荐人在俱乐部卡片点击“开通自动收款”后，服务端调用微信用户确认授权接口并返回 `package_info`，小程序调用 `wx.requestMerchantTransfer` 完成首次确认；授权通知经过 API v3 验签、解密和用户绑定校验后进入 `TAKING_EFFECT`。授权有效时，后续推荐奖励调用 `/v3/fund-app/mch-transfer/transfer-bills/transfer`，不再要求每笔用户确认。
+- 兼容旧用户和异常状态：没有授权、授权处理中、授权被关闭或授权不完整时，推荐奖励继续调用原 `/v3/fund-app/mch-transfer/transfer-bills`，推荐人仍可在小程序中手动确认 `WAIT_USER_CONFIRM`；授权查询、通知回调和定时补偿均使用同一授权申请号幂等处理。
+- 已部署的隔离环境配置授权通知地址为 `https://xingxuyuan.com/test-api/api/payments/wechat/merchant-transfer/authorization-notify`；V60 已由 Flyway 执行，远程 `rayk-server` 容器已重建并 healthy，回调 POST 入口公网可达。现有旧推荐订单不会被转换为自动授权转账，也不会重复发起转账。
+- 本次线上隔离后端 Docker 构建通过；前端 `type-check`、ESLint、H5、微信开发包、线上隔离测试包和生产局域网包均已在本次构建中生成。真实“首次授权→新推荐订单→授权转账→推荐人到账”仍需推荐人使用最新隔离测试包实际点选授权并以微信状态 `SUCCESS` 验收，代码/容器健康不等同于真实到账。
+
+## 2026-09-06 旧订单回调恢复与商家转账待用户确认（线上隔离开发环境）
+
+- 已按用户确认恢复最近一笔推荐注册订单 `GBR2096177353089282049` 的标准虚拟支付回调：订单已变为 `PAID`，注册入账已完成，未重复扣款或重复注册。
+- 平台第一次向推荐人发起商家转账时，微信返回 `INVALID_REQUEST`，原因为“此IP地址不允许调用接口”；订单当前为 `settlement_status=PENDING`，已保存原外部单号 `GBR2096177353089282049T`，微信侧尚未创建转账单。
+- 服务器出口 IP 为 `62.234.44.238`。已补充 `NOT_FOUND` 查单补偿：转账创建因白名单失败后，查单发现原单号不存在时会使用同一外部单号重新发起，保持幂等，隔离服务已重建并 healthy，124 项 Maven 测试通过。
+- 用户已将 `62.234.44.238` 加入微信支付商户平台 API 调用 IP 白名单；之后自动重试已能通过 IP 校验并到达商户转账接口。
+- 用户已为商户运营账户补充 1 元；微信于 09:24:36 接受同一外部单号 `GBR2096177353089282049T`，商户流水显示“商家转账资金锁定”并扣减 1 元余额。该记录表示资金已锁定，不代表推荐人已经完成收款。
+- 后续查单确认微信状态为 `WAIT_USER_CONFIRM`，同一转账单已保存微信返回的收款确认参数；订单仍为 `PAID`、结算仍为 `PENDING`，没有创建第二笔转账，`settled_at` 仍为空。
+- 深度排查发现 SDK 响应解析误读了响应对象，导致首次创建成功后丢失 `package_info`；已修复 `WeChatPayClient` 从原始 HTTP 响应读取 JSON，并增加同外部单号幂等恢复逻辑。隔离服务已重建并 healthy，Maven 全量构建通过。
+- 微信不会主动向推荐人发送“待收款”通知；推荐人必须用本人微信登录当前小程序，在“俱乐部/金豆会员”推荐奖励卡片点击“确认收款”，前端调用 `wx.requestMerchantTransfer` 后再查单。只有微信状态变为 `SUCCESS` 才记录推荐人已到账。
+
+## 2026-09-06 虚拟支付标准消息推送结构修复（线上隔离开发环境）
+
+- 深度排查确认微信并非没有发送回调：隔离 Nginx 在 `18:03` 测试后持续收到 `POST /api/payments/wechat/virtual/notify?signature=...&timestamp=...&nonce=...`，但 Java 日志显示 `xpay_goods_deliver_notify` 回调的 `hasPayload=false`、`hasPayEventSig=false`，接口因此返回 HTTP 400。订单未入账，平台未发起推荐人转账。
+- 根因是标准小程序“消息推送”JSON 结构直接把 `Event`、`OpenId`、`OutTradeNo`、`Env`、`GoodsInfo`、`WeChatPayInfo` 放在根节点；原代码只支持另一种 `payload/payEventSig` 包装结构。现已兼容两种结构：标准结构必须通过 Token + `signature/timestamp/nonce` 完整验签，新结构仍必须通过 `payEventSig` HMAC 验签，商品、金额、环境、付款人绑定和幂等校验均保留。
+- 修复已在隔离服务器 Java 21 Docker 构建并部署，Maven 全量 123 项测试通过（含标准 JSON 消息推送路由回归测试），`rayk-remote-dev-rayk-server-1` 已 healthy。部署后未再出现 400 回调；旧订单仍为 `PENDING`，没有人工置已支付或补发转账。
+- 部署后使用不落库的标准根节点 JSON 探针完成公网回归：Token + `signature/timestamp/nonce` 验签通过，处理已推进到 `order_lookup`，对不存在的探针订单按预期返回业务 400；没有改动订单、没有扣款、没有创建转账。公网健康检查返回 HTTP 200。
+- 你截图中的小程序后台“消息推送”配置本身是标准虚拟支付回调通道；微信官方接口文档示例也使用 `xpay_goods_deliver_notify` 的根节点字段，并要求成功响应 `returnCode=0`、`data=ok`。下一步用新订单测试，确认回调返回 200 后，订单才会进入 `PAID` 并创建推荐人商家转账单。
+
+## 2026-09-05 推荐注册支付后平台转账闭环修复（线上隔离开发环境）
+
+- 已修复推荐注册虚拟支付回调到推荐人商家转账之间的闭环：兼容实际到达的 `xpay_goods_deliver_notify` 回调字段组合，允许回调体缺少可选 `transactionId`，保留 `payEventSig`、商品、金额、环境、付款 OpenID、AppID 绑定和订单幂等校验；公共回调按无租户方式处理后再使用订单所属租户完成入账。
+- 推荐注册支付成功后，平台使用微信商家转账接口 `/v3/fund-app/mch-transfer/transfer-bills` 向推荐人当前小程序 AppID 下的有效绑定 OpenID 发起 1 元转账；场景 `1005` 使用微信要求的固定报备字段“岗位类型”和“报酬说明”。每笔订单固定使用 `GBR...T` 作为外部转账单号，异常重试和补偿查单不会生成新单号，避免重复打款。
+- 新增 V59 转账对账字段，保存微信转账状态、`package_info`、最近查单时间和下次重试时间；新增每 10 秒扫描的补偿任务，并为每笔补偿建立独立事务。只有微信状态 `SUCCESS` 才记录 `SETTLED`；`WAIT_USER_CONFIRM` 不视为到账，推荐人需在小程序“俱乐部/金豆会员”卡片点击“确认收款”，前端调用 `wx.requestMerchantTransfer` 后再由后端查单确认最终状态。转账权限或收款绑定短暂不可用时保留 `PENDING` 并自动重试，不再把付款成功的推荐奖励直接标成不可恢复的失败。
+- 已在隔离服务器使用 Java 21 Docker 构建，Maven 全量 122 项测试通过（失败 0、错误 0）；远程容器已重建并 healthy，Flyway 已验证 V59，`https://xingxuyuan.com/test-api/health` 返回 HTTP 200。前端 `type-check`、ESLint、H5、微信开发包、远程隔离测试包和生产局域网包均已重新生成。
+- 本次仅部署线上隔离开发环境，未修改生产容器、生产数据库或生产静态资源；原有未支付 `PENDING` 推荐订单未被改为已支付，也未被强行发起转账。尚未用新的真实微信订单完成“支付回调→微信商家转账→推荐人确认/到账”验收，因此不能把代码和容器验证等同于真实到账。
+- 真机验收请导入 `rayk-miniapp/dist/release/mp-weixin-dev-remote-test`：推荐人先用本人微信登录一次建立有效收款绑定，被推荐人用新订单完成 1 元虚拟支付；随后推荐人重新进入俱乐部，若出现“确认收款”则完成微信确认并刷新，直到状态显示“奖励已到账”。
+- 18:03 的后续真机小额测试再次确认：新推荐注册订单仍为 `PENDING`，没有支付流水、回调时间、商家转账外部单号或微信转账状态；隔离应用及两层 Nginx 在该订单时段也未记录虚拟支付通知请求。因此平台尚未取得可验真的“支付成功”事实，按安全规则没有、也不应对推荐人发起转账。隔离环境的虚拟回调 URL、推送 Token、生产环境标识、登录 AppID 一致性、推荐转账开关、场景 `1005`、商户号、证书和 APIv3 Key 均已核对为有效；回调入口可从公网到达（无验签 GET 返回预期的 403）。剩余阻断点在微信虚拟支付侧：必须在虚拟支付对应的发货/支付结果推送配置中确认当前在线 `test_member` 商品实际启用了向该 URL 的推送，而不是仅保存小程序通用消息推送配置。旧 `PENDING` 订单不做人工置已支付或补打款。
+
+## 2026-09-05 深度审计：虚拟支付回调仍在事件校验阶段失败（线上隔离开发环境）
+
+- 16:51 的真实微信回调已到达隔离服务 3 次，事件为 `xpay_goods_deliver_notify`，但服务解析到的 `eventType` 为空，服务在事件校验阶段返回 HTTP 400；因此没有进入订单查询、注册入账或推荐人商家转账。远程数据库中的最近推荐注册订单仍为 `PENDING`，没有支付交易号和转账单号。
+- 进一步核对发现当前商家转账客户端使用的是需要收款用户确认的 `/v3/fund-app/mch-transfer/transfer-bills` 链路，但服务端忽略了响应中的 `package_info`，前端也没有 `wx.requestMerchantTransfer`、确认页面或对应后端接口；即使后续回调放行，也不能据此承诺“平台转账后推荐人自动到账”。
+- 当前隔离环境未配置商家转账 `notify_url`，代码中也没有定时对 `PENDING` 转账进行补偿查询的任务；立即查询失败或长期等待可能一直停留在 `PENDING`。`CANCELLED` 等终态也需要单独纳入状态机处理。
+- 发现一个事件校验修复后的潜在阻断：虚拟支付公共回调在查询 `gold_member_order` 前没有像普通 JSAPI 回调那样显式执行无租户查询；该入口允许匿名访问，事件校验通过后可能因缺少 `TenantContext` 再次失败。
+- 腾讯当前虚拟支付文档中 `transactionId` 标为可选，而现有处理器仍要求能解析出交易号；实际回调体需要在不记录敏感信息的前提下取样确认后再做兼容，不能直接删除验签、商品、金额、环境、OpenID 或订单幂等校验。
+- 还存在需补强的可观测性和安全项：转账接口异常目前被压缩为通用失败，缺少微信错误码/请求标识的安全记录；会员虚拟支付分支尚未复用 `payEventSig` 校验；现有单测未覆盖 `WAIT_USER_CONFIRM`、`package_info`、`CANCELLED`、匿名回调租户上下文和真实回调字段组合。
+- 本次审计只读检查了线上隔离开发环境，未修改生产容器、生产数据库、生产静态资源或测试订单。
+
+## 2026-09-05 虚拟支付回调兼容修复（线上隔离开发环境）
+
+- 最新一次 1 元推荐注册测试并非“已付款但转账失败”：隔离 Nginx 记录到微信向 `/api/payments/wechat/virtual/notify` 发起 POST，但服务返回 HTTP 400；Java 日志定位到回调的事件类型校验阶段，尚未进入订单查询、注册完成或推荐人商家转账。因此订单仍为 `PENDING`，没有向推荐人发起转账。
+- 根因是原处理器只接受新版 `event=xpay_goods_deliver_notify` + `eventType=TRANSACTION.SUCCESS`，而微信虚拟支付文档还存在旧版小游戏商品发货回调组合 `Event=minigame_game_pay_goods_deliver_notify` + `EventType=event`；原代码没有兼容该格式。
+- `GoldBeanPaymentService` 现在同时兼容上述两种事件组合，支持 `event_type` 别名，并在旧格式根节点没有订单号时从 `Payload` 的 `OutTradeNo`/`outTradeNo`/`out_trade_no` 回退读取；`payEventSig` HMAC、商品、金额、环境、付款 OpenID、交易号和当前 AppID 绑定校验仍然强制执行。
+- 兼容版本已在隔离服务器 Java 21 Docker 构建成功，`rayk-remote-dev-rayk-server-1` 已重建并 healthy；部署后尚未收到新的微信回调，数据库中的两个最近推荐订单仍为 `PENDING`。需要使用最新远程隔离测试包创建新的虚拟支付订单，或等待微信对原订单重试，再观察是否进入商家转账阶段。
+- 本次只修改线上隔离开发环境，未修改生产容器、生产数据库或正式 H5；发布构建跳过了全量测试，原因仍是既有 `VoiceReminderTextFactoryTest` 的睡眠提醒文案断言失败，Java 编译本身已通过。
+
+## 2026-09-05 推荐注册切换为虚拟支付并保留推荐人结算（线上隔离开发环境）
+
+- 推荐码注册订单 `GBR...` 已改为使用独立的微信虚拟商品 `GOLD_BEAN_REFERRAL_REGISTRATION_PRODUCT_ID`；线上隔离开发环境当前配置的测试商品 ID 为 `test_member`，价格保持 1 元（`100` 分）。平台注册码注册仍使用 `normal_member_998`，价格为 998 元（`99800` 分）。
+- 小程序推荐注册点击后统一调用 `wx.requestVirtualPayment`，不再为推荐注册创建普通 JSAPI 收款参数。服务端创建支付参数时从订单读取商品和金额，虚拟支付回调会校验订单号、商品、数量、金额、环境、AppID、商户号、付款 OpenID 和交易号，校验通过后才开通被推荐用户的会员资格。
+- 推荐注册虚拟支付成功后，服务端按现有页面业务语义向“提供推荐码的推荐人”结算：使用微信当前商家转账接口 `/v3/fund-app/mch-transfer/transfer-bills` 发起转账，并用持久化的外部单号 `GBR...T` 查询状态；只有微信状态为 `SUCCESS` 才标记 `SETTLED`，失败标记 `FAILED`，查询暂时失败保持 `PENDING`，不会用新单号自动重试造成重复打款。
+- 转账场景报备字段由 `GOLD_BEAN_REGISTRATION_REFERRAL_TRANSFER_SCENE_ID`、`...USER_RECV_PERCEPTION`、`...JOB_TYPE`、`...REWARD_DESCRIPTION` 和可选通知地址配置。创建推荐订单前仍要求推荐人已注册、推荐关系有效、当前 AppID 下存在有效微信收款绑定，以及平台商家转账配置完整；否则不生成虚拟支付参数。
+- 已核对用户提供的 `test_member` 编辑弹窗：当前页面只有道具资料、价格、关联关系、图片和备注，没有单独的“发货推送”字段；不要继续在该弹窗里寻找或修改发货开关。当前以虚拟支付“基本配置/消息推送”中的全局回调配置为准，道具页面截图只能证明该道具已发布。
+- 新增商家转账请求/查询单元测试后，Java 21 Docker 全量 Maven 测试为 119 项，失败 0、错误 0；隔离容器 `rayk-remote-dev-rayk-server-1` 已重建并 healthy，`https://xingxuyuan.com/test-api/health` 返回 HTTP 200。已生成 `rayk-miniapp/dist/release/mp-weixin-dev-remote-test`，该包只连接线上隔离 API。
+- 生产容器、生产数据库和正式 H5 未修改。真实虚拟支付、微信回调和向真实推荐人转账仍需在微信开发者工具/真机使用已审核的虚拟商品、商家转账权限和真实收款绑定完成验收；代码通过不等于微信侧已批准该业务场景。
+- 2026-09-05 真机小额验收发现：订单 `GBR...` 在隔离库仍为 `PENDING`，没有虚拟支付交易号、支付回调时间或商家转账单号；服务器只看到一次旧包请求 `/referral-wechat-pay`（500），以及一次新包 `/wechat-pay`（200），两次均未收到 `xpay_goods_deliver_notify`。因此未向推荐人发起转账，避免未验证交易造成误打款。当前应在微信小程序后台“商业化-虚拟支付-基本配置/消息推送”核对全局回调 URL、Token、明文/JSON 配置；用户截图所示道具编辑页没有单独发货字段。使用 `env=0` 的真实支付时要确保回调 URL 指向创建该订单的环境，不能只配置隔离测试 URL。已重新生成 `mp-weixin-dev-remote` 和 `mp-weixin-dev-remote-test`，两个包均不再包含旧支付接口。
+- 本次沿用现有文案和数据模型的收款方向：新用户（被推荐人）支付 1 元虚拟商品，平台向推荐码对应的推荐人转账。如果“推荐人支付、被推荐人收款”是你的真实新规则，需要先确认后再调整收款人字段和转账对象，避免实际打款方向错误。
+- 已为虚拟支付发货推送入口增加微信消息推送 URL 的 GET 验签处理，并将推送 Token 改为隔离环境密钥配置；POST 回调改为仅在携带标准消息推送查询参数时验签，直接回调 URL 的虚拟支付通知由业务体内的 `payEventSig` 验证，避免因缺少 GET 握手参数被误拒绝。隔离测试服务已重建，健康检查和 GET 握手均返回 HTTP 200，不带查询参数的无效 POST 返回业务 HTTP 400 而非 403；本次控制器测试 3 项通过。全量 122 项仍仅有既有的睡眠提醒文案断言失败，因此部署镜像采用跳过测试构建。微信后台表单使用隔离测试回调 URL、已配置 Token、“明文模式”和“JSON”；Token 不写入源码、文档或日志。
+
+## 2026-09-05 平台注册费用调整为998元（线上隔离开发环境）
+
+- 已定位平台注册虚拟支付失败的直接原因：平台商品 `normal_member_998` 按 998 元定价，但原注册下单共用推荐注册费配置 `100` 分，发送给微信虚拟支付的 `goodsPrice` 与商品后台价格不一致，因此返回 `GOODS_PRICE_INVALID`。
+- 注册费用已拆分：平台注册码注册使用 `99,800` 分（998 元），推荐码注册继续使用 `100` 分（1 元）；订单金额、虚拟支付 `goodsPrice`、服务端完成回调和页面按钮/说明均按收款对象分别取值。
+- 新增配置 `GOLD_BEAN_PLATFORM_REGISTRATION_FEE_CENT`，默认 `99800`；原 `GOLD_BEAN_REGISTRATION_FEE_CENT` 保留为推荐注册费配置并默认 `100`。生产配置和生产容器未修改。
+- 已重建线上隔离开发服务 `rayk-remote-dev`，容器 healthy，实际环境变量核对为平台注册 `99800` 分、推荐注册 `100` 分，`https://xingxuyuan.com/test-api/health` 返回 200；金豆相关 Java 定向测试 31 项全部通过。
+- 已对截图对应的旧失败订单 `GBR2096068313928085505` 做精确隔离清理：订单由 `PENDING` 关闭，授权码 `2096068230591459330` 恢复为可用；操作前查询备份位于 `/opt/zhiyu-health/backups/platform-registration-fee-test-order-before-20260905-1119/rows.tsv`。生产容器、生产数据库和生产静态资源未修改。
+- 已重新生成 H5、标准微信开发包、远程开发包、远程隔离测试包和生产局域网包；线上隔离验收优先使用 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。真实微信支付弹窗与回调仍需用户在微信端用新的 998 元平台注册订单实际验收。
+
+## 2026-09-05 小程序支付能力限制的用户侧处理
+
+- 已确认线上隔离环境的推荐注册 JSAPI 预下单返回微信支付 HTTP 200，前端实际调用 `requestPayment` 时由微信返回“支付能力已被限制”；前端包 AppID 与服务端 `WECHAT_PAY_APP_ID` 一致，不能通过改签名或切换按钮事件绕过 AppID 级限制。
+- 用户完成推荐人绑定后再次核对：推荐人和付款人均有当前 AppID 的 ACTIVE 微信绑定；隔离库中最近 4 笔 1 元推荐注册订单均为 `PENDING`，没有 `payment_channel`、微信交易号、支付成功时间或支付回调，说明没有发生扣款，且问题已排除“推荐人收款绑定缺失”。
+- 服务器在对应 4 次请求中均调用 `/v3/pay/transactions/jsapi` 并收到 HTTP 200；因此“商家转账场景 1005”属于支付成功后的出账步骤，不能解决当前买家侧的 JSAPI 收款权限问题。当前最可能的剩余原因是小程序经营场景/JSAPI 权限状态受限，或公众平台按交易/分销业务规则对 AppID 进行了处置；后者只能以公众平台通知中心的具体通知为准。
+- 页面现在将该错误明确展示为“微信已限制本小程序支付能力，请管理员登录微信公众平台‘通知中心’按提示处理后再支付；当前不会扣款。”，并在确定为该错误时自动关闭未支付订单，避免重复点击堆积待支付订单。
+- 微信官方排查路径是公众平台通知中心；交易类小程序还需核对服务类目及订单管理/发货管理要求。限制解除后重新进入页面即可恢复重试。当前仍未做真实扣款，生产环境未修改。
+
+## 2026-09-05 推荐人支付无反馈修复（线上隔离开发环境）
+
+- 已核对推荐注册支付链路：隔离环境支付开关和推荐人商家转账场景号已配置，但当前可用测试推荐人 `166****1137` 的有效微信收款绑定数为 0；后端原本会在创建订单前安全拒绝，前端只显示短暂 Toast，容易被误认为点击无效。
+- 新增错误码 `60741`，明确提示“推荐人尚未完成微信收款绑定，请让推荐人先用本人微信手机号登录一次”；页面在注册卡片中增加持续显示的错误区域，支付处理中显示按钮加载状态，失败原因不会立即消失。
+- 推荐人必须先用本人微信手机号登录一次，建立当前小程序 AppID 下的有效微信绑定；之后被推荐用户重新点击“向推荐人支付”，才会创建普通微信 JSAPI 支付并在支付回调后结算推荐人。没有真实 OpenID 时不会伪造收款绑定或发起错误转账。
+- 前端已通过 `type-check`、ESLint、H5、标准微信开发包、远程开发包、远程隔离测试包和生产局域网包构建；Java 21 远程镜像编译成功并重建 `rayk-remote-dev-rayk-server-1`，容器 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。生产容器、生产数据库和生产静态资源未修改。
+- 本次新增后端错误码和推荐人绑定校验已同步到隔离服务；旧 Java 源码备份位于 `/opt/zhiyu-health/backups/referrer-payment-feedback-20260905`。真实微信支付弹窗和支付回调仍需在推荐人完成绑定后由用户使用小额订单验收，不能仅凭接口编译视为真实扣款成功。
+
+## 2026-09-05 微信手机号首次登录异常修复（线上隔离开发环境）
+
+- 已定位 `150****3671` 登录显示“系统内部错误”的根因：首次按手机号创建客户时，金豆账户初始化发生在 JWT 会话建立之前，MyBatis 租户拦截器错误地尝试从 `CurrentUser` 取租户，导致整个创建事务回滚。
+- `GoldBeanApplicationService.initializeForCustomer` 现在会在登录前使用已确定的客户租户显式设置 `TenantContext`，完成金豆账户查询/创建后恢复原上下文，避免线程池复用时泄漏租户；微信手机号登录仍按 `CUSTOMER` 普通客户路径创建，不改变医生和平台管理员登录规则。
+- 隔离数据库核对显示该手机号当前没有已提交的用户记录，符合上次事务已回滚的现象，因此没有做无依据的账号覆盖；下一次真实微信手机号授权成功后会自动创建 ACTIVE 的 `CUSTOMER` 账号、客户工作台、患者资料和金豆账户。
+- 新增 `GoldBeanApplicationServiceTest` 覆盖“未建立认证会话时使用显式租户并清理上下文”，该测试通过。远程 Java 21 镜像已编译成功并重建 `rayk-remote-dev-rayk-server-1`，`https://xingxuyuan.com/test-api/health` 返回 200，启动日志无新的异常。
+- 全量 Maven 测试共执行 117 项，其中本次新增测试及其他相关测试通过；既有 `VoiceReminderTextFactoryTest` 仍有 1 项文案断言失败（要求包含“睡觉/睡眠”等词，当前实现文案为“安心睡个好觉”），发布镜像按既有隔离流程使用跳过测试的构建参数。生产容器、生产数据库和生产静态资源未修改。
+- 远程旧版 Java 源码已备份至 `/opt/zhiyu-health/backups/login-fix-20260905/GoldBeanApplicationService.java.before`。尚未使用真实微信一次性授权码完成真机登录验收，需用户重新点击手机号授权后再核对最终登录结果。
+
+## 2026-09-05 推荐注册 1 元与一级代理测试数据已部署线上隔离开发环境
+
+- 线上隔离开发环境 `rayk-remote-dev` 已将远端配置 `GOLD_BEAN_REGISTRATION_FEE_CENT` 设置为 `100`（1 元）；推荐注册商家转账开关仍保持已配置的开发验收状态，场景号为 `1005`。
+- 已将手机号 `166****1137` 对应的开发客户账号设置为平台归属的一级代理：注册状态 `PAID`、费用归属 `PLATFORM`、注册费 1 元，并生成测试推荐码 `SYTESTREF166960`；保留普通会员等级，不授予钻石或区域权限。
+- 该账号原有过期的待支付注册测试订单已标记为 `CLOSED`；此前为准备测试而写入的 `DEVELOPMENT_RECORD` 也已改为 `CLOSED` 并释放 `PLATFORM_ROOT` 槽位，避免占用平台管理员继续生成平台注册测试授权码。没有发起真实支付、商家转账或扣款。目标账号和远端配置的回滚备份位于 `/opt/zhiyu-health/backups/gold-referrer-registration-test-before-20260905-085633`。
+- 重建 `rayk-server` 后已核对容器 healthy，`https://xingxuyuan.com/test-api/health` 返回 200；生产健康检查仍返回 200，生产容器、生产数据库和生产 H5 未修改。
+- 推荐注册验收时使用该账号的推荐码创建被推荐人注册订单，订单金额应为 1 元；真实支付回调、平台商家转账到推荐人零钱及最终到账仍需用微信端实际支付链路验收，不能仅凭开发记录视为到账成功。
+- 释放槽位后，已用隔离开发平台管理员实测“生成一次性授权码”和撤销接口，均返回成功；本次探测生成的授权码已撤销，不影响后续正式测试。
+
+## 2026-09-05 健康树洞页面文案与布局优化
+
+- 树洞页面顶部权益说明已改为“普通客户可免费体验7天，健康会员可无限使用，每七天树洞会给出一次总结反馈。”；底部输入框提示改为更短的单行文案“今天可记录身体、心情和压力”。
+- 按需求移除树洞页面中独立的“7天树洞反馈”展示卡；七天反馈接口、周期生成和数据落库能力保留，后续仍可从其他入口承载反馈内容。
+- 已通过 UniApp `type-check`、ESLint、H5、标准微信开发包、远程开发包、远程隔离测试包和生产局域网包构建；本次仅更新前端源码和本地验收产物，未修改生产容器、生产 H5 或正式微信版本。线上隔离验收使用 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。
+
+## 2026-09-05 金豆集市独立页面部署线上隔离开发环境
+
+- 已将独立金豆集市对应的 Java 分页接口部署到服务器 `/opt/zhiyu-health` 的 `rayk-remote-dev` 隔离测试 Compose；俱乐部概览只保留入口，前端验收包使用 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。
+- 部署前已备份远程三处 Java 源码至 `/opt/zhiyu-health/backups/gold-market-page-before-20260905-1788568652501/java-sources.tgz`；未执行 `down -v`，未删除或重建 MySQL、Redis、MinIO 数据卷，生产 Compose、生产数据库和生产 H5 未修改。
+- 远程 Java 21 Docker 构建成功，Maven 全量测试 116 项全部通过；新 `rayk-server` 容器已重建并 healthy，Flyway 启动正常，当前数据库迁移保持 V58。
+- 验收结果：`https://xingxuyuan.com/test-api/health` 返回 200；未登录访问 `/api/client/gold-bean/trade/market` 返回 401；使用隔离开发客户登录后，市场和我的挂单接口均返回 `PageResponse`，页大小 12，随后已注销测试会话。
+
+## 2026-09-04 健康树洞首版接入线上隔离开发环境
+
+- 首页客户区新增“健康树洞”入口，进入现有健康助手页面的独立模式；树洞与普通健康助手按 `conversation_type` 隔离，用户记录保存在原有助手消息表，不能互相混入历史或通过前端参数越权读取。
+- 树洞文字问答复用已配置的 `qwen3.8-flash`，新增树洞陪伴提示词、七天反馈提示词和同一套急症安全边界；Java 负责客户身份、本人数据范围、消息落库和会员额度，Python 负责 Qwen 请求与结构化回复。
+- 新增 Flyway `V57__health_tree_hole.sql`：为助手会话增加会话类型，并新增 `health_tree_hole_feedback` 七天反馈表；新增 `V58__health_tree_hole_entitlement.sql`，注册 `AI_HEALTH_TREE_HOLE / TRIAL_7D` 独立权益并同时绑定免费客户与年度健康会员。周期从本周期第一条树洞记录开始计算，满 7 个自然日后可生成反馈，同一用户同一周期通过唯一约束和查询幂等只生成一份。
+- 新增客户接口：`GET/POST /api/client/health-tree-hole/feedback`；会话接口继续使用 `/api/client/medical-assistant/*`，通过 `mode=TREE_HOLE` 进入树洞模式。所有接口仍由 Java 的客户本人权限校验保护，未登录访问树洞反馈接口返回 401。
+- 页面进入树洞时刷新反馈状态；到期反馈由后台定时任务自动尝试生成，反馈卡展示周期、记录天数、记录次数、阶段总结和下一步小行动，任务未生成时保留手动整理/重试按钮。当前没有微信订阅消息或主动推送。
+- 树洞已改用独立的 `AI_HEALTH_TREE_HOLE` 权益：普通客户从首次有效记录起免费体验 7 天，年度健康会员期内不限使用；健康助手原有 `AI_MEDICAL_ASSISTANT` 3 次免费额度不受影响。首个七天周期的阶段反馈保留一次到期后的生成机会，之后普通客户需开通年度健康会员。
+- 已在服务器 `rayk-remote-dev` 隔离开发 Compose 中备份相关文件至 `/opt/zhiyu-health/.codex-backups/health-tree-hole-before-20260904` 和 `/opt/zhiyu-health/.codex-backups/health-tree-hole-entitlement-before-20260904`，同步源码后用 Java 21 Docker 镜像构建并重启 `rayk-server`、`rayk-ai`；Java 编译构建成功，Flyway `58 / success=1`，数据库中的 `AI_HEALTH_TREE_HOLE` 已核对为 `TRIAL_7D`，隔离 Java、AI、Nginx、MySQL、Redis、MinIO 均 healthy。生产容器、生产数据库、生产 H5 和正式微信版本未修改。
+- 本地验证：Python `compileall` 与健康助手测试 11 项通过；Java 21 隔离容器定向执行 `MembershipEntitlementServiceTest` 3 项全部通过；UniApp `type-check`、ESLint、H5、标准微信开发包、远程开发包、远程隔离测试包和生产局域网包均重新构建成功。产物包括 `E:\health\rayk-miniapp\dist\build\h5`、`E:\health\rayk-miniapp\dist\release\mp-weixin-dev`、`E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test` 和 `E:\health\rayk-miniapp\dist\release\mp-weixin-prod-lan`。
+- 尚未使用真实客户账号发起 Qwen 真实问答、七天跨日数据验收或微信真机体验；这些属于隔离环境后续验收，不应表述为生产已验收。
+
+## 2026-09-04 金豆集市拆分为独立分页页面
+
+- 俱乐部概览不再加载或展示大量挂单，只保留“金豆集市”入口卡片；普通会员和传奇人物均可从自己的俱乐部进入 `pages-customer/gold-bean-market/index`。
+- 新增 `rayk-miniapp/src/components/GoldBeanMarketPanel.vue`，独立承载市场挂单、我的挂单、发布数量、出售来源、买入、下架和分页；每页 12 条，页面支持下拉刷新，避免挂单数量增长后撑长会员概览。
+- `GET /api/client/gold-bean/trade/market` 与 `GET /api/client/gold-bean/trade/listings/mine` 已改为返回 `PageResponse`，服务端按 `page/size` 查询并限制单页最多 50 条；传奇人物数字银行挂单的可见性和买入鉴权仍由 Java 服务端执行，前端入口不作为权限依据。
+- 已通过小程序 `type-check`、`lint`、`build:h5`、`build:mp-weixin:dev`、`build:mp-weixin:dev:remote`、`build:mp-weixin:dev:remote-test` 和 `build:mp-weixin`；H5、标准开发包、两个远程开发包和生产局域网包均已刷新。本机 Docker Desktop 和 Maven 未用于本次后端编译，后端已在 2026-09-05 远程 Java 21 Docker 构建链完成编译与全量测试。
+
+## 2026-09-04 管理员俱乐部入口改为金豆会员运营
+
+- 平台管理员进入底部第三个入口时，不再显示“俱乐部”空白占位卡，改为直接展示完整的“金豆会员运营”控制台；运营页已抽为可复用组件，工作台原有入口保持不变。
+- 管理员底部入口动态显示为“金豆运营”，普通会员仍显示“俱乐部”，游客在金豆功能关闭时仍显示“消息”；普通会员和游客的原有俱乐部逻辑未改变。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`；微信包仅刷新本地验收产物，未上传版本。
+
+## 2026-09-04 区域奖励改为系统自动返利
+
+- 平台管理员端已移除“区域盈利金豆结算”卡片、区域盈利手工录入流程及对应 `POST /api/v1/platform/gold-bean/region-profits` 接口；区域和区域返利记录接口仅保留只读审计用途。
+- 区域内代理产生注册奖励、每日奖励或等级奖励等奖励金豆时，服务端自动识别最近的有效钻石区域并发放区域返利：开辟人获得 100%；开辟人与直接上级为 A→B 时，A 额外获得 20%；为 A→B→C 时，B 额外获得 5%、A 额外获得 15%。奖励复用数字银行/可交易双账本，按整枚金豆向下取整并使用幂等键防重复发放。
+- 本次规则由 Java 后端统一鉴权和分配，平台不录入、不手工结算区域盈利；已补充自动分配单元测试。前端类型检查、Lint、H5、标准微信开发包、远程开发包、远程隔离测试包和生产局域网包均已通过；线上隔离 `rayk-remote-dev` 已使用 Java 21 镜像重建并 healthy，Flyway 保持 V56，`https://xingxuyuan.com/test-api/health` 返回 200。未上传微信版本，未修改生产容器、生产数据库、生产 H5 或生产静态资源。
+
+## 2026-09-04 移除管理员端运营提示卡
+
+- 金豆会员运营页已移除“开发版运营台”提示卡，仅保留下方的平台首会员授权、传奇人物资格和数据管理功能；区域返利由服务端自动记录，管理员不可手工结算。
+- 已重新通过前端类型检查、Lint、H5、微信开发包、线上开发包、线上隔离测试包和生产局域网包构建；未上传微信版本、未修改线上容器和生产环境。
+
+## 2026-09-04 金豆会员按钮与流水记录折叠优化
+
+- 金豆集市“发布”按钮和“我的推荐码”复制按钮已调整为更紧凑的尺寸、字号与圆角（分别为 104×76rpx、最小宽 136rpx×76rpx），降低按钮在卡片区域的突兀感，并用局部高优先级样式覆盖全局按钮尺寸规则。
+- 最近金豆记录默认折叠，右侧操作已由“刷新”改为“展开/收起”按钮，点击按钮或折叠提示可查看完整流水；收起后仅保留记录数量提示，不改变流水加载逻辑。
+- 已通过前端类型检查、Lint、H5、微信开发包、线上开发包、线上隔离测试包和生产局域网包构建；本次仅刷新本地验收产物，未上传微信版本、未修改线上容器和生产环境。
+
+## 2026-09-04 机器人权益兑换说明文案调整
+
+- 金豆会员页机器人权益卡片及兑换确认弹窗已统一调整为：每位用户仅可使用数字银行金豆兑换一次，消耗10000金豆，兑换后扫码加入微信群，由专人对接机器人的权益使用。
+- 本次仅调整前端展示文案，兑换次数、数字银行扣豆、二维码入群和服务端鉴权逻辑均未改变。
+
+## 2026-09-04 数字银行金豆兑换机器人权益已部署线上隔离开发环境
+
+- 新增 Flyway `V55__gold_robot_entitlement_redemption.sql`、`V56__gold_robot_single_redemption.sql` 和 `gold_robot_redemption` 兑换记录表。已注册且状态有效的客户仅可兑换一次机器人权益，固定消耗 10000 枚数字银行金豆；每次兑换使用客户端请求号和金豆流水幂等，服务端锁定账户后扣减数字银行余额并保存兑换时的群名称、二维码地址快照。V56 的唯一约束覆盖软删除记录，不能通过重复请求或重建请求号再次兑换。
+- 新增客户接口 `GET /api/client/gold-bean/robot/status` 和 `POST /api/client/gold-bean/robot/redeem`。兑换成功后小程序立即弹出企业微信客户群二维码，由专人对接；重复提交同一请求号不会二次扣豆。二维码未配置、余额不足、未完成注册或账户无效时，接口在扣豆前拒绝。
+- 群入口采用企业微信客户群活码配置，而不是把二维码文件写死在前端。通过 `GOLD_BEAN_ROBOT_GROUP_NAME`、`GOLD_BEAN_ROBOT_GROUP_QR_IMAGE_URL` 配置；活码可以在运营侧轮换，历史兑换仍保留当时的地址快照。企业微信群活码不应承诺绝对永久有效，群满、群解散、管理员停用或规则变化仍可能要求更新二维码。
+- 当时线上隔离 `rayk-remote-dev` 已重建并 healthy，Flyway 已执行到 V56，`https://xingxuyuan.com/test-api/health` 返回 200，未登录机器人接口返回 401；当时二维码变量为空，兑换入口保持不可用，未执行真实兑换、未扣除任何金豆。后续入口状态调整见本文最新的“机器人权益入口与余额不足提示”记录；生产容器、生产数据库和生产静态资源未修改。
+- Java 金豆相关定向测试 39 项全部通过；远程发布构建按既有流程跳过全量测试，未把既有 `VoiceReminderTextFactoryTest` 文案断言问题误报为本次功能通过。前端已通过类型检查、Lint，并重新生成 H5、标准微信开发包、远程开发包、远程隔离测试包和生产局域网包；线上隔离验收优先使用 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。
+
+## 2026-09-04 数字银行挂单仅限传奇人物购买已部署线上隔离开发环境
+
+- 集市列表按买家资格隔离：普通用户只能看到并购买“可交易金”挂单；数字银行金挂单只对平台预先录入手机号、且已完成注册的传奇人物开放。
+- 下单接口再次执行同样的服务端鉴权，普通用户直接提交数字银行挂单 ID 会返回“数字银行金豆挂单仅限传奇人物购买”；传奇人物购买数字银行挂单后，金豆全部进入数字银行。发布者仍可选择发布自己的数字银行余额。
+- 新增错误码 `60736`，本次没有新增数据库结构，继续使用 V54 的 `buyer_credit_mode` 记录买家入账规则；历史未填该字段的交易仍按普通会员双账本规则兼容。
+- 线上隔离 `rayk-remote-dev` 已重建并 healthy，数据库保持 V54，`https://xingxuyuan.com/test-api/health` 返回 200；金豆相关 Maven 定向测试 25 项全部通过。本次规则更新未再次上传微信开发版；此前误上传的 `2026.09.05` 未提交体验或发布，未修改生产容器、生产数据库或生产静态资源。
+- 前端 H5、标准微信开发包、线上开发包、线上隔离测试包和生产局域网包已重新构建；微信包仅保留本地验收产物，不作为线上容器部署方式。
+
+## 2026-09-04 金豆集市买家分账规则与页面精简已部署线上隔离开发环境
+
+- 金豆集市卡片已删除交易说明、绿色规则说明、标题右侧刷新入口，以及“发布数量”“出售来源”两个可视字段标签；数量输入、来源选择、余额/限额校验提示和挂单列表仍保留。最近金豆记录区域的刷新入口仍保留。
+- 金豆会员主面板和传奇人物俱乐部均已删除“传奇人物购买资格”提示卡；传奇人物独立俱乐部的数字银行购豆、支付和历史购买记录功能未删改。
+- 新增 Flyway `V54__gold_trade_buyer_credit_mode.sql`。普通会员从集市买入后，买入数量按整数分配到两个账本：可交易金豆为向下取整的一半，数字银行为向上取整的一半；传奇人物只能看到并购买数字银行金挂单，成交后买入数量全部进入数字银行。卖家仍从所选来源账本扣减，买家分账规则在下单时落库，避免资格变化影响已创建订单。
+- 服务端在集市查询、下单和成交三个环节校验传奇人物限制，不能通过绕过前端购买可交易金挂单；历史交易记录未填入新字段时按普通会员双账本分配兼容。
+- 金豆相关 Maven 定向测试 24 项全部通过；远程 Java 21 镜像已重建，线上隔离库 Flyway 已从 V53 执行到 V54，六个服务均为 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。发布镜像构建使用跳过测试参数，未重新执行全量测试。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`；线上隔离验收包为 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。线上隔离容器以 `https://xingxuyuan.com/test-api` 提供 API，前端包仅作为本地验收产物，不是容器部署方式；本次误上传的微信开发版本 `2026.09.05` 未提交体验或发布，不作为线上容器验收依据。未修改生产容器、生产数据库或生产静态资源。
+
+## 2026-09-04 区域盈利金豆按三级推荐链自动分配已部署线上隔离开发环境
+
+- 区域盈利的口径是“区域代理奖励产生的金豆数量”，不是人民币金额；奖励流水产生时由服务端自动识别所属区域并用幂等键记录一次自动返利，管理员不能录入或手工结算。
+- 区域开辟人固定获得该笔区域盈利金豆的 100%；上级奖励在此基础上额外追加：A→B 时 A 额外 20%，A→B→C 时 B 额外 5%、A 额外 15%。每笔到账继续复用数字银行/可交易双账本分配，比例不足 1 枚时向下取整，不产生小数金豆。
+- 区域开辟仍只允许钻石会员，一个账号最多一个区域；区域层级从实际直推链自动推导，不再信任客户端手填上级区域 ID；超过 A→B→C 的第四层、环路或不匹配的旧上级参数会被后端拒绝。
+- 新增 Flyway `V53__gold_region_profit_distribution.sql`，扩展 `gold_region_profit` 并新增 `gold_region_profit_distribution`，保存开辟人 100% 和上级额外奖励的收款对象、比例、枚数及幂等流水；平台管理员接口为 `GET /api/v1/platform/gold-bean/regions`、`GET /api/v1/platform/gold-bean/region-profits`，仅供只读审计。
+- 已补充 Java 回归测试覆盖 A→B（100% + 20%）、A→B→C（100% + 5% + 15%）和第四层拒绝；线上 Java 21 容器专项/完整金豆测试共 32 项全部通过。远程镜像已重建，Flyway 已从 V52 执行到 V53，六个隔离服务均为 healthy，`https://xingxuyuan.com/test-api/health` 返回 200；未登录平台金豆接口仍应返回 401。
+- 管理员端区域结算卡片与客户端区域说明已同步；H5、标准开发包、线上开发包、线上隔离测试包和生产局域网包已重新构建。当前只部署线上隔离开发容器，区域返利由奖励流水自动触发，未发起现金支付，生产容器、生产数据库和生产静态资源未修改。
+
+## 2026-09-04 掉星恢复、活跃保护与双账本交易权已部署线上隔离开发环境
+
+- 已将掉星中直推恢复 1 个等级、历史最高星级封顶、7 天活跃保护、第 8 天按自然日继续掉级、历史最高等级只刷新保护期，以及数字银行/可交易金豆会员间交易权代码部署到 `/opt/zhiyu-health` 的 `rayk-remote-dev` 隔离开发项目。
+- 本次部署前回滚备份为 `/opt/zhiyu-health/backups/gold-rank-protection-before-20260903-225201/source-config.tgz`；只备份源码、迁移和 Compose 配置，未修改或删除 MySQL、Redis、MinIO 数据卷，也未同步共享的生产 H5 目录。
+- 远程 Java 21 Docker 镜像已成功构建并部署，Flyway 已成功执行 V52，`gold_member_trade` 与 `gold_member_trade_listing` 已存在；隔离 Java、AI、Nginx、MySQL、Redis、MinIO 六个服务均为 healthy。金豆相关 Maven 测试全部通过；全量测试仍有既有 `VoiceReminderTextFactoryTest` 文案断言失败，因此发布构建使用跳过测试参数。
+- 验收结果：`https://xingxuyuan.com/test-api/health` 返回 200，未登录金豆摘要和交易接口返回 401；隔离开发客户登录后摘要、交易市场接口均返回业务成功，并已退出临时会话。会员交易真实支付开关仍保持关闭，未创建订单、未扣款。
+- 前端 H5、微信开发包、远程开发包、远程隔离测试包和生产局域网包已于 2026-09-04 重新构建，线上隔离验收使用 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。生产容器、生产数据库、生产 H5 和正式微信包未修改。
+
+## 2026-09-03 传奇人物数字银行购豆与双账本集市
+
+- 新增 Flyway `V52__gold_bean_legendary_and_bucketed_trade.sql`：传奇人物资格使用平台管理员维护的手机号白名单（数据库只存 SHA-256 和掩码），不是新的登录角色；管理员可在“金豆会员运营”中录入、查看和撤销资格。
+- 只有白名单手机号匹配到已注册客户时，传奇人物俱乐部才显示购豆入口；购豆订单类型为 `LEGENDARY_BANK_PURCHASE`，单价固定为 1 金豆 = ￥1.00，支付成功后全部进入数字银行。旧普通平台购豆入口不再作为新订单入口，后端仍保留旧订单回调兼容。
+- 会员间金豆集市新增出售来源选择：可交易金或数字银行金，买家到账保持同一账本。服务端按两个账本合计余额计算当前交易额度，并叠加已有挂单/待成交量鉴权，不能通过拆分账本绕过 50% 限额；余额、账本和支付回调均由 Java 后端校验。
+- 保护期结束后无论是否有直推，交易额度立即重新限制为 50%；等级仍按自然日继续掉级，直推成功后恢复 1 级并刷新 7 天保护期。已补充保护期过期限制测试、传奇手机号匹配测试和数字银行挂单测试。
+- 本地已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`；五个输出目录均已刷新。线上隔离开发容器已重建，V52 已执行，六个服务 healthy，`https://xingxuyuan.com/test-api/health` 返回 200，未登录传奇接口返回 401。
+- 远程整包 Maven 测试中本次金豆相关测试通过；另有既有 `VoiceReminderTextFactoryTest` 文案断言失败，因此部署镜像使用跳过测试的发布构建。线上隔离环境会员/金豆虚拟支付开关已启用，会员间交易商家转账仍关闭；未创建真实订单或扣款，生产容器、生产数据库和生产静态资源未修改。
+
+## 2026-09-03 掉星恢复、活跃保护与双账本交易权
+
+- 推荐人直推注册成功时，先结算已到期的掉等级状态；如果当前等级低于本人历史最高星级，最多恢复 1 个等级，并严格封顶在 `historicalLevel`，不会因为一次推荐跨级恢复。
+- 推荐成功后重新进入 7 天活跃保护期，保护期内不掉等级；第 4、5、6 天通过摘要接口和会员页提醒卡连续提醒推荐新人；第 8 天从保护期到期日开始按自然日掉等级。保护期结束后保留过期 `protectionUntil` 作为掉级锚点，后续访问会继续结算每日掉等级，不会因为第一次结算后清空时间字段而永久停止掉级。
+- 已达到本人历史最高等级（包括钻石）的继续直推只刷新 7 天保护期，不再超过历史最高等级；直推人数和历史最高等级仍按真实直推阈值维护。
+- 掉等级不注销账户，也不清空数字银行或可交易金豆；会员间交易接口已支持两个账本分别挂单和交割，交易限额仍按账户当前额度计算，已注册会员即使掉等级仍保留已有金豆的会员间交易权。
+- 铜牌、银牌、金牌、钻石解锁奖励分别为 100、300、600、1000 金豆；已补充四档奖励、保护期第 4-6 天提醒、同日不重复掉级、跨日逐级掉级、普通会员限额、掉级中恢复 1 级和历史最高等级只刷新保护期的 Java 回归测试。线上隔离开发环境已部署并通过 Java 21 Docker 全量测试 95 项，服务 healthy，`https://xingxuyuan.com/test-api/health` 返回 200，未登录接口仍返回 401；真实商家转账开关仍未配置，生产环境未修改。
+- 已重新生成并核对 `E:\health\rayk-miniapp\dist\build\h5`、`E:\health\rayk-miniapp\dist\release\mp-weixin-dev`、`E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test` 和 `E:\health\rayk-miniapp\dist\release\mp-weixin-prod-lan`；线上隔离 API 验收优先导入 `mp-weixin-dev-remote-test`，生产包未开启金豆入口。
+
+## 2026-09-03 下线推荐奖励已扩展为全链路
+
+- 推荐奖励现按完整下线链路计算：新会员注册成功时，直接推荐人获得 11 金豆；该直接推荐人的所有上级代理，无论相隔多少层，每人各获得 5 金豆。每个注册关系对每个上级最多触发一次奖励，不继续重复发放。
+- 下线奖励复用现有双账本和幂等流水机制，5 金豆按数字银行 3、可交易 2 入账；`directReferralCount`、等级和活跃保护仍只按直推更新，不把下线人数计入直推统计。推荐链遍历带环路保护，遇到无效或断开的上级链路停止结算。
+- 已更新会员页说明和平台管理员流水筛选，新增 `REFERRAL_DOWNLINE`（下游推荐奖励），保留 `REFERRAL_SECOND_LEVEL` 供历史流水查询；后端单测覆盖 A→B→C→D 链路、直推 11、所有上级各 5 及双账本拆分。Java 21 Docker 构建和 Maven 全量测试 80 项全部通过，`rayk-remote-dev-rayk-server-1` 已重建且 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。
+- 已重新生成并核对 `E:\health\rayk-miniapp\dist\build\h5`、`mp-weixin-dev`、`mp-weixin-dev-remote`、`mp-weixin-dev-remote-test` 和 `mp-weixin-prod-lan`；线上隔离验收优先导入 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。生产容器、生产数据库和生产静态资源未修改，未发起真实扣款或金豆奖励数据修正。
+
+## 2026-09-03 推荐注册商家转账场景已配置
+
+- 按平台商户收款后转账给推荐人的方案，线上隔离开发环境已配置 `REMOTE_DEV_GOLD_BEAN_REGISTRATION_REFERRAL_TRANSFER_ENABLED=true` 和 `REMOTE_DEV_GOLD_BEAN_REGISTRATION_REFERRAL_TRANSFER_SCENE_ID=1005`；该场景为微信商户侧“佣金报酬”。
+- 已备份远程 `.env.remote-dev` 后重建 `rayk-remote-dev-rayk-server-1`，容器内实际环境变量已核对为 `true`、`1005`，服务恢复 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。
+- 本次只修改线上隔离开发容器配置，未发起真实支付或转账，生产容器、生产数据库和生产静态资源未修改。真实联调仍需确认商家转账 API 权限、推荐人收款绑定/实名及微信侧风控额度。
+
+## 2026-09-03 注册成功后生成推荐码、按直推关系维护
+
+- 未完成注册的金豆账号不再生成个人推荐码；新增 Flyway `V51__gold_referral_code_after_registration.sql` 将字段改为可空，并清理线上隔离库中未注册账号的旧推荐码。已完成注册但缺少历史推荐码的账号，会在注册成功事务中补生成推荐码；摘要接口对未注册账号也强制返回空值。
+- 推荐关系、直推人数和等级仍只按直接推荐人维护；下线奖励规则见文档顶部最新记录。历史流水不做删除或倒账。
+- 金豆会员页仅在注册状态为 `PAID` 且存在推荐码时展示“我的推荐码”卡片；新增“复制推荐码”按钮，复制成功/失败均有反馈，未注册状态不会显示空卡片。推荐说明已更新为直推 11 金豆、各级上级对非直推下游注册各奖励 5 金豆，页面不再展示“金豆不可提现”文案。
+- 已同步到线上隔离开发容器：Java 21 Docker 构建和新增回归测试全部通过（80 项），`rayk-remote-dev-rayk-server-1` 已重建且 healthy，Flyway V51 已执行成功；`https://xingxuyuan.com/test-api/health` 返回 200。
+- 已重新生成并核对 H5、`mp-weixin-dev`、`mp-weixin-dev-remote`、`mp-weixin-dev-remote-test` 和 `mp-weixin-prod-lan`。由于线上隔离 Nginx 与正式 Nginx 共用 H5 挂载目录，本次新 H5 只保留本地构建，服务器 H5 已从部署前备份恢复；线上隔离验收使用指向隔离 API 的 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。
+- 本次部署前备份为 `/opt/zhiyu-health/backups/gold-referral-code-v51-before-20260903071023`；生产容器、生产数据库、生产 H5 和正式微信包未修改，未删除 Docker 数据卷。
+
+## 2026-09-03 一级代理与推荐代理注册收款链路已完成
+
+- 注册页面已改为先选择注册身份：一级代理只能填写平台管理员发放的一次性平台注册码；推荐代理只能填写已注册推荐人的推荐码；两种编码在客户端互斥展示，Java 后端也会拒绝同时提交或绕过页面提交。
+- 一级代理的 `GBR...` 注册订单继续使用微信虚拟支付并归属平台；推荐代理的 `GBR...` 订单改用普通微信支付 JSAPI 付至平台商户号，支付回调确认成功后由平台商户通过“商家转账到零钱”向提供推荐码的推荐人绑定 OpenID 结算注册费。订单新增 `registration_referrer_id`、`settlement_status`、批次号、明细号、失败原因和结算时间，管理员支付订单页可查看推荐人及结算状态。
+- 推荐注册订单创建前会强制检查：推荐人必须是同租户、已注册且状态有效；平台普通微信支付、商家转账场景 ID、推荐人微信收款绑定必须齐全。任一条件缺失时返回配置错误，不创建可误导用户扣款的支付参数；支付后若转账失败，会员开通和订单支付事实保留为已支付，结算标记为 `FAILED` 并提示平台处理，不伪造推荐人已收款。
+- 新增 Flyway `V50__gold_referral_registration_settlement.sql`；线上隔离库已从 V49 成功执行到 V50。远程 Java 21 镜像全量编译测试通过，`rayk-remote-dev-rayk-server-1` 已重建且 healthy，`https://xingxuyuan.com/test-api/health` 返回 200，未登录金豆接口仍返回 401。
+- 线上隔离环境新增 `REMOTE_DEV_GOLD_BEAN_REGISTRATION_REFERRAL_TRANSFER_ENABLED`、`REMOTE_DEV_GOLD_BEAN_REGISTRATION_REFERRAL_TRANSFER_SCENE_ID` 和可选 `REMOTE_DEV_GOLD_BEAN_REGISTRATION_REFERRAL_TRANSFER_NOTIFY_URL` 配置；部署初始状态为关闭/未配置，后续已按“佣金报酬”场景 `1005` 开启并部署。未发起真实推荐注册扣款或转账；真实联调仍必须由商户侧完成普通支付、商家转账权限/场景、收款绑定和退款/异常处理验收。
+- 线上隔离 Nginx 的 H5 挂载点已确认并同步为本次构建版本；同步前的开发 H5 备份为 `/opt/zhiyu-health/backups/gold-referral-registration-v50-before-20260903-143547/h5-before.tgz`。开发网关根路径按当前配置不对外提供页面，微信线上开发验收使用远程隔离包。
+- 本次部署前备份为 `/opt/zhiyu-health/backups/gold-referral-registration-v50-before-20260903-143547`；生产容器、生产数据库、生产 H5 和正式微信包未修改。
+- 已重新生成并核对 `E:\health\rayk-miniapp\dist\build\h5`、`dist\release\mp-weixin-dev`、`dist/release/mp-weixin-dev-remote`、`dist\release\mp-weixin-dev-remote-test` 和 `dist\release\mp-weixin-prod-lan`。线上隔离验收优先导入 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`；生产局域网包仍关闭金豆入口。
+
+## 2026-09-03 钻石会员平台购豆与城市区域权限
+
+- 平台购豆资格为“已完成注册且为第一级代理（由平台提供注册码注册）或当前等级为钻石会员”；因此平台一级代理和推荐人体系中的钻石会员都可以购买。
+- 创建订单和支付回调交付前都会刷新活跃保护期/等级状态；仅通过钻石等级获得的购豆资格在掉出钻石后取消，平台一级代理资格不受等级变化影响。
+- 城市区域仍仅允许钻石会员申请，数据库唯一约束保证一个账号最多一个区域；等级掉出钻石后只关闭购豆和新增区域权限，不删除 `gold_region`，已开辟城市继续保留和展示。
+- 已补充 Java 回归测试覆盖平台一级代理、推荐人钻石会员、普通推荐会员、钻石掉级后禁止购豆及已开辟区域保留；本次未执行真实支付。
+- 已部署到线上隔离开发环境：远程 Java 21 Docker 镜像构建（含 Maven 全量测试）成功，重建 `rayk-remote-dev-rayk-server-1` 后六个隔离服务均为 healthy，`https://xingxuyuan.com/test-api/health` 返回 HTTP 200；Flyway 校验 49 个迁移并确认远程开发库无需新增迁移。
+- 已刷新线上开发 API 对应的微信验收包 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`；生产容器、生产数据库和生产 H5 未修改，未删除任何 Docker 数据卷。
+- 本次部署前 Java 源码备份位于服务器 `/opt/zhiyu-health/backups/platform-purchase-eligibility-before-20260903-112315`。
+
+## 2026-09-03 会员间可交易金豆真实人民币结算已部署线上隔离环境
+
+- 新增 Flyway `V49__gold_bean_member_trade.sql`、挂单/成交实体和 `/api/client/gold-bean/trade/*` 接口：卖家只提交可交易金豆数量，单价固定为 1 金豆 = ￥1.00（后端按 100 分保存），买家创建 `GBT...` 订单并使用普通微信支付，挂单数量先锁定，取消/超时会释放。
+- 支付回调确认买家付款后，Java 使用微信支付 API v3 的“商家转账到零钱”向卖家绑定 OpenID 发起结算；查询到转账明细 `SUCCESS` 后才扣卖家可交易金豆、给买家交割并写入双方账本。`TRANSFER_PENDING`、`REFUND_REQUIRED` 等异常状态不会伪造金豆到账，需平台后续补齐退款/运营处理。
+- 开关为 `GOLD_BEAN_TRADE_PAYMENT_ENABLED`、`GOLD_BEAN_TRADE_TRANSFER_SCENE_ID` 和可选 `GOLD_BEAN_TRADE_TRANSFER_NOTIFY_URL`，默认关闭；普通微信支付商户证书和商家转账 API 权限、收款用户列表/实名认证、免密额度等外部条件尚未在本地完成真实验收。
+- 已同步到线上隔离开发项目 `/opt/zhiyu-health`，本次部署前源码备份为 `/opt/zhiyu-health/backups/gold-bean-trade-v49-before-20260903-112057`；隔离数据库已执行 V49，`gold_member_trade` 和 `gold_member_trade_listing` 均已创建。远程 Java 21 镜像构建时 79 项测试全部通过，`rayk-remote-dev` 六个服务均 healthy，`https://xingxuyuan.com/test-api/health` 返回 200，未登录交易市场接口返回 401；生产容器、生产数据库和生产静态资源未修改。
+- 小程序金豆页已增加“金豆集市”，发布表单只保留数量输入，客户端不再提交单价；服务端按当前可交易余额、交易限额并扣除已有挂单/待成交量鉴权，买入金额统一按 1 金豆 = ￥1.00 计算，使用普通 `uni.requestPayment`。本次已重新通过 `type-check`、`lint`、H5、标准开发包、远程开发包、远程隔离测试包和生产局域网包构建；线上隔离环境的三个交易开关因尚未配置商家转账场景 ID 仍为空/关闭，未创建真实交易、未扣款、未修改生产环境。
+
+## 2026-09-03 修正旧会员重复初始金豆
+
+- 已在线上开发容器数据库中修正 1 个受影响的已注册会员：余额由数字银行 90、可交易 90 调整为各 60；连续奖励天数保持第 2 天不变。
+- 原注册逻辑产生的 2 条 `INITIAL_GRANT` 流水已做软删除，注册成功当天的第 1 天和第 2 天 `DAILY_REWARD` 共 4 条正常流水保留；未删除数据库记录，必要时可依据备份恢复。
+- 修正前账本备份位于服务器 `/opt/zhiyu-health/backups/gold-bean-ledger-before-correction-20260903-094653.sql`；本次只处理线上开发容器，未修改生产环境。
+
+## 2026-09-03 平台购豆按双账本分配、任意数量
+
+- 平台购买金豆按“平台注册码注册的第一级代理或当前钻石会员”校验；具体资格规则见上方“钻石会员平台购豆与城市区域权限”。
+- 购买金豆可填写任意正整数，支付成功后使用统一双账本入账逻辑，数字银行和可交易金豆尽量各入一半；奇数数量无法完全平分时，多出的 1 个进入数字银行，订单流水说明同步标记“双账本尽量各一半”。
+- 客户端购买卡片已更新为“每个金豆 ￥1.00，可购买任意数量”及奇数分配提示，并保留无资格说明；验证用例覆盖双账本拆分、钻石等级资格和奇数数量分配。Vue 专项检索无匹配，界面按通用移动端禁用态、错误提示和触摸目标规范处理。
+- 已部署到线上隔离开发容器：远程 Java 21 全量 76 个测试通过，`rayk-remote-dev-rayk-server-1` 重建后健康，六个隔离服务均为 healthy，`https://xingxuyuan.com/test-api/health` 返回 200。前端已刷新 H5、微信开发包、两个远程开发包和生产局域网包；本次未创建真实购买订单、未扣款、未修改生产环境。
+- 本次部署前源码备份位于服务器 `/opt/zhiyu-health/backups/platform-purchase-any-quantity-before-20260903-103707`。
+
+## 2026-09-03 注册成功当天计入连续奖励
+
+- 普通会员无论通过开发版登记还是平台微信虚拟支付回调完成注册，注册成功当天只发放每日 60 金豆，并将其计为连续奖励第 1/20 天；不再另行发放一笔初始 60 金豆。
+- 实现位置为 `rayk-server/src/main/java/com/rayk/health/goldbean/application/GoldBeanApplicationService.java`；复用原有按日期和幂等键结算逻辑，后续查询或购买不会重复发放当天奖励。
+- 本次只修改 Java 服务端，未修改小程序源码、数据库结构或生产环境；本地单测与隔离容器内 Java 21 的 73 个 Maven 测试均全部通过。已在服务器 `/opt/zhiyu-health` 创建最新备份 `backups/gold-bean-registration-day1-single-reward-before-20260903-092200`，重建 `rayk-remote-dev-rayk-server-1`；六个隔离服务均 healthy，`https://xingxuyuan.com/test-api/health` 返回 200，未登录访问金豆接口返回预期 401。
+
+## 2026-09-02 开发版俱乐部与消息入口调整
+
+- 底部第三个入口已新增主包页面 `pages/club/index`：开发/隔离测试包在 `VITE_GOLD_BEAN_ENABLED=true` 时显示“俱乐部”，普通客户进入现有金豆会员页面；游客、医生和平台管理员不会请求客户金豆接口，会看到角色安全提示。
+- 俱乐部的角色安全提示卡片已移除装饰性的“会”图标，并同步收紧卡片顶部间距，保留登录/返回工作台操作和功能逻辑不变。
+- 已修复俱乐部页在微信开发者工具中整页空白的问题：原先误把 `pages-customer/gold-bean/index` 和 `pages/message/index` 两个页面直接嵌入为子组件，微信编译后会重复注册页面脚本；现已拆出 `GoldBeanPanel`、`MessagePanel` 可复用内容组件，原页面改为页面壳，路由和刷新逻辑保持不变。
+- 修复后已重新通过前端类型检查、Lint、H5 构建、标准开发包、远程开发包、远程隔离测试包和生产局域网包构建；生成的俱乐部页只引用真正的组件，不再把页面脚本作为 `usingComponents` 加载。验收请重新导入 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test` 并点击“编译”。
+- 原 `pages/message/index` 页面保留为普通页面，不再占用底部消息 Tab；工作台新增“消息中心”卡片，“我的”新增“我的消息”入口，二者均通过 `navigateTo` 打开原消息页面，角色数据范围和后端权限未改变。
+- 生产构建的 `VITE_GOLD_BEAN_ENABLED=false` 不开放金豆功能：俱乐部容器改为展示原消息页，并由运行时把第三个底部标签恢复为“消息”；同步生产微信包时还会把 `app.json` 第三个 Tab 恢复为 `pages/message/index`，生产接口仍保持关闭。这样开发版可以验收俱乐部，生产包不会误显示金豆会员入口。
+- 已重新通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`；H5 构建脚本固定使用 esbuild 压缩以规避当前 Windows 页面文件不足导致的 Terser worker 内存崩溃。H5、标准开发包、两个远程开发包和生产局域网包均已刷新。本次只生成本地构建产物，未部署生产 H5、未重启生产服务、未上传微信版本。
+- 交接验收优先导入 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`：登录普通客户后点底部“俱乐部”应打开金豆页；进入工作台应看到“消息中心”卡片；进入“我的”应看到“我的消息”。
+
+## 2026-09-02 平台首会员一次性授权码控制
+
+- 根据讨论确定的方案新增 Flyway `V48__gold_platform_registration_invite.sql`：平台管理员在开发版“金豆会员运营”页生成一次性平台注册授权码，可选绑定手机号并设置 1–168 小时有效期；数据库只保存 SHA-256，完整码仅在生成响应中显示一次，列表只返回掩码。
+- 首个无推荐人的客户注册必须填写平台授权码；后端不接受“推荐码和授权码都留空”的注册订单。授权码在创建支付订单时进入 `RESERVED`，取消或过期释放，支付成功回调完成会员开通后变为 `CONSUMED`；`PLATFORM_ROOT` 唯一占位键和行锁共同防止并发产生多个平台首会员。取消/过期同时清空订单占位键，授权码可在未支付订单关闭后重新使用。
+- 新增平台接口：`GET/POST /api/v1/platform/gold-bean/platform-invites`、`POST /api/v1/platform/gold-bean/platform-invites/{inviteId}/revoke`；客户新增 `POST /api/client/gold-bean/orders/{orderNo}/cancel`。管理员和客户页面已将“推荐码”与“平台注册授权码”拆为两个字段，避免空值语义混淆。
+- 隔离线上容器 `/opt/zhiyu-health` 已同步源码、应用 V48 并重建 `rayk-remote-dev-rayk-server-1`；容器健康，V48 校验成功。接口回归验证：空授权码返回 `60714`；正确授权码创建订单后列表为 `RESERVED`；取消后为 `AVAILABLE`；再次创建成功并取消；管理员撤销后为 `REVOKED`。未发起真实扣款，生产容器、生产数据库和生产静态资源未修改。
+- 本次远程跳过测试构建成功。完整 Maven 测试仍有 1 项既有 `VoiceReminderTextFactoryTest` 文案断言失败，其余通过；未修改语音提醒模块。前端 `type-check`、`lint`、`build:h5`、`build:mp-weixin:dev`、`build:mp-weixin:dev:remote`、`build:mp-weixin:dev:remote-test` 和 `build:mp-weixin` 均已通过，H5、标准开发包、远程包、隔离测试包和生产局域网包均已刷新；本次未部署生产静态资源。
+
+## 2026-09-02 开发版金豆真实平台支付与购买链路
+
+- 新增 Flyway `V47__gold_bean_payment.sql` 和 `gold_member_order` 订单表，区分平台注册费订单 `GBR...` 与金豆购买订单 `GBP...`；订单创建、商品 ID、金额、数量、支付渠道、平台交易号和到账时间均可追溯。
+- 客户端金豆页已接入真实开发支付流程：支付开关关闭时仍是原记录型演示，开启并配置商品后，首个无推荐人的客户可向平台支付注册费；已注册客户可向平台购买金豆，购买金豆只入数字银行，不走可交易余额。带推荐码的注册不会进入平台收款链路，推荐人收款、结算和退款暂未实现。
+- 服务端使用 `wx.requestVirtualPayment` 所需的服务端签名；支付回调按腾讯虚拟支付实际格式读取外层 `eventType/event/outTradeNo/payload/payEventSig`，校验 `payEventSig`、订单号、商品 ID、数量、单价、OpenID、绑定 AppID 和交易号后才开通会员或入账，并按订单/流水幂等处理。官方字段要求可参考 [腾讯云小程序支付文档](https://intl.cloud.tencent.com/zh/document/product/1219/70275) 和 [虚拟支付接口与回调](https://intl.cloud.tencent.com/zh/document/product/1219/67644)。
+- 平台管理员金豆运营台新增只读“支付订单”页签和 `/api/v1/platform/gold-bean/orders` 接口，可查看脱敏交易号、订单状态、商品类型、金额、数量和会员归属；没有改账、打款、结算或退款操作。
+- 2026-09-02 真机首次尝试时发现旧记录型演示账号被标记为 `PAID + PLATFORM`，导致新账号误收到“平台支付仅用于首个无推荐人的金豆会员注册”。已修正为只统计 `gold_member_order` 中真实微信虚拟支付成功的平台注册订单，不删除旧演示数据；修复后新账号可继续创建首个 `GBR...` 订单。
+- 支付配置只在开发环境显式开启：本地 `compose.real-payment-dev.yml` 要求 `GOLD_BEAN_REGISTRATION_PRODUCT_ID`、`GOLD_BEAN_PRODUCT_ID` 和共享虚拟支付密钥；线上隔离容器通过 `REMOTE_DEV_GOLD_BEAN_PAYMENT_ENABLED`、`REMOTE_DEV_GOLD_BEAN_REGISTRATION_PRODUCT_ID`、`REMOTE_DEV_GOLD_BEAN_PRODUCT_ID` 注入，默认关闭。当前隔离环境已配置并发布注册商品 `normal_member_998` 和金豆商品 `gold_bean`，已明确开启金豆支付；不能使用年度健康会员商品 ID。
+- 线上隔离开发容器已应用 V47，Java 21 构建的 72 个测试全部通过，六个隔离服务 healthy，`https://xingxuyuan.com/test-api/health` 返回 200；当前 `GOLD_BEAN_PAYMENT_ENABLED=true`，注册费为 99800 分、金豆单价为 100 分，支付与购买入口已通过摘要接口确认开启，尚未产生真实订单或扣款。回调兼容修正已同步并重建容器；生产容器、生产数据库和生产静态资源未修改。
+- 交接验收包为 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。用全新客户账号且推荐码留空测试注册，再用同一账号测试购买金豆；分别核对客户端订单状态、会员页数字银行余额/流水、管理员“支付订单”页和回调日志。若需要回滚，先恢复隔离环境备份并关闭 `REMOTE_DEV_GOLD_BEAN_PAYMENT_ENABLED`。
+
+## 2026-09-02 修复远程开发包缺少平台金豆页面
+
+- 微信开发者工具报错 `/pages-platform/gold-bean/index.wxml not found` 的根因是当时导入的 `dist/release/mp-weixin-dev-remote` 仍是 2026-08-27 的旧包，旧 `app.json` 和目录都没有新增的 `pages-platform/gold-bean` 分包页面；不是 Vue 页面或后端接口渲染错误。
+- 已重新执行 `npm run build:mp-weixin:dev:remote` 和 `npm run build:mp-weixin:dev:remote-test`，当前 `mp-weixin-dev-remote`、`mp-weixin-dev-remote-test`、`mp-weixin-dev`、`mp-weixin-prod-lan` 四个包均包含 `pages-platform/gold-bean/index.js/json/wxml/wxss`，且 `app.json` 已登记 `gold-bean/index`。
+- 线上隔离开发容器回归仍通过：`https://xingxuyuan.com/test-api/health` 返回 200，平台管理员登录及金豆管理员接口返回成功，测试环境保持 `developmentMode=true`、`recordOnly=true`；未修改生产容器。
+- 微信开发者工具需重新导入或重新编译当前目录 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`（隔离线上容器验收）或 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote`（线上 HTTPS 验收），不要继续使用旧的开发工具缓存/旧目录。
+
+## 2026-09-02 开发版金豆会员管理员运营台第一阶段
+
+- 根据 `C:\Users\An'an\Desktop\需求梳理.docx`，已开始实现开发环境管理员端第一阶段：规则快照、会员账户、推荐关系、注册费用归属和金豆流水只读查询。
+- 服务端新增 `/api/v1/platform/gold-bean/overview`、`/accounts`、`/referrals`、`/ledger` 接口，仅允许现有 `PLATFORM_ADMIN` 通过既有 `platform:tenant:list` 权限访问；跨机构读取仍在后端执行，未新增角色。
+- 小程序新增开发版菜单和页面 `rayk-miniapp/src/pages-platform/gold-bean/index.vue`，由 `VITE_GOLD_BEAN_ENABLED` 控制，正式包保持隐藏；页面支持关键词、注册状态和流水类型筛选。
+- 当前页面明确为开发环境只读运营台：现有注册流程仍是记录型演示，未接入真实收款、向推荐人个人打款、结算、退款或管理员改账操作。
+- 前端 `type-check`、`lint`、`build:h5`、`build:mp-weixin:dev`、`build:mp-weixin:dev:remote-test` 和 `build:mp-weixin` 均通过；H5、微信开发包、隔离测试包和生产局域网包已按本次源码刷新。
+- 线上隔离开发容器 `rayk-remote-dev-rayk-server-1` 已用 Java 21 编译并启动，跳过测试构建成功且六个隔离服务均 healthy。完整 Maven 测试首次为 70 项中 69 项通过、1 项既有 `VoiceReminderTextFactoryTest` 文案断言失败，与本次金豆管理员改动无关；未修改提醒模块。
+- 已通过 `https://xingxuyuan.com/test-api` 实测：开发平台管理员登录成功，规则快照、账户、推荐关系和流水接口均返回 200；`registrationStatus=ALL` 修复后返回 2 个账户；开发客户访问平台接口返回 403。测试环境返回 `recordOnly=true`、`developmentMode=true`，未触发真实收款或结算。
+- 远程服务源码变更前备份目录为 `/opt/zhiyu-health/backups/platform-gold-bean-admin-before-20260902-094600`，筛选修复前备份目录为 `/opt/zhiyu-health/backups/platform-gold-bean-admin-filter-before-20260902-095200`；生产容器、生产数据库和生产 H5 未修改。
+
+## 2026-09-02 开发版首页健康管理进度卡片隐藏
+
+- 首页底部“健康管理进度 / 健康档案已完善”卡片已在开发模式下暂时隐藏，生产模式继续保留；上方“今日概览”中的档案完整度卡片未修改。
+- 通过 `homeProfileProgressCardEnabled` 按构建模式控制显示，未删除原有代码和路由。已重新生成并核对 `dist/build/h5`、`dist/release/mp-weixin-dev`、`dist/release/mp-weixin-dev-remote-test` 和 `dist/release/mp-weixin-prod-lan`；开发包开关为 `false`，生产局域网包为 `true`。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`。本次未部署或发布线上版本，开发版仍需导入微信开发者工具/真机确认视觉效果。
+
+## 2026-09-01 首页今日概览同步线上
+
+- 已将首页游客“今日概览”替换为“档案完整度＋健康报告＋健康随访”概览结构：游客仅显示 0/登录提示等安全空值，点击个人数据卡片会先引导登录；已登录客户继续显示真实数据。生产 H5 已同步到服务器 `/opt/zhiyu-health/rayk-miniapp/dist/build/h5`。
+- 切换前的线上 H5 已备份至 `/opt/zhiyu-health/backups/home-overview-before-20260901-182814/h5.tgz`，旧目录保留为 `rayk-miniapp/dist/build/h5.previous-home-overview-before-20260901-182814`，可用于回滚。生产 Nginx 已重建并通过健康检查，`https://xingxuyuan.com/health` 返回 `{"status":"UP"}`，线上首页 bundle 已核对包含“档案完整度”和“登录后可完善健康档案”。
+- 使用本次构建的 `dist/release/mp-weixin-prod-lan` 上传微信小程序体验版本 `2026.09.01.2`，描述为 `home-overview-dashboard-20260901`，AppID 为现有生产小程序。该版本已上传但未提交审核或正式发布，正式发布仍需在微信平台完成后续流程。
+- 本次仅更新前端静态资源和小程序体验包，未修改数据库、Java/Python 镜像或生产密钥；生产静态目录与隔离测试网关共用，因此测试 H5 也同步到同一份新页面。
+
+## 2026-09-01 首页品牌标识与今日概览视觉调整
+
+- 首页主视觉右侧头像位不再使用游客默认字母 `R`：游客或无显示姓名的账号使用现有品牌资源 `src/assets/ui/login/brand-logo-sheep.png`，有显示姓名的账号继续显示姓名首字，避免影响已登录用户辨识。
+- 首页“今日概览”游客状态改为与客户一致的“档案完整度＋健康报告＋健康随访”概览结构；游客只显示 0/登录提示等安全空值，不调用个人数据接口，已登录客户继续显示真实数据。
+- 游客首页常用服务两行卡片已扩大纵向触控区域并移除卡片末尾多余外边距，减少首屏底部留白；服务数量、路由和游客预览逻辑不变。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`；四套前端产物已在本次修改后重新生成并核对。
+
+## 2026-09-01 微信审核整改：登录改为主动选择
+
+- 审核拒绝原因为：小程序打开后直接进入“授权手机号并登录”页面，未先让用户浏览功能服务；审核要求先体验，再由用户自行选择授权登录。当前整改只修改了小程序入口和未登录展示逻辑，未放宽后端鉴权、未请求头像/昵称授权，也未改变手机号登录校验。
+- `rayk-miniapp/src/pages.json` 已将 `pages/home/index` 调整为首个页面。未登录用户进入首页时使用普通首页布局（主视觉、今日概览、常用服务和工作台入口），不再显示额外的游客引导卡；手机号授权只会在用户主动点击登录入口后触发。登录页仅保留主动登录和协议确认内容，不再重复放置浏览按钮，公开浏览统一从首页进入。
+- 首页、工作台、消息、我的和帮助与反馈页都增加了游客状态：游客可以浏览完整 10 项客户服务说明、工作台服务卡片、常见问题和登录提示；首页今日概览显示普通空状态，消息页保留无图标的“登录后查看你的健康动态”提示卡；这些状态不会调用受保护的个人数据接口。点击需要个人数据的服务时先显示说明，可继续浏览或主动选择“去登录”。登录后原有三角色工作台和数据权限逻辑保持不变。
+- 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`。当次产物已刷新到 `dist/build/h5`、`dist/release/mp-weixin-dev`、`dist/release/mp-weixin-dev-remote-test` 和 `dist/release/mp-weixin-prod-lan`；生成包 `app.json` 首页已核对为 `pages/home/index`。
+- 当前仅完成代码和开发/隔离测试包构建，未修改、未重启、未发布生产 H5、生产 Java 或微信正式/体验版本。下一步应先把 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test` 导入微信开发者工具，在真机以全新会话验证：首次打开为首页、可浏览工作台/服务卡片/常见问题，点击“选择登录”后才进入手机号授权；确认通过后再按微信审核流程上传新的体验版本。
+
+## 2026-09-01 金豆会员刷新按钮样式修复
+
+- 金豆会员页“最近金豆记录”的刷新按钮已改为页面自绘的可点击控件，绕开微信原生按钮对直接文本和全局 `.elder-page button` 规则的特殊渲染；按钮固定为 88rpx 触控区域，文字使用绝对定位对齐按钮中心。
+- 保留原有 `loadLedger` 刷新逻辑，增加按压反馈、禁用态和重复请求保护；已重新生成 H5、`dist/release/mp-weixin-dev`、`dist/release/mp-weixin-dev-remote-test` 和 `dist/release/mp-weixin-prod-lan`。本次未部署线上，真机视觉效果仍需导入最新微信包后重新编译确认。
+
 ## 2026-09-01 开发版手机号授权校验修复
 
 - 开发包登录失败的可观测性根因是 Java `WeChatPhoneNumberClient` 将手机号接口、access_token 获取和缓存异常全部压缩为同一个 10205，既无法确认微信实际返回的 `errcode/errmsg`，也不会在缓存 token 失效时刷新重试。当前已改为读取并安全记录 HTTP 状态、微信错误码/消息、是否返回手机号信息、请求 ID 和脱敏的 AppID 哈希；绝不记录手机号、手机号授权 code、access_token、AppSecret 或其他密钥。
@@ -32,7 +823,7 @@
 
 ## 2026-08-31 开发环境金豆会员需求 V1
 
-- 已依据 `C:\Users\An'an\Desktop\需求梳理.docx` 在现有小程序基础上新增开发环境专用金豆会员演示能力：普通会员登记状态、60 金豆初始奖励、每日 60 金豆 20 天、直推等级（普通/铜牌/银牌/金牌/钻石）、直推与二级奖励、7 天活跃保护期、降级提醒、双账本和钻石区域演示。后端以 Java 校验和追加账本流水，前端只负责展示和操作入口。
+- 已依据 `C:\Users\An'an\Desktop\需求梳理.docx` 在现有小程序基础上新增开发环境专用金豆会员演示能力：普通会员登记状态、60 金豆初始奖励、每日 60 金豆 20 天、直推等级（普通/铜牌/银牌/金牌/钻石）、直推奖励、7 天活跃保护期、降级提醒、双账本和钻石区域演示。后端以 Java 校验和追加账本流水，前端只负责展示和操作入口。
 - 数据库新增 Flyway `V46__gold_bean_membership.sql`，包含账户、推荐关系、金豆账本、区域和分润记录基础表；未完成开发注册的账号保持 `UNPAID`，不会提前获得初始或每日金豆。真实收款、数字银行购买、机器人能力、交易撮合和区域分润结算未伪造实现，待业务/支付/合规口径明确后再开发。
 - 功能隔离：`compose.dev.yml` 与 `compose.remote-dev.yml` 开启 `GOLD_BEAN_ENABLED`、`GOLD_BEAN_DEVELOPMENT_MODE`；生产配置保持关闭。小程序 `.env.development` 开启 `VITE_GOLD_BEAN_ENABLED`，`.env.production` 关闭，因此生产包不显示入口，生产容器和线上版本本次未修改、未重启、未发布。
 - 前端页面为 `rayk-miniapp/src/pages-customer/gold-bean/index.vue`，入口仅对开发客户显示；接口前缀为 `/api/client/gold-bean`。已生成并同步 H5、微信开发包、生产局域网包，以及服务器隔离测试包 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。
@@ -49,7 +840,7 @@
 
 - 隔离测试包进入“金豆会员”显示“加载遇到问题 / 系统内部错误”的根因是 `GoldBeanApplicationService.createReferralCode` 对短用户 ID 生成的 9 字符前缀强制执行 `substring(0, 20)`，触发 `StringIndexOutOfBoundsException`；与微信登录、权限、支付和 V46 迁移无关。
 - 已改为推荐码至少保留完整生成值、超过数据库字段长度时才截断，并新增短 ID/长 ID 回归测试。服务器隔离测试 `rayk-server` 已使用 Java 21 重建，70 个 Maven 测试全部通过并仅重启隔离测试服务。
-- 使用隔离测试开发账号实际请求 `/api/client/gold-bean/summary` 已返回 HTTP 200，首次账号状态为 `UNPAID`，推荐码长度为 13；远程测试六个服务均 healthy。生产容器和生产配置未修改。
+- 使用隔离测试开发账号实际请求 `/api/client/gold-bean/summary` 已返回 HTTP 200，首次账号状态为 `UNPAID`，摘要不返回个人推荐码；远程测试六个服务均 healthy。生产容器和生产配置未修改。
 
 > 本文只记录当前代码和运行环境的真实状态。历史讨论、已废弃方案和逐次排障过程不在此保留。接手前请同时阅读根目录 `AGENTS.md`、`README.md`，并执行 `git status --short`。
 
@@ -1177,3 +1968,121 @@ docker compose -f compose.yml -f compose.dev.yml ps
 - 已通过 `npm run type-check`、`npm run lint`、`npm run build:h5`、`npm run build:mp-weixin:dev`、`npm run build:mp-weixin:dev:remote-test` 和 `npm run build:mp-weixin`。四个前端输出目录均已生成新按钮样式，且不含旧登录 FAQ。
 - 已先备份线上 H5 至 `/opt/zhiyu-health/backups/help-feedback-button-ui-before-20260829-164749/h5.tgz`，再更新生产与隔离测试网关共同挂载的 H5 目录。公网实际加载的 `index-Dz4Rolo-.css` 已包含全宽和固定高度规则，`/health` 返回 200；临时上传文件已清理。
 - 已将生产配置微信包上传至现有 AppID 的开发/体验版本 `2026.08.29.1`，描述为 `fix-support-feedback-button-ui-20260829`，上传成功但未提交审核或发布。隔离测试包仍在 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`，需在开发者工具中重新导入/编译，避免测试接口进入生产体验包。
+## 2026-09-06 推荐奖励收款状态文案
+
+- 将待用户确认的推荐奖励状态文案由“等待你确认收款”统一调整为“等待确认收款”。
+- 已重新生成前端 H5、微信开发包、线上隔离测试包和生产局域网包。
+## 2026-09-06 删除推荐奖励自动收款提示卡片
+
+- 删除“推荐奖励自动收款”独立提示卡片，自动收款入口继续保留在推荐奖励收款列表第一条记录的操作区，与“确认收款/刷新状态”并排显示。
+- 已重新生成前端 H5、微信开发包、线上隔离测试包和生产局域网包。
+## 2026-09-06 推荐奖励收款状态去重
+
+- 推荐奖励待确认时，业务状态与微信转账状态相同的“等待确认收款”只显示一次；其他不同状态仍保留状态补充信息。
+- 已重新生成前端 H5、微信开发包、线上隔离测试包和生产局域网包。
+
+## 2026-09-06 金豆集市改为虚拟支付并接通卖家结算
+
+- 金豆集市 `GBT...` 买单现在调用已配置的微信虚拟道具 `gold_bean`，按 `buyQuantity` 传递购买数量；虚拟支付回调会校验订单、商品、数量、单价、环境、商户号、买家 OpenID 和交易号，未通过校验不会交割金豆。
+- 买家支付确认后，Java 服务使用新版“商家转账到零钱”接口向卖家微信 OpenID 结算，新的转账单使用固定 `out_bill_no` 幂等重试；`SUCCESS` 才扣卖家对应账本并给买家入账，`WAIT_USER_CONFIRM` 会把确认参数展示给卖家，失败/处理中保留订单状态并由定时补偿恢复。旧版已有的 `D` 批量转账单继续走旧查询路径，避免重复打款。
+- 新增 `V61__gold_member_trade_transfer_reconciliation.sql` 保存微信转账状态、收款确认参数、查单时间和下次重试时间；新增卖家收款查询/查单接口 `/api/client/gold-bean/trade/payouts` 和 `/api/client/gold-bean/trade/payouts/{tradeNo}/sync`，小程序增加“集市卖家收款”卡片，支持确认收款、刷新状态和已到账展示。
+- 本次已在远端 Java 21 Docker 构建链通过 126 项 Maven 测试，V61 已在 `rayk_health_remote_dev` 执行，隔离 Java 容器当前 healthy；前端 `type-check`、ESLint、H5、微信开发包、生产局域网包和远程隔离测试包均已生成，远程隔离 H5 已同步到 `h5-remote-dev`。
+- 远程隔离环境在本次后续配置前仍是安全默认值：`GOLD_BEAN_PRODUCT_ID=gold_bean` 已注入，虚拟支付回调地址已配置，但 `REMOTE_DEV_GOLD_BEAN_TRADE_PAYMENT_ENABLED` 未开启、`REMOTE_DEV_GOLD_BEAN_TRADE_TRANSFER_SCENE_ID` 未配置，因此当时没有发起真实卖家转账。要做真实联调，还需在服务器受限 `.env.remote-dev` 配置已在商户平台审核通过的金豆交易转账场景 ID，并显式开启交易支付开关；不能用普通微信 JSAPI 或只配置虚拟道具替代商家转账能力。
+
+## 2026-09-06 启用金豆集市“佣金报酬”转账场景（线上隔离开发环境）
+
+- 按用户确认，线上隔离开发环境复用微信商户平台“佣金报酬”转账场景 ID `1005`，用于金豆集市买家虚拟道具支付成功后的卖家商家转账；只修改受限的 `.env.remote-dev`，修改前备份位于 `/opt/zhiyu-health/.codex-backups/trade-chain-config-before-scene1005-20260906-122500/.env.remote-dev`。
+- 已启用 `REMOTE_DEV_GOLD_BEAN_TRADE_PAYMENT_ENABLED=true`、`REMOTE_DEV_GOLD_BEAN_TRADE_TRANSFER_SCENE_ID=1005`，重建隔离 `rayk-server` 后核对容器实际环境为 `GOLD_BEAN_PRODUCT_ID=gold_bean`、交易开关 `true`、场景 `1005`；容器 healthy，`https://xingxuyuan.com/test-api/health` 返回 `status=UP`。V61 已执行，生产容器、生产数据库和生产静态资源未修改。
+- 本次部署没有创建订单、发起真实支付或转账。联调时应使用新金豆集市订单：买家完成 `gold_bean` 虚拟支付后，服务端才发起卖家转账；若微信返回 `WAIT_USER_CONFIRM`，卖家需在小程序“集市卖家收款”中确认，只有最终 `SUCCESS` 才会给买家交割金豆。
+
+## 2026-09-06 金豆集市按注册区域城市限制交易
+
+- 新增 Flyway `V62__gold_member_trade_region_scope.sql`：挂单增加 `region_city` 区域快照，并按卖家已注册城市回填历史挂单；新挂单必须有注册区域城市，避免出现无区域归属的普通挂单。
+- 普通客户的 `/api/client/gold-bean/trade/market` 只返回与本人注册区域城市一致的挂单，`/trade/listings/{listingId}/buy` 也在服务端再次校验区域，跨区域请求返回“普通会员只能购买本注册区域的金豆挂单”；未完成城市注册的普通客户返回区域必填错误。
+- 传奇资格客户不增加区域过滤，可购买全国各地挂单；继续保留既有规则：传奇只能购买数字银行金豆，普通客户只能购买可交易金豆。小程序集市顶部和每个挂单显示当前/挂单区域，明确告知用户交易范围。
+- 远程 Java 21 Docker 构建完整 Maven 测试 `128` 项通过，V62 已在 `rayk_health_remote_dev` 执行，隔离容器 healthy，`https://xingxuyuan.com/test-api/health` 返回 `status=UP`。前端 `type-check`、ESLint、H5、微信开发包、远程隔离测试包和生产局域网包均已重新生成；生产环境未修改，未创建真实订单。
+
+## 2026-09-06 机器人权益入口与余额不足提示
+
+- 机器人权益入口不再因为数字银行余额未满 10000 或服务群二维码未配置而置灰；已注册、状态有效且尚未兑换的客户可以点击入口，服务端仍在事务内校验余额、群配置和一次性兑换条件。
+- 数字银行余额不足时新增错误码 `60744`，小程序弹出“数字银行金豆余额不足，请先积累至10000金豆后再兑换”，不扣除任何金豆；兑换成功后原有幂等扣豆、兑换记录和企业微信群二维码弹窗逻辑不变，按钮显示“已兑换”。
+- 线上隔离 `rayk-remote-dev` 已重建并 healthy，`https://xingxuyuan.com/test-api/health` 返回 `status=UP`；远程 Java 21 Docker 构建完整 Maven 测试 `129` 项通过。当前隔离环境的服务群二维码变量仍为空，因此余额不足账号可验证提示，余额达到 10000 前仍需配置真实企业微信群活码才能完成兑换；生产环境未修改。
+- 前端 `type-check`、ESLint、H5、微信开发包、远程隔离测试包和生产局域网包均已重新生成，验收优先使用 `E:\health\rayk-miniapp\dist\release\mp-weixin-dev-remote-test`。
+
+## 2026-09-06 机器人权益卡片视觉优化
+
+- 移除机器人权益卡片内嵌的“数字银行金豆余额不足，还需多少豆；点击兑换会提示余额不足”动态文案；余额不足提示仍保留在点击兑换后的中文弹窗中，不改变服务端扣豆前校验和不扣豆约束。
+- 兑换按钮由深色金色改为浅色品牌绿色、深色文字、轻边框和按压态，增加与浅金色卡片的层次协调；兑换完成后的“已兑换”状态不变。
+- 本次前端类型检查、Lint、H5、微信开发包、远程隔离测试包和生产局域网包均已重新生成；生产环境未修改。
+
+## 2026-09-07 全局金豆统一支持六位小数
+
+- 新增 Flyway `V65__gold_bean_decimal_amounts.sql`，将账户余额、金豆流水、平台购豆订单、集市挂单/成交数量、区域返利和机器人兑换成本统一迁移为 `DECIMAL(24,6)`；历史整数值会自动转换为带六位小数的定点值，人民币金额字段仍按分保存。
+- Java 账本、平台购豆、传奇人物购豆、集市交易、区域返利、卖家结算和机器人兑换统一使用 `BigDecimal`；金额计算固定 6 位小数，双账本拆分不丢失小数，虚拟支付商品仍按微信要求编码为整数数量并对小数订单使用“单个商品、总价”表达。
+- 小程序新增统一金豆格式化和输入校验，平台购豆、集市发布/购买、余额、流水、返利和管理员统计均支持最多 6 位小数，最小输入为 `0.000001` 金豆。
+- 本机 Java 21 完整 Maven 测试全部通过；前端 `type-check`、ESLint、H5、微信开发包、远程隔离测试包和生产局域网包均已重新生成。尚未在生产数据库执行 V65、未创建真实小数支付订单；上线前需先迁移数据库并核对微信虚拟支付回调、卖家转账和账本对账。
+
+## 2026-09-07 删除平台购豆数量辅助文案
+
+- 删除金豆会员“向平台购买金豆”数量输入框下方的辅助文案；购买数量输入、金额计算、支付和到账逻辑不变。
+- 已重新生成 H5、微信开发包、远程隔离测试包和生产局域网包；生产环境未修改。
+
+## 2026-09-07 修复推荐码复制失败
+
+- 推荐码复制统一规范为字符串，并增加跨端剪贴板处理：微信小程序优先调用微信原生剪贴板 API，其他小程序运行时回退到 `uni.setClipboardData`，H5 使用浏览器剪贴板并提供 textarea 兼容方案。
+- 复制成功仍提示“推荐码已复制”，失败才提示“推荐码复制失败”；推荐码生成、展示和推荐关系逻辑不变。
+- 已通过前端 `type-check`、ESLint，并重新生成 H5、微信开发包、远程隔离测试包和生产局域网包；生产环境未修改。
+
+## 2026-09-07 补充微信剪贴板隐私授权处理
+
+- 针对微信开发者工具仍返回剪贴板失败的问题，复制前增加 `wx.requirePrivacyAuthorize`；复制失败会保留微信返回原因，并对未声明隐私范围的情况提示管理员配置“剪贴板”。推荐码文本支持长按选择复制作为兜底。
+- 微信公众平台必须在“用户隐私保护指引”中声明剪贴板用途并生效；该项属于微信后台配置，不能由本地代码绕过。配置完成后请重新打开开发者工具并重新导入远程测试包。
+- 已通过前端 `type-check`、ESLint，并重新生成 H5、微信开发包、远程隔离测试包和生产局域网包；生产环境未修改。
+
+## 2026-09-07 推荐码改为长按复制提示
+
+- 移除金豆会员推荐码右侧的“复制推荐码”按钮和自动剪贴板调用，改为显示“长按推荐码即可复制”；推荐码文本保留可选择能力，推荐码生成和推荐关系逻辑不变。
+- 已通过前端 `type-check`、ESLint，并重新生成 H5、微信开发包、远程隔离测试包和生产局域网包；生产环境未修改。
+
+## 2026-09-08 平台金豆运营界面紧凑化与中文显示
+
+- “最近授权码”默认折叠，标题显示记录数量并支持展开/收起，授权码生成、撤销逻辑不变。
+- 平台会员账户、推荐关系、金豆流水和支付订单显示最新健康资料姓名；无资料时回退账号昵称，管理员重新进入或刷新后生效。
+- 金豆流水类型统一显示中文，覆盖初始金豆、每日奖励、推荐奖励、等级奖励、平台/传奇购豆、机器人权益和集市买入/卖出等类型；未知类型显示“其他金豆流水”。
+- 已通过前端 `type-check`、ESLint，并重新生成 H5、微信开发包、远程隔离测试包和生产局域网包；本机未安装 Maven 且 Docker 未运行，后端 Java 测试未执行，生产环境未修改。
+
+## 2026-09-08 会员注册费调整为 1000 元
+
+- 平台注册码注册和推荐码注册的业务/结算基准统一调整为 1000 元（100000 分）；12% 虚拟支付加价后的用户应付金额统一为 1120 元（112000 分）。
+- 推荐码注册支付成功后，商家转账仍读取订单业务金额，因此推荐人实际收款为 1000 元，不会收到加价部分；已支付账户、已创建订单和历史推荐结算金额保持不变。
+- 新增 Flyway `V66__gold_registration_fee_1000.sql`，更新数据库默认值，并将未注册账户的待注册费用切换为 1000 元。微信后台对应的平台注册/推荐注册虚拟商品仍需分别配置为 1120 元，商品 ID 保持不变。
+- 本次仅修改代码、默认配置和迁移文件，已通过前端 `type-check`、ESLint、H5、微信开发包和生产局域网包构建，并同步 `dist/build/h5`、`dist/release/mp-weixin-dev`、`dist/release/mp-weixin-prod-lan`；未执行数据库迁移或真实支付，未修改生产环境。后端 Java 测试因本机未安装 Maven 且 Docker 未运行暂未执行。
+
+## 2026-09-08 健康树洞七天反馈后台定时任务与总结卡片
+
+- 新增 `HealthTreeHoleFeedbackScheduler`，默认每天北京时间 02:15 扫描已有树洞记录的客户；通过显式租户上下文和客户本人身份执行，服务端继续按本人数据范围读取，避免要求客户打开页面才能生成反馈。
+- 新增 `generateTreeHoleFeedbackIfDue(patientId)` 后台入口：只处理已完成七天周期且当前周期尚未生成反馈的客户，沿用 `AI_HEALTH_TREE_HOLE` 权益预占/确认/失败释放、AI 空结果失败和数据库唯一约束；免费体验已结束等预期状态不会刷满错误日志。定时任务可用 `RAYK_HEALTH_TREE_HOLE_FEEDBACK_CRON` 覆盖默认时间。
+- 健康树洞“树洞记录”入口下方恢复“七天反馈总结”卡片，支持同步中、记录进度、待整理、已生成、风险提醒、下一周小行动、隐私说明和失败重试；页面进入/返回时只刷新状态，不再把页面访问作为主要生成触发器。
+- 已通过 Java 21 Maven 编译和 `-DforkCount=0 test`（156 项通过），前端 `type-check`、ESLint、H5、微信开发包和生产局域网包均通过并已同步；本次未执行数据库迁移或真实 AI/微信端跨日验收，生产环境未修改。
+
+## 2026-09-08 远程隔离测试包重新同步
+
+- 针对微信开发者工具仍打开旧包的问题，重新执行 `build:mp-weixin:dev:remote-test`，已将最新树洞页面同步到 `rayk-miniapp/dist/release/mp-weixin-dev-remote-test`。
+- 已核对包内 `pages-customer/medical-assistant/index.wxml` 包含“七天反馈总结”；本次后续重建后的远程测试包目录更新时间为 2026-09-08 11:10:42。微信开发者工具仍可能保留旧编译缓存，导入同一目录后需点击“编译”，必要时执行“清缓存并重新编译”。
+
+## 2026-09-08 修复首页档案完整度动态刷新
+
+- 首页概览请求增加时间戳参数，避免 GET 缓存继续显示旧完整度；客户首页同时读取最新健康档案接口，以服务端刚计算的 `profileCompleteness` 覆盖概览卡片数值。
+- 增加刷新序列号，页面返回、定时刷新和手动刷新并发时只接受最后一次请求，旧请求不能覆盖新数据；页面隐藏时会使未完成请求失效。
+- 已通过前端 `type-check`、ESLint、H5、微信开发包、微信生产局域网包和远程隔离测试包构建；四套产物均已重新同步，生产环境未修改。
+
+## 2026-09-08 远程隔离测试包纳入每次前端交付
+
+- 后续每次修改 `rayk-miniapp` 前端后，必须执行 `npm run build:mp-weixin:dev:remote-test`，将最新源码重新生成到 `dist/release/mp-weixin-dev-remote-test`；该包与 H5、开发包、生产局域网包一样纳入交付核对。
+- 本次已重新构建该包，首页与接口文件均已和 `dist/build/mp-weixin` 逐文件核对哈希一致；微信开发者工具仍需点击“编译”，必要时清缓存并重新编译。
+
+## 2026-09-08 修复档案完整度仍显示 0%
+
+- 根因：服务端原完整度只统计 24 项健康问卷；用户已经填写的姓名、性别、出生日期属于 `health_patient`，未被计入，因此截图中的档案详情会显示 0%，不是首页请求缓存问题。
+- 服务端展示口径现统一为姓名、性别、出生日期 + 24 项健康问卷，共 27 项；读取和保存健康档案时都会按患者最新身份资料重新计算。前端首页、档案详情和编辑页预览使用同一口径，远程测试包在旧服务端尚未重启时也不会把已填写身份显示成 0%。
+- 无数据库结构变化，不修改或重排已执行 Flyway 迁移；未部署生产后端、未创建生产数据。交付前需通过 Java 测试、前端检查，并重新生成 H5、微信开发包、`mp-weixin-dev-remote-test` 和生产局域网包。

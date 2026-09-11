@@ -1,0 +1,52 @@
+-- 开发环境金豆会员之间的可交易金豆撮合账本。
+-- 买家使用普通微信支付，平台商户转账到卖家零钱；转账成功后买家获得可交易金豆。
+CREATE TABLE gold_member_trade_listing (
+    id BIGINT NOT NULL,
+    tenant_id BIGINT NOT NULL,
+    seller_user_id BIGINT NOT NULL,
+    quantity BIGINT NOT NULL,
+    remaining_quantity BIGINT NOT NULL,
+    unit_price_cent BIGINT NOT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'OPEN',
+    created_by BIGINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    updated_by BIGINT NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    version INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    KEY idx_gold_trade_listing_market (tenant_id, status, created_at),
+    KEY idx_gold_trade_listing_seller (tenant_id, seller_user_id, status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE gold_member_trade (
+    id BIGINT NOT NULL,
+    tenant_id BIGINT NOT NULL,
+    trade_no VARCHAR(80) NOT NULL,
+    listing_id BIGINT NOT NULL,
+    seller_user_id BIGINT NOT NULL,
+    buyer_user_id BIGINT NOT NULL,
+    quantity BIGINT NOT NULL,
+    unit_price_cent BIGINT NOT NULL,
+    total_amount BIGINT NOT NULL,
+    transaction_id VARCHAR(128) NULL,
+    transfer_batch_no VARCHAR(80) NULL,
+    transfer_detail_no VARCHAR(80) NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'PENDING_PAYMENT',
+    failure_reason VARCHAR(255) NULL,
+    paid_at DATETIME NULL,
+    transferred_at DATETIME NULL,
+    expires_at DATETIME NULL,
+    created_by BIGINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    updated_by BIGINT NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    version INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_gold_member_trade_no (trade_no),
+    UNIQUE KEY uk_gold_member_trade_transaction (transaction_id),
+    KEY idx_gold_member_trade_buyer (tenant_id, buyer_user_id, created_at),
+    KEY idx_gold_member_trade_seller (tenant_id, seller_user_id, created_at),
+    KEY idx_gold_member_trade_listing (tenant_id, listing_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

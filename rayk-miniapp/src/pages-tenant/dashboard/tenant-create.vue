@@ -1,5 +1,6 @@
 <template>
-  <view class="page admin-page">
+  <PlatformAdminShell>
+    <view class="page admin-page">
     <view class="page-heading">
       <view class="eyebrow">HOSPITAL ONBOARDING</view>
       <view class="title">新建合作医院</view>
@@ -25,13 +26,15 @@
       <view v-if="formError" class="form-error">{{ formError }}</view>
       <button class="primary save-button" :loading="saving" @click="save">创建合作医院</button>
     </view>
-  </view>
+    </view>
+  </PlatformAdminShell>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { createPlatformTenant } from '@/api/admin'
 import type { CreatePlatformTenantPayload } from '@/types/api'
+import PlatformAdminShell from '@/components/PlatformAdminShell.vue'
 
 const saving = ref(false)
 const formError = ref('')

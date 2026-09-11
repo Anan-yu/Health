@@ -31,6 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class MembershipEntitlementService {
     public static final String FREE_PLAN_CODE = "FREE_CUSTOMER";
     public static final int FREE_HEALTH_HISTORY_DAYS = 3;
+    public static final String HEALTH_TREE_HOLE_BENEFIT_CODE = "AI_HEALTH_TREE_HOLE";
+    public static final String HEALTH_TREE_HOLE_FEEDBACK_BIZ_TYPE = "HEALTH_TREE_HOLE_FEEDBACK";
+    public static final int HEALTH_TREE_HOLE_TRIAL_DAYS = 7;
 
     private final MembershipProperties properties;
     private final MembershipPlanMapper planMapper;
@@ -87,6 +90,9 @@ public class MembershipEntitlementService {
         }
         MembershipSnapshot snapshot = snapshot(current);
         if (!allowed(snapshot, benefitCode, bizType, bizId)) {
+            if (HEALTH_TREE_HOLE_BENEFIT_CODE.equals(benefitCode)) {
+                throw new BusinessException(ErrorCode.HEALTH_TREE_HOLE_TRIAL_EXPIRED);
+            }
             throw new BusinessException(ErrorCode.MEMBERSHIP_BENEFIT_NOT_AVAILABLE);
         }
         LocalDateTime now = LocalDateTime.now();
@@ -153,6 +159,12 @@ public class MembershipEntitlementService {
         return allowed(snapshot(CurrentUser.require()), benefitCode, bizType, bizId);
     }
 
+    public boolean allowedForSnapshot(
+            MembershipSnapshot snapshot, String benefitCode, String bizType, String bizId) {
+        if (!properties.enabled()) return true;
+        return allowed(snapshot, benefitCode, bizType, bizId);
+    }
+
     /**
      * 免费客户可以查看最近三天的健康拍历史；年度会员可以查看完整历史。
      * 这是查看范围而非消耗型权益，因此不写入 membership_usage。
@@ -206,10 +218,61 @@ public class MembershipEntitlementService {
                 .eq(MembershipPlanBenefitEntity::getDeleted, 0)
                 .last("LIMIT 1"));
         if (config == null) return false;
+        if (HEALTH_TREE_HOLE_BENEFIT_CODE.equals(benefitCode)
+                && "TRIAL_7D".equals(benefit.getUnitType())) {
+            if (snapshot.paidActive()) return true;
+            return withinHealthTreeHoleTrial(snapshot, bizType);
+        }
         int used = usageCount(snapshot, benefitCode, bizType, bizId);
         if ("ENABLED".equals(benefit.getUnitType())) return snapshot.paidActive();
         Integer quota = effectiveQuota(snapshot, config);
         return quota == null || used < quota;
+    }
+
+    private boolean withinHealthTreeHoleTrial(MembershipSnapshot snapshot, String bizType) {
+        if (snapshot == null || snapshot.membership() == null) return false;
+        LocalDateTime firstUseAt = firstUsageAt(snapshot, HEALTH_TREE_HOLE_BENEFIT_CODE, null);
+        if (firstUseAt == null) return true;
+        if (LocalDateTime.now().isBefore(firstUseAt.plusDays(HEALTH_TREE_HOLE_TRIAL_DAYS))) {
+            return true;
+        }
+        // The first seven-day summary is part of the free experience. Give it one
+        // post-period generation attempt, while keeping later periods member-only.
+        return HEALTH_TREE_HOLE_FEEDBACK_BIZ_TYPE.equals(bizType)
+                && usageCountByBizType(
+                                snapshot,
+                                HEALTH_TREE_HOLE_BENEFIT_CODE,
+                                HEALTH_TREE_HOLE_FEEDBACK_BIZ_TYPE)
+                        == 0;
+    }
+
+    private LocalDateTime firstUsageAt(
+            MembershipSnapshot snapshot, String benefitCode, String bizType) {
+        LambdaQueryWrapper<MembershipUsageEntity> query =
+                new LambdaQueryWrapper<MembershipUsageEntity>()
+                        .eq(MembershipUsageEntity::getTenantId, snapshot.membership().getTenantId())
+                        .eq(MembershipUsageEntity::getCustomerId, snapshot.membership().getCustomerId())
+                        .eq(MembershipUsageEntity::getBenefitCode, benefitCode)
+                        .in(MembershipUsageEntity::getUsageStatus, List.of("RESERVED", "CONFIRMED"))
+                        .eq(MembershipUsageEntity::getDeleted, 0)
+                        .orderByAsc(MembershipUsageEntity::getCreatedAt)
+                        .last("LIMIT 1");
+        if (bizType != null) query.eq(MembershipUsageEntity::getBizType, bizType);
+        MembershipUsageEntity first = usageMapper.selectOne(query);
+        return first == null ? null : first.getCreatedAt();
+    }
+
+    private int usageCountByBizType(
+            MembershipSnapshot snapshot, String benefitCode, String bizType) {
+        return Math.toIntExact(
+                usageMapper.selectCount(
+                        new LambdaQueryWrapper<MembershipUsageEntity>()
+                                .eq(MembershipUsageEntity::getTenantId, snapshot.membership().getTenantId())
+                                .eq(MembershipUsageEntity::getCustomerId, snapshot.membership().getCustomerId())
+                                .eq(MembershipUsageEntity::getBenefitCode, benefitCode)
+                                .eq(MembershipUsageEntity::getBizType, bizType)
+                                .in(MembershipUsageEntity::getUsageStatus, List.of("RESERVED", "CONFIRMED"))
+                                .eq(MembershipUsageEntity::getDeleted, 0)));
     }
 
     /** 环境变量只覆盖免费体验额度；年度会员额度仍以数据库方案配置为准。 */

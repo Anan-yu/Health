@@ -23,6 +23,15 @@ class GoldBeanLevelTest {
     }
 
     @Test
+    void exposesRequestedUnlockRewards() {
+        assertThat(GoldBeanLevel.ORDINARY.unlockReward()).isZero();
+        assertThat(GoldBeanLevel.COPPER.unlockReward()).isEqualTo(100);
+        assertThat(GoldBeanLevel.SILVER.unlockReward()).isEqualTo(300);
+        assertThat(GoldBeanLevel.GOLD.unlockReward()).isEqualTo(600);
+        assertThat(GoldBeanLevel.DIAMOND.unlockReward()).isEqualTo(1000);
+    }
+
+    @Test
     void createsReferralCodeWhenUserPartIsShort() {
         assertThat(GoldBeanApplicationService.createReferralCode(1L))
                 .startsWith("SY1")

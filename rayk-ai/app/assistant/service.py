@@ -139,6 +139,19 @@ _SYSTEM_PROMPT = """
 - 只输出符合 outputSchema 的 JSON 对象。
 """.strip()
 
+_TREE_HOLE_PROMPT = """
+当前场景是“健康树洞”：用户会记录当天的身体感受、心情、压力、睡眠和生活状态。
+请先接住用户的表达，再用温和、简短、具体的方式回应；可以帮助用户观察变化、澄清感受和选择一个今天做得到的小行动。
+不要把情绪或身体感受直接归因于疾病，不要制造焦虑，也不要把陪伴式回应写成诊断结论。
+如果记录中出现明确的急症或自伤风险，仍然必须按安全规则优先建议线下紧急帮助。
+""".strip()
+
+_TREE_HOLE_FEEDBACK_PROMPT = """
+当前场景是“健康树洞七天反馈”：请根据用户最近七天主动记录的内容，给出一份可读、温和、非诊断性的阶段反馈。
+反馈至少覆盖：这七天的整体状态、值得继续观察的变化、下一周一个容易执行的小行动；只有记录中明确出现时才提示就医或紧急求助。
+不要虚构缺失的日期、指标或症状，不要把偶发感受说成疾病，也不要输出泛泛的长篇健康知识。
+""".strip()
+
 _EMERGENCY_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"胸痛|胸口剧痛|胸闷伴冷汗", "可能存在需要急诊优先排查的胸部不适"),
     (r"呼吸困难|喘不上气|无法呼吸|口唇发紫", "可能存在需要急诊优先处理的呼吸问题"),
@@ -376,15 +389,28 @@ class MedicalAssistantService:
     def _build_payload(
         self, request: MedicalAssistantRequest, model: str
     ) -> dict[str, Any]:
+        mode = request.mode or "MEDICAL_ASSISTANT"
+        mode_prompt = ""
+        task = "回答用户当前健康问题，并结合其本人资料给出可执行、非诊断性的下一步"
+        if mode == "HEALTH_TREE_HOLE":
+            mode_prompt = _TREE_HOLE_PROMPT
+            task = "回应用户在健康树洞中的当天自述，优先提供理解、陪伴和一个可执行的小行动"
+        elif mode == "HEALTH_TREE_HOLE_FEEDBACK":
+            mode_prompt = _TREE_HOLE_FEEDBACK_PROMPT
+            task = "根据输入的七天健康树洞记录生成阶段反馈，保持非诊断和健康管理参考边界"
         return {
             "model": model,
             "messages": [
-                {"role": "system", "content": _SYSTEM_PROMPT},
+                {
+                    "role": "system",
+                    "content": f"{mode_prompt}\n\n{_SYSTEM_PROMPT}" if mode_prompt else _SYSTEM_PROMPT,
+                },
                 {
                     "role": "user",
                     "content": json.dumps(
                         {
-                            "task": "回答用户当前健康问题，并结合其本人资料给出可执行、非诊断性的下一步",
+                            "mode": mode,
+                            "task": task,
                             "conversationId": request.conversation_id,
                             "patientContext": request.patient_context.model_dump(
                                 by_alias=True, exclude_none=True

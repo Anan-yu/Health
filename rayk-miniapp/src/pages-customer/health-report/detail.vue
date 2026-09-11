@@ -8,6 +8,11 @@
         <view class="hero-meta">由健康档案、检验报告、面部检测结果综合评估</view>
       </view>
 
+      <AiGeneratedNotice
+        v-if="report && interpretation?.source === 'DEEPSEEK'"
+        description="本报告中的健康评估、重点发现和结果解释由人工智能辅助生成，仅供健康管理参考，不作为临床诊断依据。"
+      />
+
       <CareFeedbackCard
         v-if="report"
         :title="reportFeedback.title"
@@ -180,6 +185,7 @@ import type { Assessment, HealthReport } from '@/types/api'
 import { cleanHealthText } from '@/utils/health-text'
 import PageState from '@/components/PageState.vue'
 import CareFeedbackCard from '@/components/CareFeedbackCard.vue'
+import AiGeneratedNotice from '@/components/AiGeneratedNotice.vue'
 
 type Focus = {
   code: string

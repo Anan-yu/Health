@@ -65,7 +65,7 @@ const goOrders = () => uni.navigateTo({ url: '/pages/mall/orders' })
 const goAddress = () => uni.navigateTo({ url: '/pages/mall/address' })
 onShow(() => {
   if (!mallEnabled) {
-    uni.switchTab({ url: '/pages/message/index' })
+    uni.navigateTo({ url: '/pages/message/index' })
     return
   }
   void load()

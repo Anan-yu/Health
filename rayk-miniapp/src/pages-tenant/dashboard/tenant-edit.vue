@@ -1,5 +1,6 @@
 <template>
-  <view class="page admin-page">
+  <PlatformAdminShell>
+    <view class="page admin-page">
     <view class="page-heading">
       <view class="eyebrow">HOSPITAL MANAGEMENT</view>
       <view class="title">编辑合作医院</view>
@@ -95,7 +96,8 @@
         </view>
       </view>
     </PageState>
-  </view>
+    </view>
+  </PlatformAdminShell>
 </template>
 
 <script setup lang="ts">
@@ -111,6 +113,7 @@ import {
 } from '@/api/admin'
 import type { TenantStaff, UpdatePlatformTenantPayload } from '@/types/api'
 import PageState from '@/components/PageState.vue'
+import PlatformAdminShell from '@/components/PlatformAdminShell.vue'
 
 const tenantId = ref(''),
   loading = ref(true),

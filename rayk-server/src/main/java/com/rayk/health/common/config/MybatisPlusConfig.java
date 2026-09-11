@@ -1,7 +1,9 @@
 package com.rayk.health.common.config;
 
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
+import com.baomidou.mybatisplus.annotation.DbType;
 import com.rayk.health.security.service.CurrentUser;
 import com.rayk.health.tenant.TenantContext;
 import java.util.Set;
@@ -27,7 +29,8 @@ public class MybatisPlusConfig {
                     "sys_user_workbench",
                     "sys_user_customer_scope",
                     "wx_user_binding",
-                    "ai_model_runtime_config");
+                    "ai_model_runtime_config",
+                    "gold_platform_registration_invite");
 
     @Bean
     MybatisPlusInterceptor mybatisPlusInterceptor() {
@@ -58,6 +61,7 @@ public class MybatisPlusConfig {
                                         || IGNORED_TABLES.contains(tableName);
                             }
                         }));
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
     }
 }

@@ -1,5 +1,6 @@
 <template>
-  <view class="page followup-page">
+  <PlatformAdminShell>
+    <view class="page followup-page">
     <view class="page-heading">
       <view>
         <view class="eyebrow">HEALTH FOLLOW-UP</view>
@@ -34,7 +35,8 @@
         </view>
       </view>
     </PageState>
-  </view>
+    </view>
+  </PlatformAdminShell>
 </template>
 
 <script setup lang="ts">
@@ -44,6 +46,7 @@ import { getPlatformOverview } from '@/api/admin'
 import type { PlatformFollowup } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import PlatformAdminShell from '@/components/PlatformAdminShell.vue'
 
 const followups = ref<PlatformFollowup[]>([])
 const loading = ref(true)

@@ -11,6 +11,11 @@ import com.wechat.pay.java.core.RSAPublicKeyConfig;
 import com.wechat.pay.java.core.exception.ServiceException;
 import com.wechat.pay.java.core.http.DefaultHttpClientBuilder;
 import com.wechat.pay.java.core.http.HttpClient;
+import com.wechat.pay.java.core.http.HttpMethod;
+import com.wechat.pay.java.core.http.HttpRequest;
+import com.wechat.pay.java.core.http.HttpResponse;
+import com.wechat.pay.java.core.http.JsonRequestBody;
+import com.wechat.pay.java.core.http.JsonResponseBody;
 import com.wechat.pay.java.core.notification.NotificationParser;
 import com.wechat.pay.java.core.notification.NotificationConfig;
 import com.wechat.pay.java.core.notification.RSAPublicKeyNotificationConfig;
@@ -19,6 +24,7 @@ import com.wechat.pay.java.service.payments.jsapi.JsapiServiceExtension;
 import com.wechat.pay.java.service.payments.jsapi.model.PrepayRequest;
 import com.wechat.pay.java.service.payments.jsapi.model.PrepayWithRequestPaymentResponse;
 import com.wechat.pay.java.service.payments.model.Transaction;
+import com.wechat.pay.java.service.transferbatch.TransferBatchService;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.lang.reflect.Method;
@@ -42,6 +48,8 @@ public class WeChatPayClient {
     private final ThreadLocal<Boolean> responseLogged = new ThreadLocal<>();
     private volatile JsapiServiceExtension jsapiService;
     private volatile NotificationParser notificationParser;
+    private volatile TransferBatchService transferBatchService;
+    private volatile HttpClient apiHttpClient;
 
     public WeChatPayClient(MembershipProperties properties) {
         this.properties = properties;
@@ -112,6 +120,51 @@ public class WeChatPayClient {
         }
     }
 
+    public TransferBatchService transferBatch() {
+        if (transferBatchService == null) {
+            initialize();
+        }
+        return transferBatchService;
+    }
+
+    /**
+     * Executes a signed raw API v3 JSON request with the same merchant credential and response
+     * validator used by the typed SDK services. This is needed for newer WeChat endpoints that
+     * are not yet exposed by the pinned SDK version.
+     */
+    public String executeJson(HttpMethod method, String path, String body) {
+        if (method == null || path == null || !path.startsWith("/v3/")) {
+            throw new IllegalArgumentException("Invalid WeChat API request");
+        }
+        try {
+            HttpClient client = apiClient();
+            HttpRequest.Builder request = new HttpRequest.Builder()
+                    .httpMethod(method)
+                    .url("https://api.mch.weixin.qq.com" + path)
+                    .addHeader("Accept", "application/json");
+            if (body != null) {
+                request.addHeader("Content-Type", "application/json")
+                        .body(new JsonRequestBody.Builder().body(body).build());
+            }
+            HttpResponse<JsonResponseBody> response = client.execute(request.build(), JsonResponseBody.class);
+            // The SDK's serviceResponse is Gson-deserialized as JsonResponseBody. For a raw
+            // WeChat response such as {"state":"WAIT_USER_CONFIRM",...}, that object has no
+            // `body` property and therefore contains an empty body. The original response body
+            // is the JsonResponseBody attached to HttpResponse#getBody().
+            JsonResponseBody responseBody = response.getBody() instanceof JsonResponseBody json
+                    ? json
+                    : null;
+            return responseBody == null ? "" : responseBody.getBody();
+        } finally {
+            responseMetadata.remove();
+            responseLogged.remove();
+        }
+    }
+
+    public MembershipProperties.WeChatPayProperties paymentProperties() {
+        return properties.wechatPay();
+    }
+
     public Transaction parseNotification(RequestParam requestParam) {
         try {
             return notificationParser().parse(requestParam, Transaction.class);
@@ -119,6 +172,19 @@ public class WeChatPayClient {
             throw exception;
         } catch (RuntimeException exception) {
             // The callback controller maps invalid signatures/decryption to HTTP 401/400.
+            throw exception;
+        }
+    }
+
+    public <T> T parseNotification(RequestParam requestParam, Class<T> type) {
+        if (type == null) {
+            throw new IllegalArgumentException("Notification type is required");
+        }
+        try {
+            return notificationParser().parse(requestParam, type);
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
             throw exception;
         }
     }
@@ -137,8 +203,18 @@ public class WeChatPayClient {
         return notificationParser;
     }
 
+    private HttpClient apiClient() {
+        if (apiHttpClient == null) {
+            initialize();
+        }
+        return apiHttpClient;
+    }
+
     private synchronized void initialize() {
-        if (jsapiService != null && notificationParser != null) {
+        if (jsapiService != null
+                && notificationParser != null
+                && transferBatchService != null
+                && apiHttpClient != null) {
             return;
         }
         if (!configured()) {
@@ -171,12 +247,18 @@ public class WeChatPayClient {
             built = certificateConfig;
             notificationConfig = certificateConfig;
         }
+        HttpClient builtHttpClient = httpClient(built);
         jsapiService = new JsapiServiceExtension.Builder()
                 .config(built)
-                .httpClient(httpClient(built))
+                .httpClient(builtHttpClient)
                 .signType("RSA")
                 .build();
         notificationParser = new NotificationParser(notificationConfig);
+        transferBatchService = new TransferBatchService.Builder()
+                .config(built)
+                .httpClient(builtHttpClient)
+                .build();
+        apiHttpClient = builtHttpClient;
     }
 
     private HttpClient httpClient(Config config) {
@@ -190,7 +272,7 @@ public class WeChatPayClient {
                             requestUrl,
                             requestId,
                             apiPath));
-                    if (isJsapiPrepayPath(apiPath)) {
+                    if (isTrackedPaymentPath(apiPath)) {
                         logWechatResponse(requestUrl, response, requestId, apiPath);
                         responseLogged.set(true);
                     }
@@ -251,7 +333,7 @@ public class WeChatPayClient {
             // A non-JSON or unreadable response is still diagnosed by URL, status and request ID.
         }
         log.warn(
-                "WeChat JSAPI prepay response: requestUrl={}, httpStatus={}, code={}, message={}, wechatpayRequestId={}, apiPath={}",
+                "WeChat API response: requestUrl={}, httpStatus={}, code={}, message={}, wechatpayRequestId={}, apiPath={}",
                 requestUrl,
                 response.code(),
                 code,
@@ -263,6 +345,15 @@ public class WeChatPayClient {
     private boolean isJsapiPrepayPath(String apiPath) {
         return "/v3/pay/transactions/jsapi".equals(apiPath)
                 || "/v3/pay/partner/transactions/jsapi".equals(apiPath);
+    }
+
+    private boolean isTrackedPaymentPath(String apiPath) {
+        return isJsapiPrepayPath(apiPath)
+                || "/v3/fund-app/mch-transfer/transfer-bills".equals(apiPath)
+                || apiPath.startsWith("/v3/fund-app/mch-transfer/transfer-bills/out-bill-no/")
+                || "/v3/fund-app/mch-transfer/transfer-bills/transfer".equals(apiPath)
+                || "/v3/fund-app/mch-transfer/user-confirm-authorization".equals(apiPath)
+                || apiPath.startsWith("/v3/fund-app/mch-transfer/user-confirm-authorization/out-authorization-no/");
     }
 
     private String safeRequestUrl(ServiceException exception) {
@@ -321,7 +412,7 @@ public class WeChatPayClient {
             }
             Object uri = request.getClass().getMethod("getUri").invoke(request);
             Object path = uri == null ? null : uri.getClass().getMethod("getPath").invoke(uri);
-            return path instanceof String value && isJsapiPrepayPath(value) ? value : "unavailable";
+            return path instanceof String value && isTrackedPaymentPath(value) ? value : "unavailable";
         } catch (ReflectiveOperationException ignored) {
             return "unavailable";
         }

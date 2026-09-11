@@ -1,5 +1,6 @@
 <template>
-  <view class="page admin-page">
+  <PlatformAdminShell>
+    <view class="page admin-page">
     <view class="page-heading">
       <view class="heading-copy">
         <view class="title">合作医院管理</view>
@@ -47,7 +48,8 @@
         ></template
       ></PageState
     >
-  </view>
+    </view>
+  </PlatformAdminShell>
 </template>
 <script setup lang="ts">
 import { computed, ref } from 'vue'
@@ -56,6 +58,7 @@ import { getPlatformAdminProfile, getPlatformOverview, updatePlatformAdminPhone 
 import type { PlatformOverview } from '@/types/api'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import PlatformAdminShell from '@/components/PlatformAdminShell.vue'
 const overview = ref<PlatformOverview>(),
   loading = ref(true),
   error = ref(''),

@@ -106,7 +106,17 @@ export function request<T>(options: UniApp.RequestOptions): Promise<T> {
         ...requestHeaders,
       },
       success: (response) => {
-        const body = response.data as ApiResponse<T>
+        const body = response.data as Partial<ApiResponse<T>> | null
+        const bodyRecord = body !== null && typeof body === 'object' ? body : undefined
+        const bodyMessage = typeof bodyRecord?.message === 'string' ? bodyRecord.message.trim() : ''
+        const statusMessage =
+          response.statusCode === 502
+            ? '网关暂时无法连接服务，请稍后重试'
+            : response.statusCode === 503
+              ? '服务暂时不可用，请稍后重试'
+              : response.statusCode >= 500
+                ? '服务器暂时不可用，请稍后重试'
+                : `请求失败（${response.statusCode}）`
         if (response.statusCode === 401) {
           // A request can finish after an explicit logout. In that case the
           // local session has already been cleared and redirecting with the
@@ -122,11 +132,15 @@ export function request<T>(options: UniApp.RequestOptions): Promise<T> {
           reject(new ApiError(403, '无权限'))
           return
         }
-        if (response.statusCode >= 400 || body.code !== 0) {
-          reject(new ApiError(body.code, body.message))
+        if (response.statusCode >= 400) {
+          reject(new ApiError(response.statusCode, bodyMessage || statusMessage))
           return
         }
-        resolve(body.data)
+        if (!bodyRecord || bodyRecord.code !== 0) {
+          reject(new ApiError(typeof bodyRecord?.code === 'number' ? bodyRecord.code : -1, bodyMessage || '服务返回异常，请稍后重试'))
+          return
+        }
+        resolve(bodyRecord.data as T)
       },
       fail: () => {
         uni.navigateTo({ url: '/pages/error/index' })

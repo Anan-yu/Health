@@ -1,16 +1,29 @@
 <script setup lang="ts">
 import { onHide, onLaunch, onShow } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
+import { goldBeanEnabled } from '@/constants/features'
 import {
   startVoiceReminderRuntime,
   stopVoiceReminderRuntime,
 } from '@/utils/voice-reminder-runtime'
 
+const syncClubTabLabel = () => {
+  const isPlatformAdmin = useAuthStore().currentWorkbench === 'PLATFORM_ADMIN'
+  uni.setTabBarItem({
+    index: 2,
+    text: goldBeanEnabled ? (isPlatformAdmin ? '金豆运营' : '俱乐部') : '消息',
+  })
+}
+
 onLaunch(() => {
   useAuthStore().hydrate()
   startVoiceReminderRuntime()
+  syncClubTabLabel()
 })
-onShow(startVoiceReminderRuntime)
+onShow(() => {
+  startVoiceReminderRuntime()
+  syncClubTabLabel()
+})
 onHide(stopVoiceReminderRuntime)
 </script>
 <style>

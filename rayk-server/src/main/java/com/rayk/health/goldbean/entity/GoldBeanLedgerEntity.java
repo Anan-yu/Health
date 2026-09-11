@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Data;
 
@@ -15,7 +16,7 @@ public class GoldBeanLedgerEntity {
     private Long userId;
     private String bucket;
     private String direction;
-    private Long amount;
+    private BigDecimal amount;
     private String eventType;
     private Long relatedUserId;
     private Long relatedReferralId;

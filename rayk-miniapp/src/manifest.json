@@ -15,6 +15,11 @@
       "minifyWXML": true,
       "minifyWXSS": true
     },
+    "permission": {
+      "scope.writePhotosAlbum": {
+        "desc": "用于保存机器人权益服务群二维码到相册"
+      }
+    },
     "plugins": {
       "vitals-plugin": {
         "version": "latest",

@@ -4,15 +4,22 @@ type WechatPaymentFailure = {
   errMsg?: unknown
 }
 
+export const WECHAT_PAYMENT_CAPABILITY_RESTRICTED_MESSAGE =
+  '微信已限制本小程序支付能力，请管理员登录微信公众平台“通知中心”按提示处理后再支付；当前不会扣款。'
+
 function paymentFailureMessage(failure: WechatPaymentFailure): string {
   const errMsg = typeof failure.errMsg === 'string' ? failure.errMsg : ''
   if (/requestPayment:fail\s+(banned|no permission|access denied|jsapi has no permission)/i.test(errMsg)) {
-    return '小程序支付能力受限，请查看公众平台通知'
+    return WECHAT_PAYMENT_CAPABILITY_RESTRICTED_MESSAGE
   }
   if (/requestPayment:fail\s+cancel/i.test(errMsg)) {
     return '已取消支付'
   }
   return '微信支付未完成，请稍后重试'
+}
+
+export function isWechatPaymentCapabilityRestricted(cause: unknown): boolean {
+  return cause instanceof Error && cause.message === WECHAT_PAYMENT_CAPABILITY_RESTRICTED_MESSAGE
 }
 
 /**

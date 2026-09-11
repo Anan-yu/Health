@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -34,33 +35,53 @@ public class MedicalAssistantController {
     }
 
     @GetMapping("/conversations")
-    public ApiResponse<List<MedicalAssistantConversationVo>> conversations() {
-        return ApiResponse.success(service.listConversations());
+    public ApiResponse<List<MedicalAssistantConversationVo>> conversations(
+            @RequestParam(defaultValue = "MEDICAL_ASSISTANT") String mode) {
+        return ApiResponse.success(
+                treeHoleMode(mode) ? service.listTreeHoleConversations() : service.listConversations());
     }
 
     @PostMapping("/conversations")
     public ApiResponse<MedicalAssistantConversationVo> create(
-            @Valid @RequestBody(required = false) CreateMedicalAssistantConversationRequest request) {
-        return ApiResponse.success(service.createConversation(request));
+            @Valid @RequestBody(required = false) CreateMedicalAssistantConversationRequest request,
+            @RequestParam(defaultValue = "MEDICAL_ASSISTANT") String mode) {
+        return ApiResponse.success(
+                treeHoleMode(mode)
+                        ? service.createTreeHoleConversation(request)
+                        : service.createConversation(request));
     }
 
     @GetMapping("/conversations/{conversationId}")
     public ApiResponse<MedicalAssistantConversationVo> conversation(
-            @PathVariable long conversationId) {
-        return ApiResponse.success(service.getConversation(conversationId));
+            @PathVariable long conversationId,
+            @RequestParam(defaultValue = "MEDICAL_ASSISTANT") String mode) {
+        return ApiResponse.success(
+                treeHoleMode(mode)
+                        ? service.getTreeHoleConversation(conversationId)
+                        : service.getConversation(conversationId));
     }
 
     @DeleteMapping("/conversations/{conversationId}")
-    public ApiResponse<Void> deleteConversation(@PathVariable long conversationId) {
-        service.deleteConversation(conversationId);
+    public ApiResponse<Void> deleteConversation(
+            @PathVariable long conversationId,
+            @RequestParam(defaultValue = "MEDICAL_ASSISTANT") String mode) {
+        if (treeHoleMode(mode)) {
+            service.deleteTreeHoleConversation(conversationId);
+        } else {
+            service.deleteConversation(conversationId);
+        }
         return ApiResponse.success(null);
     }
 
     @PostMapping("/conversations/{conversationId}/messages")
     public ApiResponse<MedicalAssistantConversationVo> message(
             @PathVariable long conversationId,
-            @Valid @RequestBody SendMedicalAssistantMessageRequest request) {
-        return ApiResponse.success(service.sendMessage(conversationId, request));
+            @Valid @RequestBody SendMedicalAssistantMessageRequest request,
+            @RequestParam(defaultValue = "MEDICAL_ASSISTANT") String mode) {
+        return ApiResponse.success(
+                treeHoleMode(mode)
+                        ? service.sendTreeHoleMessage(conversationId, request)
+                        : service.sendMessage(conversationId, request));
     }
 
     @PostMapping(
@@ -69,12 +90,16 @@ public class MedicalAssistantController {
     public SseEmitter streamMessage(
             @PathVariable long conversationId,
             @Valid @RequestBody SendMedicalAssistantMessageRequest request,
+            @RequestParam(defaultValue = "MEDICAL_ASSISTANT") String mode,
             HttpServletResponse response) {
         // Prepare the stream before changing the response content type. The
         // preparation step validates the customer's entitlement and may throw
         // a BusinessException (for example, an exhausted assistant quota).
         try {
-            SseEmitter emitter = service.streamMessage(conversationId, request);
+            SseEmitter emitter =
+                    treeHoleMode(mode)
+                            ? service.streamTreeHoleMessage(conversationId, request)
+                            : service.streamMessage(conversationId, request);
             configureStreamResponse(response);
             return emitter;
         } catch (BusinessException exception) {
@@ -97,6 +122,14 @@ public class MedicalAssistantController {
             emitter.complete();
             return emitter;
         }
+    }
+
+    private boolean treeHoleMode(String mode) {
+        if (mode == null || mode.isBlank() || "MEDICAL_ASSISTANT".equalsIgnoreCase(mode)) {
+            return false;
+        }
+        if ("TREE_HOLE".equalsIgnoreCase(mode)) return true;
+        throw new BusinessException(com.rayk.health.common.exception.ErrorCode.SYSTEM_VALIDATION_ERROR);
     }
 
     private void configureStreamResponse(HttpServletResponse response) {

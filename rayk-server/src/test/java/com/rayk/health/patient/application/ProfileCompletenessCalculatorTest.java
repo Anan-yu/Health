@@ -3,7 +3,9 @@ package com.rayk.health.patient.application;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rayk.health.patient.entity.HealthProfileEntity;
+import com.rayk.health.patient.entity.PatientEntity;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
 class ProfileCompletenessCalculatorTest {
@@ -27,5 +29,18 @@ class ProfileCompletenessCalculatorTest {
         profile.setLifestyleSummary(null);
 
         assertThat(ProfileCompletenessCalculator.calculate(profile)).isZero();
+    }
+
+    @Test
+    void countsIdentityFieldsForDisplayedCompleteness() {
+        HealthProfileEntity profile = new HealthProfileEntity();
+        profile.setHeightCm(BigDecimal.valueOf(168));
+
+        PatientEntity patient = new PatientEntity();
+        patient.setName("陈宇");
+        patient.setGender("MALE");
+        patient.setBirthDate(LocalDate.of(2003, 3, 10));
+
+        assertThat(ProfileCompletenessCalculator.calculate(profile, patient)).isEqualTo(15);
     }
 }

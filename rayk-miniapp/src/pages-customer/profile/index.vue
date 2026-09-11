@@ -44,6 +44,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { getHealthProfile, getMyProfile } from '@/api/patient'
 import type { HealthProfile, Patient } from '@/types/api'
 import PageState from '@/components/PageState.vue'
+import { calculateProfileCompleteness } from '@/utils/profile-completeness'
 
 const patient = ref<Patient | null>(null)
 const profile = ref<HealthProfile | null>(null)
@@ -58,7 +59,13 @@ onShow(async () => {
   error.value = ''
   try {
     patient.value = await getMyProfile()
-    if (patient.value) profile.value = await getHealthProfile(patient.value.id)
+    if (patient.value) {
+      const healthProfile = await getHealthProfile(patient.value.id)
+      profile.value = {
+        ...healthProfile,
+        profileCompleteness: calculateProfileCompleteness(healthProfile, patient.value),
+      }
+    }
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '档案加载失败'
   } finally {

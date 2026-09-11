@@ -1,4 +1,5 @@
 export const MEMBERSHIP_BENEFIT_NOT_AVAILABLE = 60401
+export const HEALTH_TREE_HOLE_TRIAL_EXPIRED = 60740
 
 type MembershipPromptOptions = {
   title?: string
@@ -7,10 +8,11 @@ type MembershipPromptOptions = {
 
 let promptVisible = false
 
-/** Returns true for the stable backend error used when a membership quota is exhausted. */
+/** Returns true for stable backend errors that require the customer to upgrade. */
 export function isMembershipBenefitExhausted(cause: unknown): boolean {
   if (!cause || typeof cause !== 'object') return false
-  return Number((cause as { code?: unknown }).code) === MEMBERSHIP_BENEFIT_NOT_AVAILABLE
+  const code = Number((cause as { code?: unknown }).code)
+  return code === MEMBERSHIP_BENEFIT_NOT_AVAILABLE || code === HEALTH_TREE_HOLE_TRIAL_EXPIRED
 }
 
 /** Matches the stable message persisted on an asynchronously failed report. */

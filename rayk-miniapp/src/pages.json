@@ -1,12 +1,13 @@
 {
   "lazyCodeLoading": "requiredComponents",
   "pages": [
-    { "path": "pages/login/index", "style": { "navigationBarTitleText": "登录" } },
     {
       "path": "pages/home/index",
       "style": { "navigationBarTitleText": "首页", "enablePullDownRefresh": true }
     },
+    { "path": "pages/login/index", "style": { "navigationBarTitleText": "登录" } },
     { "path": "pages/workbench/index", "style": { "navigationBarTitleText": "工作台" } },
+    { "path": "pages/club/index", "style": { "navigationBarTitleText": "俱乐部" } },
     { "path": "pages/mall/index", "style": { "navigationBarTitleText": "健康商城" } },
     { "path": "pages/mall/detail", "style": { "navigationBarTitleText": "商品详情" } },
     { "path": "pages/mall/checkout", "style": { "navigationBarTitleText": "确认订单" } },
@@ -43,7 +44,8 @@
         { "path": "member/benefits", "style": { "navigationBarTitleText": "会员权益" } },
         { "path": "member/usage", "style": { "navigationBarTitleText": "权益记录" } },
         { "path": "member/order-result", "style": { "navigationBarTitleText": "确认支付" } },
-        { "path": "gold-bean/index", "style": { "navigationBarTitleText": "金豆会员" } }
+        { "path": "gold-bean/index", "style": { "navigationBarTitleText": "俱乐部" } },
+        { "path": "gold-bean-market/index", "style": { "navigationBarTitleText": "金豆集市", "enablePullDownRefresh": true } }
       ]
     },
     {
@@ -77,6 +79,7 @@
         { "path": "support/index", "style": { "navigationBarTitleText": "反馈中心" } },
         { "path": "model/index", "style": { "navigationBarTitleText": "AI模型管理" } },
         { "path": "membership/index", "style": { "navigationBarTitleText": "会员管理" } },
+        { "path": "gold-bean/index", "style": { "navigationBarTitleText": "金豆会员运营" } },
         { "path": "mall/index", "style": { "navigationBarTitleText": "商城商品" } }
       ]
     }
@@ -89,7 +92,7 @@
     "list": [
       { "pagePath": "pages/home/index", "text": "首页" },
       { "pagePath": "pages/workbench/index", "text": "工作台" },
-      { "pagePath": "pages/message/index", "text": "消息" },
+      { "pagePath": "pages/club/index", "text": "俱乐部" },
       { "pagePath": "pages/mine/index", "text": "我的" }
     ]
   },

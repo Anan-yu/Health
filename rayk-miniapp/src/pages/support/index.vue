@@ -19,8 +19,16 @@
       </view>
     </view>
 
-    <view class="section-title feedback-title">提交反馈</view>
-    <view class="card form-card">
+    <view v-if="isGuest" class="card guest-support-card">
+      <view class="guest-support-title">想提交问题或建议？</view>
+      <view class="guest-support-copy">登录后即可提交反馈，并在本页查看平台回复。</view>
+      <button class="guest-support-button" hover-class="guest-support-button-hover" @click="goLogin">
+        登录后提交反馈
+      </button>
+    </view>
+
+    <view v-if="!isGuest" class="section-title feedback-title">提交反馈</view>
+    <view v-if="!isGuest" class="card form-card">
       <view class="field">
         <text>问题类型</text>
         <picker :range="categories" range-key="label" @change="selectCategory">
@@ -41,22 +49,24 @@
         <input v-model="contact" maxlength="100" placeholder="手机号或微信号" />
       </view>
     </view>
-    <button class="primary-button" :loading="submitting" :disabled="submitting" @click="submit">
+    <button v-if="!isGuest" class="primary-button" :loading="submitting" :disabled="submitting" @click="submit">
       提交反馈
     </button>
 
-    <view v-if="tickets.length" class="section-title history-title">我的反馈</view>
-    <view v-for="ticket in tickets" :key="ticket.id" class="card ticket-card">
-      <view class="ticket-head"
-        ><text>{{ categoryLabels[ticket.category] }}</text
-        ><text class="status" :class="{ replied: isReplied(ticket) }">{{
-          isReplied(ticket) ? '已回复' : '待回复'
-        }}</text></view
-      >
-      <view class="ticket-content">{{ ticket.content }}</view>
-      <view v-if="isReplied(ticket)" class="reply">平台回复：{{ ticket.reply }}</view>
-      <view class="ticket-time">{{ formatTime(ticket.createdAt) }}</view>
-    </view>
+    <view v-if="!isGuest && tickets.length" class="section-title history-title">我的反馈</view>
+    <template v-if="!isGuest">
+      <view v-for="ticket in tickets" :key="ticket.id" class="card ticket-card">
+        <view class="ticket-head"
+          ><text>{{ categoryLabels[ticket.category] }}</text
+          ><text class="status" :class="{ replied: isReplied(ticket) }">{{
+            isReplied(ticket) ? '已回复' : '待回复'
+          }}</text></view
+        >
+        <view class="ticket-content">{{ ticket.content }}</view>
+        <view v-if="isReplied(ticket)" class="reply">平台回复：{{ ticket.reply }}</view>
+        <view class="ticket-time">{{ formatTime(ticket.createdAt) }}</view>
+      </view>
+    </template>
   </view>
 </template>
 
@@ -64,6 +74,7 @@
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { createSupportTicket, getMySupportTickets } from '@/api/support'
+import { useAuthStore } from '@/stores/auth'
 import type { SupportTicket } from '@/types/api'
 
 const faqs = [
@@ -101,6 +112,8 @@ const contact = ref('')
 const submitting = ref(false)
 const tickets = ref<SupportTicket[]>([])
 const expanded = ref('')
+const auth = useAuthStore()
+const isGuest = computed(() => !auth.isLoggedIn)
 const selectedCategory = computed(() => categories[categoryIndex.value] || categories[0])
 const toggle = (question: string) => (expanded.value = expanded.value === question ? '' : question)
 const selectCategory = (event: { detail: { value: string | number } }) => {
@@ -118,6 +131,10 @@ const load = async () => {
   }
 }
 const submit = async () => {
+  if (isGuest.value) {
+    goLogin()
+    return
+  }
   const description = content.value.trim()
   if (!description) {
     uni.showToast({ title: '请填写问题描述', icon: 'none' })
@@ -141,7 +158,14 @@ const submit = async () => {
     submitting.value = false
   }
 }
-onShow(load)
+const goLogin = () => uni.navigateTo({ url: '/pages/login/index?from=guest' })
+onShow(() => {
+  if (isGuest.value) {
+    tickets.value = []
+    return
+  }
+  void load()
+})
 </script>
 
 <style scoped>
@@ -160,6 +184,43 @@ onShow(load)
 .faq-item:last-child,
 .field.last {
   border-bottom: 0;
+}
+.guest-support-card {
+  margin-top: 30rpx;
+  padding: 34rpx 30rpx 30rpx;
+  text-align: center;
+}
+.guest-support-title {
+  color: #23473d;
+  font-size: 31rpx;
+  line-height: 1.45;
+  font-weight: 730;
+}
+.guest-support-copy {
+  margin-top: 10rpx;
+  color: #71867e;
+  font-size: 24rpx;
+  line-height: 1.65;
+}
+.guest-support-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88rpx;
+  margin: 24rpx 0 0;
+  border: 0;
+  border-radius: 22rpx;
+  background: #0f7a62;
+  color: #fff;
+  font-size: 28rpx;
+  line-height: 1.4;
+  font-weight: 720;
+}
+.guest-support-button::after {
+  border: 0;
+}
+.guest-support-button-hover {
+  opacity: 0.86;
 }
 .faq-head,
 .ticket-head {

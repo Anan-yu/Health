@@ -263,13 +263,38 @@ public class MembershipApplicationService {
     /** Handles a verified-by-content virtual-payment goods delivery notification. */
     @Transactional
     public void handleVirtualPaymentNotification(String body) {
+        handleVirtualPaymentNotification(body, false);
+    }
+
+    /**
+     * Handles both the signed payload envelope and the standard mini-program message-push
+     * JSON body used by the virtual-payment goods-delivery event.
+     */
+    @Transactional
+    public void handleVirtualPaymentNotification(String body, boolean messagePushAuthenticated) {
         try {
             JsonNode root = objectMapper.readTree(body);
-            if (!"xpay_goods_deliver_notify".equals(text(root, "Event", "event"))) {
+            String event = text(root, "Event", "event");
+            String eventType = text(root, "EventType", "eventType", "event_type", "eventtype");
+            if (!isSupportedVirtualPaymentEvent(event, eventType)) {
                 throw new BusinessException(ErrorCode.MEMBERSHIP_PAYMENT_UNAVAILABLE);
             }
-            String orderNo = text(root, "OutTradeNo", "out_trade_no");
-            if (orderNo == null) {
+            String payloadText = payloadText(root);
+            boolean directMessagePush = !StringUtils.hasText(payloadText);
+            if (directMessagePush) {
+                if (!messagePushAuthenticated || !hasDirectGoodsDeliveryFields(root)) {
+                    throw new BusinessException(ErrorCode.MEMBERSHIP_PAYMENT_UNAVAILABLE);
+                }
+            } else if (!weChatVirtualPayClient.verifyPaymentEventSignature(
+                    event, payloadText, text(root, "PayEventSig", "payEventSig", "pay_event_sig"))) {
+                throw new BusinessException(ErrorCode.MEMBERSHIP_PAYMENT_UNAVAILABLE);
+            }
+            JsonNode payload = directMessagePush ? root : objectMapper.readTree(payloadText);
+            String orderNo = text(root, "OutTradeNo", "out_trade_no", "outTradeNo");
+            if (!StringUtils.hasText(orderNo)) {
+                orderNo = text(payload, "OutTradeNo", "out_trade_no", "outTradeNo");
+            }
+            if (!StringUtils.hasText(orderNo)) {
                 throw new BusinessException(ErrorCode.MEMBERSHIP_ORDER_NOT_FOUND);
             }
             MembershipOrderEntity order = orderMapper.selectOne(
@@ -285,25 +310,31 @@ public class MembershipApplicationService {
             }
 
             MembershipProperties.WeChatVirtualPayProperties pay = properties.wechatVirtualPay();
-            int env = integer(root, "Env", "env");
-            String openid = text(root, "OpenId", "openid");
-            JsonNode goods = child(root, "GoodsInfo", "goodsInfo");
-            JsonNode payment = child(root, "WeChatPayInfo", "weChatPayInfo");
+            int env = integer(payload, "Env", "env");
+            if (env < 0) env = integer(root, "Env", "env");
+            String openid = text(payload, "OpenId", "openid");
+            JsonNode goods = child(payload, "GoodsInfo", "goodsInfo");
+            JsonNode payment = child(payload, "PayInfo", "payInfo", "WeChatPayInfo", "weChatPayInfo");
             String productId = text(goods, "ProductId", "productId");
             int quantity = integer(goods, "Quantity", "quantity");
             int actualPrice = integer(goods, "ActualPrice", "actualPrice");
-            String transactionId = text(payment, "TransactionId", "transactionId");
-            String merchantOrderNo = text(payment, "MchOrderNo", "mchOrderNo");
+            String payloadTransactionId = text(payment, "TransactionId", "transactionId");
+            String outerTransactionId = text(root, "TransactionId", "transactionId");
+            String transactionId = StringUtils.hasText(payloadTransactionId)
+                    ? payloadTransactionId
+                    : outerTransactionId;
             String merchantCode = text(root, "MerchantCode", "merchantCode");
+            if (!StringUtils.hasText(merchantCode)) merchantCode = text(payload, "MerchantCode", "merchantCode");
 
             if (!pay.configured()
-                    || env != pay.env()
+                    || (env >= 0 && env != pay.env())
                     || !pay.productId().equals(productId)
                     || quantity != 1
                     || actualPrice != order.getAmountCent()
                     || !StringUtils.hasText(openid)
-                    || !StringUtils.hasText(transactionId)
-                    || merchantOrderNo != null && !orderNo.equals(merchantOrderNo)
+                    || StringUtils.hasText(outerTransactionId)
+                            && StringUtils.hasText(payloadTransactionId)
+                            && !outerTransactionId.equals(payloadTransactionId)
                     || merchantCode != null && !pay.merchantId().equals(merchantCode)) {
                 throw new BusinessException(ErrorCode.MEMBERSHIP_PAYMENT_UNAVAILABLE);
             }
@@ -313,19 +344,22 @@ public class MembershipApplicationService {
                             .eq(WeChatUserBindingEntity::getUserId, order.getCustomerId())
                             .eq(WeChatUserBindingEntity::getAppId, pay.appId())
                             .eq(WeChatUserBindingEntity::getOpenid, openid)
+                            .eq(WeChatUserBindingEntity::getStatus, "ACTIVE")
                             .eq(WeChatUserBindingEntity::getDeleted, 0)
                             .last("LIMIT 1"));
             if (binding == null) {
                 throw new BusinessException(ErrorCode.MEMBERSHIP_PAYMENT_UNAVAILABLE);
             }
-            MembershipOrderEntity duplicateTransaction = orderMapper.selectOne(
-                    new LambdaQueryWrapper<MembershipOrderEntity>()
-                            .eq(MembershipOrderEntity::getTransactionId, transactionId)
-                            .ne(MembershipOrderEntity::getOrderNo, orderNo)
-                            .eq(MembershipOrderEntity::getDeleted, 0)
-                            .last("LIMIT 1"));
-            if (duplicateTransaction != null) {
-                throw new BusinessException(ErrorCode.MEMBERSHIP_PAYMENT_UNAVAILABLE);
+            if (StringUtils.hasText(transactionId)) {
+                MembershipOrderEntity duplicateTransaction = orderMapper.selectOne(
+                        new LambdaQueryWrapper<MembershipOrderEntity>()
+                                .eq(MembershipOrderEntity::getTransactionId, transactionId)
+                                .ne(MembershipOrderEntity::getOrderNo, orderNo)
+                                .eq(MembershipOrderEntity::getDeleted, 0)
+                                .last("LIMIT 1"));
+                if (duplicateTransaction != null) {
+                    throw new BusinessException(ErrorCode.MEMBERSHIP_PAYMENT_UNAVAILABLE);
+                }
             }
             MembershipPlanEntity plan = planMapper.selectById(order.getPlanId());
             if (plan == null) {
@@ -403,6 +437,18 @@ public class MembershipApplicationService {
                 return value.asText().trim();
             }
         }
+        var fields = node.fields();
+        while (fields.hasNext()) {
+            var entry = fields.next();
+            for (String name : names) {
+                if (entry.getKey().equalsIgnoreCase(name)
+                        && entry.getValue() != null
+                        && !entry.getValue().isNull()
+                        && StringUtils.hasText(entry.getValue().asText())) {
+                    return entry.getValue().asText().trim();
+                }
+            }
+        }
         return null;
     }
 
@@ -416,7 +462,39 @@ public class MembershipApplicationService {
                 return value;
             }
         }
+        var fields = node.fields();
+        while (fields.hasNext()) {
+            var entry = fields.next();
+            for (String name : names) {
+                if (entry.getKey().equalsIgnoreCase(name) && entry.getValue() != null && !entry.getValue().isNull()) {
+                    return entry.getValue();
+                }
+            }
+        }
         return null;
+    }
+
+    private String payloadText(JsonNode root) {
+        JsonNode payload = child(root, "payload", "Payload");
+        if (payload == null || payload.isNull()) return null;
+        return payload.isTextual() ? payload.textValue() : payload.toString();
+    }
+
+    private boolean isSupportedVirtualPaymentEvent(String event, String eventType) {
+        if ("xpay_goods_deliver_notify".equalsIgnoreCase(event)) {
+            // Some virtual-payment console versions omit EventType; the signed payload and all
+            // order/payment checks below remain mandatory.
+            return !StringUtils.hasText(eventType) || "TRANSACTION.SUCCESS".equalsIgnoreCase(eventType);
+        }
+        return "minigame_game_pay_goods_deliver_notify".equalsIgnoreCase(event)
+                && ("event".equalsIgnoreCase(eventType) || "TRANSACTION.SUCCESS".equalsIgnoreCase(eventType));
+    }
+
+    private boolean hasDirectGoodsDeliveryFields(JsonNode root) {
+        return root != null
+                && StringUtils.hasText(text(root, "OutTradeNo", "outTradeNo", "out_trade_no"))
+                && StringUtils.hasText(text(root, "OpenId", "openid"))
+                && child(root, "GoodsInfo", "goodsInfo") != null;
     }
 
     private int integer(JsonNode node, String... names) {
@@ -473,7 +551,8 @@ public class MembershipApplicationService {
             int used = entitlementService.usageCount(snapshot, config.getBenefitCode(), "SUMMARY", null);
             Integer quota = entitlementService.effectiveQuota(snapshot, config);
             Integer remaining = quota == null ? null : Math.max(0, quota - used);
-            boolean available = "ENABLED".equals(benefit.getUnitType()) ? snapshot.paidActive() : remaining == null || remaining > 0;
+            boolean available = entitlementService.allowedForSnapshot(
+                    snapshot, config.getBenefitCode(), "SUMMARY", null);
             return new MembershipBenefitVo(config.getBenefitCode(), benefit.getBenefitName(), benefit.getDescription(),
                     benefit.getUnitType(), quota, used, remaining, available);
         }).filter(Objects::nonNull).toList();

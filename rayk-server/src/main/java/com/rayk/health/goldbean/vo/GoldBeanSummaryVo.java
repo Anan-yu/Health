@@ -1,6 +1,7 @@
 package com.rayk.health.goldbean.vo;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 public record GoldBeanSummaryVo(
         boolean enabled,
@@ -16,9 +17,9 @@ public record GoldBeanSummaryVo(
         int nextLevelThreshold,
         String registrationFeeStatus,
         String registrationFeeRecipient,
-        long totalBalance,
-        long digitalBankBalance,
-        long tradingBalance,
+        BigDecimal totalBalance,
+        BigDecimal digitalBankBalance,
+        BigDecimal tradingBalance,
         int tradeLimitPercent,
         int dailyRewardDays,
         int dailyRewardTotalDays,
@@ -27,4 +28,12 @@ public record GoldBeanSummaryVo(
         LocalDateTime protectionUntil,
         boolean regionOpenAllowed,
         String regionId,
-        String regionCity) {}
+        String regionCity,
+        boolean paymentEnabled,
+        int registrationFeeCent,
+        boolean goldBeanPurchaseEnabled,
+        int goldBeanUnitPriceCent,
+        int maxPurchaseQuantity,
+        int platformRegistrationFeeCent,
+        int referralRegistrationFeeCent,
+        int virtualPaymentSurchargePercent) {}

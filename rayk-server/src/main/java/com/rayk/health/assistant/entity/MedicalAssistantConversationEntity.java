@@ -18,6 +18,7 @@ public class MedicalAssistantConversationEntity {
     private String title;
     private String status;
     private String model;
+    private String conversationType;
     private Long createdBy;
     private LocalDateTime createdAt;
     private Long updatedBy;

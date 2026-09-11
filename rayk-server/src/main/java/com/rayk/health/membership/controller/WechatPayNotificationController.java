@@ -4,6 +4,8 @@ import com.rayk.health.common.exception.BusinessException;
 import com.rayk.health.membership.application.MembershipApplicationService;
 import com.rayk.health.membership.payment.WeChatPayClient;
 import com.rayk.health.mall.application.MallApplicationService;
+import com.rayk.health.goldbean.application.GoldBeanPaymentService;
+import com.rayk.health.goldbean.application.GoldBeanTradeService;
 import com.wechat.pay.java.core.exception.MalformedMessageException;
 import com.wechat.pay.java.core.exception.ValidationException;
 import com.wechat.pay.java.core.notification.RequestParam;
@@ -23,14 +25,20 @@ public class WechatPayNotificationController {
     private final WeChatPayClient weChatPayClient;
     private final MembershipApplicationService membershipService;
     private final MallApplicationService mallService;
+    private final GoldBeanPaymentService goldBeanPaymentService;
+    private final GoldBeanTradeService goldBeanTradeService;
 
     public WechatPayNotificationController(
             WeChatPayClient weChatPayClient,
             MembershipApplicationService membershipService,
-            MallApplicationService mallService) {
+            MallApplicationService mallService,
+            GoldBeanPaymentService goldBeanPaymentService,
+            GoldBeanTradeService goldBeanTradeService) {
         this.weChatPayClient = weChatPayClient;
         this.membershipService = membershipService;
         this.mallService = mallService;
+        this.goldBeanPaymentService = goldBeanPaymentService;
+        this.goldBeanTradeService = goldBeanTradeService;
     }
 
     @PostMapping("/notify")
@@ -53,6 +61,14 @@ public class WechatPayNotificationController {
                             .build();
             var transaction = weChatPayClient.parseNotification(requestParam);
             if (transaction != null
+                    && transaction.getOutTradeNo() != null
+                    && transaction.getOutTradeNo().startsWith("GBR")) {
+                goldBeanPaymentService.handleWechatPayment(transaction);
+            } else if (transaction != null
+                    && transaction.getOutTradeNo() != null
+                    && transaction.getOutTradeNo().startsWith("GBT")) {
+                goldBeanTradeService.handleWechatPayment(transaction);
+            } else if (transaction != null
                     && transaction.getOutTradeNo() != null
                     && transaction.getOutTradeNo().startsWith("G")) {
                 mallService.handleWechatPayment(transaction);

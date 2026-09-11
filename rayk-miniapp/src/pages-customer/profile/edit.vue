@@ -279,8 +279,13 @@ const questionnaireFields = [
   'fattyLiverStatus',
 ] as const
 const liveCompleteness = computed(() => {
-  const answered = questionnaireFields.filter((field) => form[field].trim() !== '').length
-  return Math.round((answered / questionnaireFields.length) * 100)
+  const questionnaireAnswered = questionnaireFields.filter((field) => form[field].trim() !== '').length
+  const identityAnswered = [identity.name, identity.gender, identity.birthDate].filter(
+    (value) => value.trim() !== '',
+  ).length
+  return Math.round(
+    ((questionnaireAnswered + identityAnswered) / (questionnaireFields.length + 3)) * 100,
+  )
 })
 type SelectOption = { label: string; value: string }
 type PickerChangeEvent = { detail: { value: string | number } }

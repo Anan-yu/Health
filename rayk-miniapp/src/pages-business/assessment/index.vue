@@ -10,6 +10,10 @@
     />
     <PageState :loading="loading" :empty="items.length === 0">
       <view v-for="assessment in items" :key="assessment.id" class="assessment-block">
+        <AiGeneratedNotice
+          v-if="assessment.results?.interpretation?.source === 'DEEPSEEK'"
+          description="本段综合解读由人工智能生成，请结合原始资料和专业判断使用。"
+        />
         <view class="card assessment-head">
           <view>
             <view class="section-title">健康评估</view>
@@ -54,6 +58,7 @@ import HealthDimensionDashboard from '@/components/HealthDimensionDashboard.vue'
 import PageState from '@/components/PageState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CareFeedbackCard from '@/components/CareFeedbackCard.vue'
+import AiGeneratedNotice from '@/components/AiGeneratedNotice.vue'
 const items = ref<Assessment[]>([]),
   loading = ref(true)
 

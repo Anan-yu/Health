@@ -1,5 +1,6 @@
 <template>
-  <view class="page support-center">
+  <PlatformAdminShell>
+    <view class="page support-center">
     <view class="support-hero">
       <view class="hero-glow hero-glow-top" />
       <view class="hero-glow hero-glow-bottom" />
@@ -106,7 +107,8 @@
         </view>
       </view>
     </PageState>
-  </view>
+    </view>
+  </PlatformAdminShell>
 </template>
 
 <script setup lang="ts">
@@ -114,6 +116,7 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getPlatformSupportTickets, replyPlatformSupportTicket } from '@/api/support'
 import PageState from '@/components/PageState.vue'
+import PlatformAdminShell from '@/components/PlatformAdminShell.vue'
 import type { PlatformSupportTicket } from '@/types/api'
 
 type TicketStatus = PlatformSupportTicket['status']

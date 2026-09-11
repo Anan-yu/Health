@@ -1,5 +1,6 @@
 <template>
-  <view class="page model-page">
+  <PlatformAdminShell>
+    <view class="page model-page">
     <view class="model-hero">
       <view class="hero-eyebrow">AI MODEL CONTROL</view>
       <view class="hero-title">AI模型管理</view>
@@ -65,7 +66,8 @@
         </view>
       </view>
     </PageState>
-  </view>
+    </view>
+  </PlatformAdminShell>
 </template>
 
 <script setup lang="ts">
@@ -73,6 +75,7 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getAiModelRuntimeConfigs, switchAiModel, switchAiThinking } from '@/api/admin'
 import PageState from '@/components/PageState.vue'
+import PlatformAdminShell from '@/components/PlatformAdminShell.vue'
 import type { AiModelRuntimeConfig } from '@/types/api'
 
 const models = ref<AiModelRuntimeConfig[]>([])

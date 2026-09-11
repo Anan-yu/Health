@@ -62,6 +62,56 @@ class WeChatVirtualPayClientTest {
         assertThat(payment.signData()).doesNotContain("/requestVirtualPayment");
     }
 
+    @Test
+    void signsCustomProductAndQuantityForGoldBeanOrders() throws Exception {
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        @SuppressWarnings("unchecked")
+        ValueOperations<String, String> values = mock(ValueOperations.class);
+        when(redis.opsForValue()).thenReturn(values);
+        when(values.get("rayk:wechat:session-key:app-id:1001")).thenReturn("session-key");
+
+        MembershipProperties.WeChatVirtualPayProperties virtualPay =
+                new MembershipProperties.WeChatVirtualPayProperties(
+                        "app-id", "merchant-id", "offer-id", "app-key", "", 0,
+                        "short_series_goods", "membership-product", "https://example.test/notify");
+        MembershipProperties properties =
+                new MembershipProperties(
+                        true, true, 3, 3, 1, 3, 3, 3, false,
+                        MembershipProperties.WeChatPayProperties.empty(), virtualPay);
+        WeChatVirtualPayClient client =
+                new WeChatVirtualPayClient(
+                        properties, new WeChatSessionKeyStore(redis), new ObjectMapper());
+
+        var payment = client.createGoodsPayment("GBP123", 25, "gold-bean-product", 100, 1001L, "gold-bean:GBP123");
+
+        assertThat(payment.signData())
+                .contains("\"buyQuantity\":25", "\"productId\":\"gold-bean-product\"", "\"goodsPrice\":100");
+        assertThat(payment.paySig())
+                .isEqualTo(hmacSha256("app-key", "requestVirtualPayment&" + payment.signData()));
+        assertThat(payment.signature()).isEqualTo(hmacSha256("session-key", payment.signData()));
+    }
+
+    @Test
+    void verifiesVirtualPaymentDeliverySignature() throws Exception {
+        MembershipProperties.WeChatVirtualPayProperties virtualPay =
+                new MembershipProperties.WeChatVirtualPayProperties(
+                        "app-id", "merchant-id", "offer-id", "app-key", "", 0,
+                        "short_series_goods", "gold-bean-product", "https://example.test/notify");
+        MembershipProperties properties =
+                new MembershipProperties(
+                        true, true, 3, 3, 1, 3, 3, 3, false,
+                        MembershipProperties.WeChatPayProperties.empty(), virtualPay);
+        WeChatVirtualPayClient client =
+                new WeChatVirtualPayClient(
+                        properties, mock(WeChatSessionKeyStore.class), new ObjectMapper());
+        String event = "xpay_goods_deliver_notify";
+        String payload = "{\"OpenId\":\"openid\",\"OutTradeNo\":\"GBP123\"}";
+        String signature = hmacSha256("app-key", event + "&" + payload);
+
+        assertThat(client.verifyPaymentEventSignature(event, payload, signature)).isTrue();
+        assertThat(client.verifyPaymentEventSignature(event, payload, signature + "0")).isFalse();
+    }
+
     private static String hmacSha256(String key, String message)
             throws NoSuchAlgorithmException, InvalidKeyException {
         Mac mac = Mac.getInstance("HmacSHA256");

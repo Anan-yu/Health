@@ -104,6 +104,9 @@ rayk:
     processing-timeout-minutes: ${RAYK_TASK_PROCESSING_TIMEOUT_MINUTES:10}
     pending-timeout-minutes: ${RAYK_TASK_PENDING_TIMEOUT_MINUTES:2}
     recovery-interval-ms: ${RAYK_TASK_RECOVERY_INTERVAL_MS:60000}
+  health-tree-hole:
+    # Generate due seven-day summaries in the background; override for staging verification.
+    feedback-cron: "${RAYK_HEALTH_TREE_HOLE_FEEDBACK_CRON:0 15 2 * * *}"
   health-shot:
     enabled: ${HEALTH_SHOT_ENABLED:false}
     app-id: ${HEALTH_SHOT_APP_ID:}
@@ -168,9 +171,44 @@ rayk:
     initial-beans: ${GOLD_BEAN_INITIAL_BEANS:60}
     daily-reward-beans: ${GOLD_BEAN_DAILY_REWARD_BEANS:60}
     daily-reward-days: ${GOLD_BEAN_DAILY_REWARD_DAYS:20}
-    registration-fee-cent: ${GOLD_BEAN_REGISTRATION_FEE_CENT:99800}
+    # These are business/settlement amounts. All gold-bean virtual-payment chains charge the
+    # configured surcharge on top, while referral/seller merchant transfers keep these amounts.
+    registration-fee-cent: ${GOLD_BEAN_REGISTRATION_FEE_CENT:100000}
+    platform-registration-fee-cent: ${GOLD_BEAN_PLATFORM_REGISTRATION_FEE_CENT:100000}
+    virtual-payment-surcharge-percent: ${GOLD_BEAN_VIRTUAL_PAYMENT_SURCHARGE_PERCENT:12}
     protection-days: ${GOLD_BEAN_PROTECTION_DAYS:7}
     limited-trade-percent: ${GOLD_BEAN_LIMITED_TRADE_PERCENT:50}
+    payment-enabled: ${GOLD_BEAN_PAYMENT_ENABLED:false}
+    registration-product-id: ${GOLD_BEAN_REGISTRATION_PRODUCT_ID:}
+    # Referral registration uses a separate, approved virtual product. Keep it empty until the
+    # product is configured and published at the actual payable price.
+    referral-registration-product-id: ${GOLD_BEAN_REFERRAL_REGISTRATION_PRODUCT_ID:}
+    gold-bean-product-id: ${GOLD_BEAN_PRODUCT_ID:}
+    gold-bean-unit-price-cent: ${GOLD_BEAN_UNIT_PRICE_CENT:100}
+    max-purchase-quantity: ${GOLD_BEAN_MAX_PURCHASE_QUANTITY:10000}
+    # Member-to-member trades use the configured gold_bean virtual item, then merchant transfer
+    # to the seller. Gold beans are delivered only after the transfer reaches SUCCESS.
+    trade-payment-enabled: ${GOLD_BEAN_TRADE_PAYMENT_ENABLED:false}
+    trade-transfer-scene-id: ${GOLD_BEAN_TRADE_TRANSFER_SCENE_ID:}
+    trade-transfer-notify-url: ${GOLD_BEAN_TRADE_TRANSFER_NOTIFY_URL:}
+    trade-transfer-user-recv-perception: ${GOLD_BEAN_TRADE_TRANSFER_USER_RECV_PERCEPTION:劳务报酬}
+    trade-transfer-job-type: ${GOLD_BEAN_TRADE_TRANSFER_JOB_TYPE:金豆交易服务}
+    trade-transfer-reward-description: ${GOLD_BEAN_TRADE_TRANSFER_REWARD_DESCRIPTION:金豆交易结算}
+    trade-settlement-retry-seconds: ${GOLD_BEAN_TRADE_SETTLEMENT_RETRY_SECONDS:30}
+    # Referral registration is paid to the platform merchant first, then settled to the
+    # referrer's bound WeChat account through merchant transfer. Keep it opt-in per environment.
+    registration-referral-transfer-enabled: ${GOLD_BEAN_REGISTRATION_REFERRAL_TRANSFER_ENABLED:false}
+    registration-referral-transfer-scene-id: ${GOLD_BEAN_REGISTRATION_REFERRAL_TRANSFER_SCENE_ID:}
+    registration-referral-transfer-notify-url: ${GOLD_BEAN_REGISTRATION_REFERRAL_TRANSFER_NOTIFY_URL:}
+    registration-referral-authorization-notify-url: ${GOLD_BEAN_REGISTRATION_REFERRAL_AUTHORIZATION_NOTIFY_URL:}
+    registration-referral-transfer-user-recv-perception: ${GOLD_BEAN_REGISTRATION_REFERRAL_TRANSFER_USER_RECV_PERCEPTION:劳务报酬}
+    registration-referral-transfer-job-type: ${GOLD_BEAN_REGISTRATION_REFERRAL_TRANSFER_JOB_TYPE:推荐注册服务}
+    registration-referral-transfer-reward-description: ${GOLD_BEAN_REGISTRATION_REFERRAL_TRANSFER_REWARD_DESCRIPTION:推荐注册服务报酬}
+    # The robot entitlement is redeemed with digital-bank gold beans. An external enterprise-
+    # WeChat customer-group QR image URL can rotate the live-code; when empty, the mini-program
+    # uses its bundled QR image as the test/default group entry.
+    robot-group-name: ${GOLD_BEAN_ROBOT_GROUP_NAME:机器人权益服务群}
+    robot-group-qr-image-url: ${GOLD_BEAN_ROBOT_GROUP_QR_IMAGE_URL:}
 
 logging:
   pattern:

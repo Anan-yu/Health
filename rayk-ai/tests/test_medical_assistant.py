@@ -234,6 +234,30 @@ def test_deepseek_answer_is_structured_and_grounded() -> None:
     assert prompt["outputSchema"]
 
 
+def test_tree_hole_mode_keeps_qwen_payload_scoped_to_personal_sharing() -> None:
+    client = _FakeClient(
+        {
+            "reply": "我听见了你的描述，可以先记录今天的身体感受和情绪变化。",
+            "riskLevel": "INFO",
+            "emergency": False,
+            "citations": [],
+            "usedContext": ["当前树洞记录"],
+            "followupQuestions": [],
+            "disclaimer": ASSISTANT_DISCLAIMER,
+        }
+    )
+    request = _request("今天有点累，也有些焦虑").model_copy(update={"mode": "HEALTH_TREE_HOLE"})
+
+    result = MedicalAssistantService(settings=_settings(), client=client).answer(request)
+
+    assert result.model == "qwen3.8-flash"
+    assert client.payload is not None
+    assert "健康树洞" in client.payload["messages"][0]["content"]
+    prompt = json.loads(client.payload["messages"][1]["content"])
+    assert prompt["mode"] == "HEALTH_TREE_HOLE"
+    assert prompt["messages"][-1]["content"] == "今天有点累，也有些焦虑"
+
+
 def test_stream_answer_emits_reply_deltas_and_structured_done_event() -> None:
     client = _FakeStreamingClient(
         {

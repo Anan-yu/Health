@@ -1,5 +1,6 @@
 <template>
-  <view class="page membership-admin-page">
+  <PlatformAdminShell>
+    <view class="page membership-admin-page">
     <view class="membership-hero">
       <view class="hero-eyebrow">CUSTOMER MEMBERSHIP</view>
       <view class="hero-title">会员管理</view>
@@ -77,12 +78,14 @@
       <view class="empty-title">输入手机号开始管理</view>
       <view class="empty-copy">查找后可查看客户当前会员状态，并进行开通或取消操作。</view>
     </view>
-  </view>
+    </view>
+  </PlatformAdminShell>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { getPlatformCustomerMembership, updatePlatformCustomerMembership } from '@/api/admin'
+import PlatformAdminShell from '@/components/PlatformAdminShell.vue'
 import type { PlatformCustomerMembership } from '@/types/api'
 
 const phone = ref('')

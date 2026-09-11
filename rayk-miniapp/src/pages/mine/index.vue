@@ -1,5 +1,5 @@
 <template>
-  <view class="page mine-page" :class="{ 'elder-page': isCustomer }">
+  <view class="page mine-page" :class="{ 'elder-page': isCustomer || isGuest }">
     <view class="profile-card" :class="{ clickable: canSwitch }" @click="canSwitch && goSwitch()">
       <view class="profile-pattern" />
       <view class="profile-top">
@@ -11,7 +11,7 @@
         </view>
         <view v-if="canSwitch" class="profile-arrow">›</view>
       </view>
-      <view class="profile-stats">
+      <view v-if="!isGuest" class="profile-stats">
         <view
           ><text>{{ auth.roles.length }}</text
           ><text>账号角色</text></view
@@ -23,12 +23,20 @@
       </view>
     </view>
 
-    <view v-if="!isPlatform" class="section-head">
+    <view v-if="isGuest" class="card guest-account-card">
+      <view class="guest-account-title">登录后管理个人健康服务</view>
+      <view class="guest-account-copy">登录后可保存健康档案、上传检验报告，并查看本人的评估和随访进度。</view>
+      <button class="guest-account-button" hover-class="guest-account-button-hover" @click="goLogin">
+        选择登录
+      </button>
+    </view>
+
+    <view v-if="!isPlatform && !isGuest" class="section-head">
       <view>
         <view class="section-title">账号与服务</view>
       </view>
     </view>
-    <view v-if="!isPlatform" class="card settings-card">
+    <view v-if="!isPlatform && !isGuest" class="card settings-card">
       <view v-if="isCustomer" class="setting" @click="goAssistant">
         <view class="setting-icon cyan">助</view>
         <view class="setting-content">
@@ -45,11 +53,19 @@
         </view>
         <view class="setting-arrow">›</view>
       </view>
+      <view class="setting" @click="goMessages">
+        <view class="setting-icon blue">信</view>
+        <view class="setting-content">
+          <view class="setting-title">我的消息</view>
+          <view class="muted">查看报告发布、随访提醒和健康动态</view>
+        </view>
+        <view class="setting-arrow">›</view>
+      </view>
       <view v-if="isCustomer && goldBeanEnabled" class="setting" @click="goGoldBean">
         <view class="setting-icon amber">豆</view>
         <view class="setting-content">
-          <view class="setting-title">金豆会员</view>
-          <view class="muted">开发环境体验等级与金豆规则</view>
+          <view class="setting-title">俱乐部</view>
+          <view class="muted">金豆成长、会员权益与奖励规则</view>
         </view>
         <view class="setting-arrow">›</view>
       </view>
@@ -63,7 +79,7 @@
       </view>
     </view>
 
-    <button class="logout" @click="signOut">退出当前账号</button>
+    <button v-if="!isGuest" class="logout" @click="signOut">退出当前账号</button>
   </view>
 </template>
 
@@ -81,20 +97,25 @@ const roleNames: Record<Role, string> = {
   DOCTOR: '医生工作台',
   CUSTOMER: '个人健康中心',
 }
+const isGuest = computed(() => !auth.isLoggedIn)
+const isCustomer = computed(() => !isGuest.value && auth.currentWorkbench === 'CUSTOMER')
 const workbenchName = computed(() =>
-  auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '当前工作台',
+  isGuest.value ? '游客体验' : auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '当前工作台',
 )
-const tenantDisplayName = computed(() => '三羊健康平台')
+const tenantDisplayName = computed(() =>
+  isGuest.value ? '可先浏览公开健康服务' : '三羊健康平台',
+)
 const canSwitch = computed(() => (auth.user?.availableWorkbenches.length || 0) > 1)
 const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
 const goSupport = () => uni.navigateTo({ url: '/pages/support/index' })
 const goAssistant = () => uni.navigateTo({ url: '/pages-customer/medical-assistant/index' })
 const goMembership = () => uni.navigateTo({ url: '/pages-customer/member/index' })
-const goGoldBean = () => uni.navigateTo({ url: '/pages-customer/gold-bean/index' })
-const isPlatform = computed(() => auth.currentWorkbench === 'PLATFORM_ADMIN')
-const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
+const goMessages = () => uni.navigateTo({ url: '/pages/message/index' })
+const goGoldBean = () => uni.switchTab({ url: '/pages/club/index' })
+const isPlatform = computed(() => !isGuest.value && auth.currentWorkbench === 'PLATFORM_ADMIN')
 const profileName = ref('')
 const profileDisplayName = computed(() => {
+  if (isGuest.value) return '游客'
   if (isCustomer.value) return profileName.value || '三羊健康用户'
   return auth.user?.displayName?.trim() || '三羊健康用户'
 })
@@ -117,8 +138,9 @@ onShow(() => void loadProfileName())
 
 async function signOut() {
   await auth.signOut()
-  uni.reLaunch({ url: '/pages/login/index' })
+  uni.reLaunch({ url: '/pages/home/index' })
 }
+const goLogin = () => uni.navigateTo({ url: '/pages/login/index?from=guest' })
 </script>
 
 <style scoped>
@@ -217,6 +239,41 @@ async function signOut() {
   color: rgba(255, 255, 255, 0.6);
   font-size: 20rpx;
   line-height: 1.4;
+}
+.guest-account-card {
+  padding: 34rpx 30rpx 30rpx;
+}
+.guest-account-title {
+  color: #23473d;
+  font-size: 32rpx;
+  line-height: 1.45;
+  font-weight: 730;
+}
+.guest-account-copy {
+  margin-top: 10rpx;
+  color: #71867e;
+  font-size: 25rpx;
+  line-height: 1.65;
+}
+.guest-account-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88rpx;
+  margin: 24rpx 0 0;
+  border: 0;
+  border-radius: 22rpx;
+  background: #0f7a62;
+  color: #fff;
+  font-size: 29rpx;
+  line-height: 1.4;
+  font-weight: 720;
+}
+.guest-account-button::after {
+  border: 0;
+}
+.guest-account-button-hover {
+  opacity: 0.86;
 }
 .settings-card {
   padding: 0 28rpx;

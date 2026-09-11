@@ -1,5 +1,6 @@
 <template>
-  <view class="page admin-page">
+  <PlatformAdminShell>
+    <view class="page admin-page">
     <view class="page-heading">
       <view class="eyebrow">DOCTOR DIRECTORY</view>
       <view class="title">预录入医生管理</view>
@@ -48,7 +49,8 @@
         </view>
       </template>
     </PageState>
-  </view>
+    </view>
+  </PlatformAdminShell>
 </template>
 
 <script setup lang="ts">
@@ -57,6 +59,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { getPlatformDoctors, getPlatformOverview } from '@/api/admin'
 import type { TenantStaff, TenantSummary } from '@/types/api'
 import PageState from '@/components/PageState.vue'
+import PlatformAdminShell from '@/components/PlatformAdminShell.vue'
 
 interface DoctorGroup {
   tenant: TenantSummary

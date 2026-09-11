@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.rayk.health.patient.dto.UpdateProfileRequest;
 import com.rayk.health.patient.entity.HealthProfileEntity;
+import com.rayk.health.patient.entity.PatientEntity;
 import com.rayk.health.patient.mapper.HealthProfileMapper;
 import com.rayk.health.patient.vo.HealthProfileVo;
 import com.rayk.health.security.service.CurrentPrincipal;
@@ -31,9 +32,9 @@ public class HealthProfileService {
      * 获取客户健康档案，不存在则自动创建空档案。
      */
     public HealthProfileVo getProfile(long patientId) {
-        dataScopeService.requirePatient(patientId);
+        PatientEntity patient = dataScopeService.requirePatient(patientId);
         HealthProfileEntity entity = findOrCreate(patientId);
-        refreshDerivedValues(entity, false);
+        refreshDerivedValues(entity, false, patient);
         return toVo(entity);
     }
 
@@ -41,7 +42,7 @@ public class HealthProfileService {
      * 更新客户健康档案，重新计算 BMI 和完整度。
      */
     public HealthProfileVo updateProfile(long patientId, UpdateProfileRequest request) {
-        dataScopeService.requirePatient(patientId);
+        PatientEntity patient = dataScopeService.requirePatient(patientId);
         privacyConsentService.requireConsent(
                 patientId, PrivacyConsentService.TYPE_DATA_COLLECTION);
         CurrentPrincipal current = CurrentUser.require();
@@ -76,7 +77,7 @@ public class HealthProfileService {
 
         entity.setUpdatedBy(current.userId());
         entity.setUpdatedAt(LocalDateTime.now());
-        refreshDerivedValues(entity, true);
+        refreshDerivedValues(entity, true, patient);
 
         return toVo(entity);
     }
@@ -87,12 +88,14 @@ public class HealthProfileService {
     }
 
     /**
-     * Keeps older seeded/imported records consistent with the current questionnaire fields.
+     * Keeps older seeded/imported records consistent with the current identity and
+     * questionnaire fields.
      * Completeness is derived, never trusted from a previously stored percentage.
      */
-    private void refreshDerivedValues(HealthProfileEntity entity, boolean forcePersist) {
+    private void refreshDerivedValues(
+            HealthProfileEntity entity, boolean forcePersist, PatientEntity patient) {
         entity.recalculateBmi();
-        int calculatedCompleteness = ProfileCompletenessCalculator.calculate(entity);
+        int calculatedCompleteness = ProfileCompletenessCalculator.calculate(entity, patient);
         boolean changed = entity.getProfileCompleteness() == null
                 || entity.getProfileCompleteness() != calculatedCompleteness;
         entity.setProfileCompleteness(calculatedCompleteness);

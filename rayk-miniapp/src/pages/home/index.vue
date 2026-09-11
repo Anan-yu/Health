@@ -1,5 +1,5 @@
 <template>
-  <view class="page home-page" :class="{ 'elder-page': isCustomer }">
+  <view class="page home-page" :class="{ 'elder-page': isCustomer || isGuest }">
     <PageState :loading="loading" :error="error">
       <view class="hero-card">
         <view class="hero-glow" />
@@ -9,11 +9,16 @@
             <view class="hero-greeting">{{ heroGreeting }}</view>
             <view class="hero-caption">{{ heroCaption }}</view>
           </view>
-          <view class="avatar">{{ avatarText }}</view>
+          <view class="avatar" :class="{ 'avatar-brand': !homeDisplayName }">
+            <image v-if="!homeDisplayName" class="avatar-logo" :src="logoArt" mode="aspectFill" />
+            <text v-else>{{ avatarText }}</text>
+          </view>
         </view>
         <view class="hero-bottom">
           <view class="workbench-pill"> <text class="online-dot" />{{ roleLabel }} </view>
-          <view class="switch-link" @click="goSwitch">切换工作台 ›</view>
+          <view class="switch-link" @click="isGuest ? goLogin() : goSwitch()"
+            >{{ isGuest ? '登录后使用 ›' : '切换工作台 ›' }}</view
+          >
         </view>
       </view>
 
@@ -23,7 +28,7 @@
         :poster="homeVideoPoster"
       />
       <CareFeedbackCard
-        v-else
+        v-else-if="!isGuest"
         :title="careFeedback.title"
         :message="careFeedback.message"
         :detail="careFeedback.detail"
@@ -33,27 +38,46 @@
         @action="open(careFeedback.route)"
       />
 
+      <view
+        v-if="isCustomer"
+        class="tree-hole-home-card"
+        @click="open('/pages-customer/medical-assistant/index?mode=tree-hole')"
+      >
+        <view class="tree-hole-home-mark">树</view>
+        <view class="tree-hole-home-copy">
+          <view class="tree-hole-home-eyebrow">每日健康记录</view>
+          <view class="tree-hole-home-title">健康树洞</view>
+          <view class="tree-hole-home-description">免费体验7天 · 健康会员无限使用 · 7天后看变化</view>
+        </view>
+        <view class="tree-hole-home-arrow">›</view>
+      </view>
+
       <view class="section-head">
         <view>
           <view class="section-title">今日概览</view>
         </view>
-        <view class="section-tip refresh-tip" @click="refresh(true)">{{ refreshLabel }}</view>
+        <view v-if="!isGuest" class="section-tip refresh-tip" @click="refresh(true)">{{
+          refreshLabel
+        }}</view>
       </view>
-      <view v-if="isCustomer" class="health-dashboard">
-        <view class="profile-progress-panel" @click="open(profileMetric?.route || insightRoute)">
+      <view v-if="isGuest || isCustomer" class="health-dashboard">
+        <view
+          class="profile-progress-panel"
+          @click="openOverview(profileMetric?.route || insightRoute, '健康档案', '查看和完善健康档案')"
+        >
           <view class="profile-progress-head">
             <view>
               <view class="profile-progress-title">档案完整度</view>
-              <view class="profile-progress-status">{{ profileCompletenessLabel }}</view>
+              <view class="profile-progress-status">{{ overviewProfileStatus }}</view>
             </view>
             <view class="profile-progress-value"
-              >{{ profileCompleteness }}<text>%</text></view
+              >{{ overviewProfileCompleteness }}<text>%</text></view
             >
           </view>
           <view class="profile-progress-track">
             <view
               class="profile-progress-bar"
-              :style="{ width: `${profileCompleteness}%` }"
+              :style="{ width: `${overviewProfileCompleteness}%` }"
             />
           </view>
           <view class="profile-progress-action">
@@ -63,10 +87,10 @@
         </view>
         <view class="dashboard-stat-list">
           <view
-            v-for="(item, index) in customerStats"
+            v-for="(item, index) in overviewStats"
             :key="item.code"
             class="dashboard-stat"
-            @click="open(item.route)"
+            @click="openOverview(item.route, item.label, item.label)"
           >
             <view class="dashboard-stat-head">
               <view class="dashboard-stat-icon" :class="`stat-tone-${index}`">{{
@@ -76,7 +100,7 @@
             </view>
             <view class="dashboard-stat-value">{{ item.value }}</view>
             <view class="dashboard-stat-label">{{ item.label }}</view>
-            <view class="dashboard-stat-hint">点击查看详情</view>
+            <view class="dashboard-stat-hint">{{ isGuest ? '登录后查看详情' : '点击查看详情' }}</view>
           </view>
         </view>
       </view>
@@ -122,14 +146,14 @@
           v-for="(item, index) in quickMenus"
           :key="item.route"
           class="service-item"
-          @click="open(item.route)"
+          @click="isGuest ? previewGuestFeature(item) : open(item.route)"
         >
           <view class="service-icon" :class="`service-tone-${index % 4}`">{{ item.icon }}</view>
           <view class="service-name">{{ item.title }}</view>
         </view>
       </view>
 
-      <view v-if="isCustomer" class="insight-card" @click="open(insightRoute)">
+      <view v-if="isCustomer && homeProfileProgressCardEnabled" class="insight-card" @click="open(insightRoute)">
         <view class="insight-icon">{{ isCustomer ? '✓' : '效' }}</view>
         <view class="insight-content">
           <view class="insight-label">{{ insightLabel }}</view>
@@ -151,12 +175,14 @@ import PageState from '@/components/PageState.vue'
 import CareFeedbackCard from '@/components/CareFeedbackCard.vue'
 import HomeVideoCard from '@/components/HomeVideoCard.vue'
 import { getAiModelRuntimeConfigs } from '@/api/admin'
-import { getMyProfile } from '@/api/patient'
+import { getHealthProfile, getMyProfile } from '@/api/patient'
 import { getHomeSummary } from '@/api/workbench'
-import { homeVideoEnabled } from '@/constants/features'
-import { menusFor } from '@/constants/menus'
+import { homeProfileProgressCardEnabled, homeVideoEnabled } from '@/constants/features'
+import { guestMenus, menusFor, type MenuItem } from '@/constants/menus'
+import logoArt from '@/assets/ui/login/brand-logo-sheep.png'
 import { useAuthStore } from '@/stores/auth'
-import type { HomeSummary, Role } from '@/types/api'
+import type { HomeMetric, HomeSummary, Role } from '@/types/api'
+import { calculateProfileCompleteness } from '@/utils/profile-completeness'
 
 const auth = useAuthStore()
 const summary = ref<HomeSummary>()
@@ -166,6 +192,7 @@ const loading = ref(true),
   error = ref('')
 const lastUpdatedAt = ref<Date | null>(null)
 let refreshTimer: ReturnType<typeof globalThis.setInterval> | undefined
+let refreshSerial = 0
 const metricIcons = ['待', '报', '评', '康']
 const homeVideoUrl = String(import.meta.env.VITE_HOME_VIDEO_URL || '').trim()
 const homeVideoPoster = String(import.meta.env.VITE_HOME_VIDEO_POSTER || '').trim()
@@ -175,17 +202,19 @@ const roleNames: Record<Role, string> = {
   CUSTOMER: '个人健康中心',
 }
 
-const isCustomer = computed(() => auth.currentWorkbench === 'CUSTOMER')
+const isGuest = computed(() => !auth.isLoggedIn)
+const isCustomer = computed(() => !isGuest.value && auth.currentWorkbench === 'CUSTOMER')
 const roleLabel = computed(() =>
-  auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '工作台',
+  isGuest.value ? '游客体验' : auth.currentWorkbench ? roleNames[auth.currentWorkbench] : '工作台',
 )
 const homeDisplayName = computed(() => {
+  if (isGuest.value) return ''
   if (isCustomer.value) return profileName.value.trim() || ''
   return auth.user?.displayName?.trim() || ''
 })
-const avatarText = computed(() => homeDisplayName.value.slice(0, 1) || 'R')
+const avatarText = computed(() => homeDisplayName.value.slice(0, 1))
 const quickMenus = computed(() =>
-  menusFor(auth.currentWorkbench)
+  (isGuest.value ? guestMenus : menusFor(auth.currentWorkbench))
     .filter((item) => !item.permission || auth.permissions.includes(item.permission))
     .slice(0, 4),
 )
@@ -198,12 +227,14 @@ const dayGreeting = computed(() => {
   return '晚上好'
 })
 const heroGreeting = computed(() => {
+  if (isGuest.value) return '欢迎体验三羊健康'
   const name = homeDisplayName.value
   if (isCustomer.value) return `${dayGreeting.value}${name ? `，${name}` : '，朋友'}`
   if (auth.currentWorkbench === 'DOCTOR') return `辛苦了${name ? `，${name}` : ''}`
   return `欢迎回来${name ? `，${name}` : ''}`
 })
 const heroCaption = computed(() => {
+  if (isGuest.value) return '健康服务已为你整理，选择需要的功能开始体验'
   if (isCustomer.value) {
     return metricValue('FOLLOWUP') > 0
       ? '今天的健康行动已为你整理，按自己的节奏完成'
@@ -224,6 +255,26 @@ const homeMetrics = computed(() =>
 )
 const customerStats = computed(
   () => summary.value?.metrics.filter((item) => item.code !== 'PROFILE') ?? [],
+)
+const guestOverviewStats: HomeMetric[] = [
+  {
+    code: 'REPORT',
+    value: 0,
+    label: '已生成健康报告',
+    route: '/pages-customer/health-report/index',
+  },
+  {
+    code: 'FOLLOWUP',
+    value: 0,
+    label: '待完成健康随访',
+    route: '/pages-customer/followup/index',
+  },
+]
+const overviewStats = computed<HomeMetric[]>(() =>
+  isGuest.value ? guestOverviewStats : customerStats.value,
+)
+const overviewProfileCompleteness = computed(() =>
+  isGuest.value ? 0 : profileCompleteness.value,
 )
 const metricValue = (code: string) =>
   Number(summary.value?.metrics.find((item) => item.code === code)?.value || 0)
@@ -304,6 +355,9 @@ const profileCompletenessLabel = computed(() => {
   if (profileCompleteness.value >= 70) return '继续补充更准确'
   return '建议优先完善档案'
 })
+const overviewProfileStatus = computed(() =>
+  isGuest.value ? '登录后可完善健康档案' : profileCompletenessLabel.value,
+)
 const insightTitle = computed(() => `健康档案已完善 ${profileCompleteness.value}%`)
 const insightLabel = computed(() => '健康管理进度')
 const insightProgress = computed(() => profileCompleteness.value)
@@ -320,15 +374,45 @@ const refreshLabel = computed(() =>
 )
 
 async function refresh(silent = false) {
+  const serial = ++refreshSerial
   if (!silent) loading.value = true
   error.value = ''
+  if (isGuest.value) {
+    summary.value = undefined
+    profileName.value = ''
+    activeModelName.value = ''
+    lastUpdatedAt.value = null
+    loading.value = false
+    return
+  }
   try {
-    const [homeSummary, profile] = await Promise.all([
+    const customerSnapshotPromise = isCustomer.value
+      ? getMyProfile()
+          .then(async (patient) => ({
+            patient,
+            profile: patient ? await getHealthProfile(patient.id) : null,
+          }))
+          .catch(() => null)
+      : Promise.resolve(null)
+    const [homeSummary, customerSnapshot] = await Promise.all([
       getHomeSummary(),
-      isCustomer.value ? getMyProfile().catch(() => null) : Promise.resolve(null),
+      customerSnapshotPromise,
     ])
-    summary.value = homeSummary
-    profileName.value = profile?.name?.trim() || ''
+    if (serial !== refreshSerial) return
+    const directCompleteness =
+      customerSnapshot?.profile && customerSnapshot.patient
+        ? calculateProfileCompleteness(customerSnapshot.profile, customerSnapshot.patient)
+        : undefined
+    summary.value =
+      typeof directCompleteness === 'number'
+        ? {
+            ...homeSummary,
+            metrics: homeSummary.metrics.map((item) =>
+              item.code === 'PROFILE' ? { ...item, value: directCompleteness } : item,
+            ),
+          }
+        : homeSummary
+    profileName.value = customerSnapshot?.patient?.name?.trim() || ''
     if (auth.currentWorkbench === 'PLATFORM_ADMIN') {
       try {
         const models = await getAiModelRuntimeConfigs()
@@ -341,18 +425,23 @@ async function refresh(silent = false) {
     }
     lastUpdatedAt.value = new Date()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '加载失败'
+    if (serial === refreshSerial) error.value = e instanceof Error ? e.message : '加载失败'
   } finally {
-    loading.value = false
+    if (serial === refreshSerial) loading.value = false
   }
 }
 
 onShow(() => {
   void refresh()
   if (refreshTimer) globalThis.clearInterval(refreshTimer)
+  if (isGuest.value) {
+    refreshTimer = undefined
+    return
+  }
   refreshTimer = globalThis.setInterval(() => void refresh(true), 20_000)
 })
 onHide(() => {
+  refreshSerial += 1
   if (refreshTimer) globalThis.clearInterval(refreshTimer)
   refreshTimer = undefined
 })
@@ -361,9 +450,42 @@ onPullDownRefresh(async () => {
   uni.stopPullDownRefresh()
 })
 
-const open = (url: string) => uni.navigateTo({ url })
-const goSwitch = () => uni.navigateTo({ url: '/pages/switch-workbench/index' })
+const open = (url: string) => {
+  if (url === '/pages/workbench/index') {
+    uni.switchTab({ url })
+    return
+  }
+  uni.navigateTo({ url })
+}
+const goLogin = () => uni.navigateTo({ url: '/pages/login/index?from=guest' })
+const showGuestLoginPrompt = (title: string, description: string) => {
+  uni.showModal({
+    title,
+    content: `${description}。登录后即可使用本人数据并保存进度。`,
+    cancelText: '继续浏览',
+    confirmText: '去登录',
+    success: ({ confirm }) => {
+      if (confirm) goLogin()
+    },
+  })
+}
+const openOverview = (url: string, title: string, description: string) => {
+  if (isGuest.value) {
+    showGuestLoginPrompt(title, description)
+    return
+  }
+  open(url)
+}
+const goSwitch = () => {
+  if (isGuest.value) {
+    goLogin()
+    return
+  }
+  uni.navigateTo({ url: '/pages/switch-workbench/index' })
+}
 const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
+const previewGuestFeature = (item: MenuItem) =>
+  showGuestLoginPrompt(item.title, item.description)
 </script>
 
 <style scoped>
@@ -427,6 +549,17 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   background: rgba(255, 255, 255, 0.15);
   font-size: 34rpx;
   font-weight: 760;
+}
+.avatar-brand {
+  overflow: hidden;
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.9);
+}
+.avatar-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
 .hero-bottom {
   margin-top: 40rpx;
@@ -773,6 +906,67 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   color: #b58d42;
   font-size: 42rpx;
 }
+.tree-hole-home-card {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-top: 22rpx;
+  padding: 24rpx 26rpx;
+  border: 1rpx solid #d8e6cb;
+  border-radius: 30rpx;
+  background: linear-gradient(135deg, #f7fbef 0%, #edf6e5 100%);
+  box-shadow: 0 12rpx 26rpx rgba(70, 103, 61, 0.08);
+}
+.tree-hole-home-card:active {
+  transform: scale(0.99);
+  background: #e8f2df;
+}
+.tree-hole-home-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 78rpx;
+  height: 78rpx;
+  border: 1rpx solid #cfe2bf;
+  border-radius: 26rpx;
+  color: #5b8252;
+  background: #e4f1d9;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+.tree-hole-home-copy {
+  flex: 1;
+  min-width: 0;
+}
+.tree-hole-home-eyebrow {
+  color: #7b986d;
+  font-size: 20rpx;
+  line-height: 1.35;
+  letter-spacing: 1rpx;
+}
+.tree-hole-home-title {
+  margin-top: 4rpx;
+  color: #36573d;
+  font-size: 31rpx;
+  font-weight: 800;
+  line-height: 1.35;
+}
+.tree-hole-home-description {
+  overflow: hidden;
+  margin-top: 5rpx;
+  color: #789175;
+  font-size: 22rpx;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-hole-home-arrow {
+  flex: 0 0 auto;
+  color: #7ea16f;
+  font-size: 42rpx;
+  line-height: 1;
+}
 .home-page.elder-page .hero-card {
   padding: 42rpx 36rpx 36rpx;
 }
@@ -839,10 +1033,11 @@ const goWorkbench = () => uni.switchTab({ url: '/pages/workbench/index' })
   grid-template-columns: repeat(2, 1fr);
   gap: 16rpx;
   padding: 24rpx;
+  margin-bottom: 0;
 }
 .home-page.elder-page .service-item {
-  min-height: 148rpx;
-  padding: 22rpx 10rpx;
+  min-height: 174rpx;
+  padding: 30rpx 10rpx 28rpx;
   border-radius: 24rpx;
   background: #f8fbfa;
 }

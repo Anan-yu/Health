@@ -1,5 +1,5 @@
 <template>
-  <view class="page login-page elder-page">
+  <view class="page login-page elder-page" :class="{ 'dev-login-page': isDevBuild }">
     <view class="hero">
       <view class="brand-row">
         <image class="logo" :src="logoArt" mode="aspectFill" />
@@ -41,9 +41,8 @@
 
     <!-- #ifdef MP-WEIXIN -->
     <view class="card login-card">
-      <view class="card-title">{{ supportsPhoneLogin ? '微信授权手机号登录' : '微信一键登录' }}</view>
+      <view class="card-title">{{ supportsPhoneLogin ? '手机号快捷登录' : '快捷登录' }}</view>
       <view class="login-subtitle">快捷登录，安全可靠</view>
-      <image class="wechat-mark" :src="wechatArt" mode="aspectFit" />
       <button
         v-if="supportsPhoneLogin && legalAgreed"
         class="wechat"
@@ -54,7 +53,7 @@
         phone-number-no-quota-toast
         @getphonenumber="handleWeChatLogin"
       >
-        {{ supportsPhoneLogin ? '授权手机号并登录' : '微信一键登录' }}
+        {{ supportsPhoneLogin ? '手机号快捷登录' : '快捷登录' }}
       </button>
       <button
         v-else
@@ -64,10 +63,10 @@
         hover-class="wechat-hover"
         @click="handleWeChatLogin()"
       >
-        {{ supportsPhoneLogin ? '授权手机号并登录' : '微信一键登录' }}
+        {{ supportsPhoneLogin ? '手机号快捷登录' : '快捷登录' }}
       </button>
       <view v-if="wechatLoading" class="recognizing">
-        {{ supportsPhoneLogin ? '正在安全识别微信身份与授权手机号…' : '正在安全识别微信身份…' }}
+        {{ supportsPhoneLogin ? '正在安全识别登录身份与手机号…' : '正在安全识别登录身份…' }}
       </view>
       <view v-if="identified" class="identified">
         <view class="identified-mark">✓</view>
@@ -124,8 +123,8 @@
 
     <!-- #ifdef H5 -->
     <view v-if="!isDevBuild" class="card browser-tip">
-      <view class="card-title">请在微信中使用</view>
-      <view class="subtitle">正式账号通过微信小程序登录；此网页仅用于展示与本地运维验证。</view>
+      <view class="card-title">请在小程序中使用</view>
+      <view class="subtitle">正式账号通过小程序登录；此网页仅用于展示与本地运维验证。</view>
     </view>
     <!-- #endif -->
 
@@ -182,7 +181,6 @@ import { onLoad } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 import type { AuthData, Role } from '@/types/api'
 import heroArt from '@/assets/ui/login/login-hero-ai.png'
-import wechatArt from '@/assets/ui/login/login-wechat.png'
 import securityArt from '@/assets/ui/login/login-security.png'
 import membershipArt from '@/assets/ui/login/login-membership.png'
 import followupArt from '@/assets/ui/login/login-followup.png'
@@ -290,7 +288,7 @@ async function confirmLegalAgreement() {
   if (target === 'developer') await handleLogin()
   else if (target === 'wechat' && !supportsPhoneLogin) await handleWeChatLogin()
   else if (target === 'wechat') {
-    uni.showToast({ title: '已同意，请再次点击授权手机号并登录', icon: 'none' })
+    uni.showToast({ title: '已同意，请再次点击手机号快捷登录', icon: 'none' })
   }
 }
 
@@ -311,19 +309,19 @@ async function handleWeChatLogin(
   if (supportsPhoneLogin && !phoneCode) {
     wechatError.value = /deny|cancel/i.test(phoneError)
       ? '您取消了手机号授权，请重新点击并允许授权'
-      : '微信未返回手机号授权凭证，请重新点击授权手机号并确认授权；开发包请使用真机预览'
+      : '未返回手机号授权凭证，请重新点击手机号快捷登录并确认授权；开发包请使用真机预览'
     wechatLoading.value = false
     return
   }
   try {
     const result = await uni.login({ provider: 'weixin' })
-    if (!result.code) throw new Error('微信未返回登录凭证')
+    if (!result.code) throw new Error('未返回登录凭证')
     const data: AuthData = await auth.loginWithWeChat(result.code, phoneCode)
     identified.value = identifiedFor(data)
     await new Promise((resolve) => setTimeout(resolve, 900))
     uni.switchTab({ url: '/pages/home/index' })
   } catch (e) {
-    wechatError.value = e instanceof Error ? e.message : '微信登录失败，请重试'
+    wechatError.value = e instanceof Error ? e.message : '登录失败，请重试'
   } finally {
     wechatLoading.value = false
   }
@@ -342,11 +340,17 @@ async function handleLogin() {
     loading.value = false
   }
 }
+
 </script>
 
 <style scoped>
 .login-page {
   padding-top: 0;
+}
+.login-page.elder-page {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
 }
 .hero {
   position: relative;
@@ -517,13 +521,6 @@ async function handleLogin() {
   margin-top: 4rpx;
   color: #8a9ca4;
   font-size: 25rpx;
-}
-.wechat-mark {
-  display: block;
-  width: 220rpx;
-  height: 220rpx;
-  margin: 18rpx auto 0;
-  object-fit: contain;
 }
 .wechat {
   display: flex;
@@ -724,6 +721,9 @@ async function handleLogin() {
   margin: 8rpx 0 24rpx;
   color: #82949d;
   font-size: 23rpx;
+}
+.login-page.elder-page:not(.dev-login-page) .security-line {
+  margin: auto 0 0;
 }
 .security-mark {
   display: inline-flex;

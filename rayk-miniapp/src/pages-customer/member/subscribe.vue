@@ -110,6 +110,7 @@ const rightsRows = computed(() => [
   { name: 'AI 健康评估', freeValue: '3 次', memberValue: '会员期内不限次数' },
   { name: 'AI 健康报告', freeValue: '3 次', memberValue: '会员期内不限次数' },
   { name: 'AI健康助手', freeValue: '3 次对话', memberValue: '会员期内不限次数' },
+  { name: '健康树洞', freeValue: '免费体验 7 天', memberValue: '会员期内不限使用' },
   { name: 'AI 初始健康随访', freeValue: '首次 1 次', memberValue: '支持' },
   { name: 'AI 持续健康随访', freeValue: '不支持', memberValue: '会员期内持续使用' },
   { name: '健康拍', freeValue: '3 次', memberValue: '每天 1 次' },

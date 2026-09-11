@@ -1,4 +1,13 @@
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 
@@ -31,6 +40,18 @@ const manifestFiles = new Set([
   'project.private.config.json',
   'sitemap.json',
 ])
+
+const isEnabled = (value) => String(value || '').trim().toLowerCase() === 'true'
+
+const productionGoldBeanEnabled = () => {
+  if (process.env.VITE_GOLD_BEAN_ENABLED !== undefined) {
+    return isEnabled(process.env.VITE_GOLD_BEAN_ENABLED)
+  }
+  const envPath = resolve(root, '.env.production')
+  if (!existsSync(envPath)) return false
+  const match = readFileSync(envPath, 'utf8').match(/^\s*VITE_GOLD_BEAN_ENABLED\s*=\s*(.*?)\s*$/m)
+  return isEnabled(match?.[1])
+}
 
 if (!existsSync(buildDir)) {
   console.error(`微信构建目录不存在：${buildDir}`)
@@ -79,6 +100,20 @@ const syncInPlace = (sourceDir, targetDir) => {
 // lets syncInPlace remove stale files only after current assets are copied;
 // app.json is still the final root-level write.
 syncInPlace(buildDir, releaseDir)
+
+// When production builds explicitly disable the club feature, keep the legacy
+// message tab in the generated package. An enabled production build keeps the
+// club tab from pages.json so the package and runtime feature switch agree.
+if (target === 'prod' && !productionGoldBeanEnabled()) {
+  const manifestPath = resolve(releaseDir, 'app.json')
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  const tab = manifest.tabBar?.list?.[2]
+  if (!tab) throw new Error(`生产微信包缺少第三个底部导航项：${manifestPath}`)
+  tab.pagePath = 'pages/message/index'
+  tab.text = '消息'
+  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
+}
+
 const label =
   target === 'dev'
     ? '开发'

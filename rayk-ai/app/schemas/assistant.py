@@ -25,6 +25,7 @@ class MedicalAssistantRequest(RaykModel):
     )
     model: str | None = Field(default=None, max_length=80)
     thinking_enabled: bool | None = Field(default=False, alias="thinkingEnabled")
+    mode: str = Field(default="MEDICAL_ASSISTANT", max_length=40)
 
 
 class MedicalAssistantData(RaykModel):
